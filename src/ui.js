@@ -4,6 +4,20 @@ import { avatarFor } from './identity.js';
 
 export const el = (id) => document.getElementById(id);
 
+// Keeps the table's reserved top space exactly matched to the HUD's real rendered
+// height (index.html's #app padding-top reads --hud-h) — so the canvas never sizes
+// itself underneath the HUD bar, whatever its height turns out to be on a given
+// screen/font/wrap. A hardcoded padding constant would drift the moment the HUD's
+// content wraps differently (narrow screens, a longer opponent name, etc).
+const hudEl = el('hud');
+const syncHudHeight = () => {
+  document.documentElement.style.setProperty('--hud-h', `${hudEl.offsetHeight}px`);
+};
+new ResizeObserver(syncHudHeight).observe(hudEl);
+window.addEventListener('resize', syncHudHeight);
+window.addEventListener('orientationchange', syncHudHeight);
+syncHudHeight();
+
 function setChip(prefix, name, level) {
   const { initial, color } = avatarFor(name);
   el(`${prefix}-avatar`).textContent = initial;

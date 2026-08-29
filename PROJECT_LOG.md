@@ -5,7 +5,46 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
-## Current state (2026-08-29)
+## Current state (2026-08-30)
+
+- **UI/UX pass — fullscreen, new logo, non-scrolling responsive menu, HUD no longer overlaps the
+  table.** Triggered by the user's screenshots comparing this app to 8 Ball Pool and a `logo/`
+  folder of new pixel-art icon assets. Verified with real Playwright screenshots this time (Chromium
+  installed fresh into a scratchpad dir, isolated from the project) — the first actual visual
+  verification this session, after several UI passes done blind with no browser tool available.
+  - **Fullscreen**: `document.documentElement.requestFullscreen()` added to the existing first-tap
+    `kick()` handler in `main.js` (already did audio unlock + orientation lock); manifest `display`
+    changed to `fullscreen` with a `display_override: ['fullscreen','standalone']` fallback chain.
+  - **New logo**: `logo/5.png` (highest-res of the 5 provided) copied to `public/logo-source.png` as
+    the new icon-generation source; `scripts/gen-icons.mjs` switched from reading `favicon.svg` to
+    this PNG via sharp; regenerated all PWA icons plus a new `favicon-64.png`; `index.html`'s
+    `<link rel="icon">` and the in-menu `<img>` updated to match.
+  - **The real structural bug behind "HUD covers the table"**: `#hud` was `position:fixed` at the
+    same time `#app`'s canvas-centering padding didn't reserve any space for it, so the canvas's top
+    edge rendered underneath the HUD bar. Fixed with a `ResizeObserver` in `ui.js` that keeps a
+    `--hud-h` CSS variable in sync with the HUD's actual rendered height (not a hardcoded guess —
+    reflows correctly if HUD content wraps differently), consumed by `#app`'s `padding-top`.
+    Confirmed via Playwright: HUD measured 44px, canvas top starts at exactly y=44, zero overlap.
+  - **The menu overflow bug**: `.brand` (logo+title) was a sibling of every `.screen`, rendering on
+    every menu screen; `screen-main` alone stacked brand + wallet-bar + Play + a 4-icon row +
+    full-width Settings + full-width Quit — taller than a real landscape phone's height (as low as
+    ~340-380px), with no scroll anywhere to reveal the cut-off rows. Fixed by: moving `.brand` inside
+    `#screen-main` only; folding Settings/Quit into the existing icon-button row (now 6 icons, same
+    pattern as Daily/Cues/Pass/Shop) instead of two more full-width rows; converting the inline
+    `#settings` panel into a real `.modal` (matching the cues/pass/shop modal pattern) so it stops
+    competing with the main menu for vertical space entirely; and switching every size-affecting CSS
+    property (logo, title, button padding/font, gaps) to `clamp(min, Ndvh, max)` values instead of
+    fixed px, so the whole menu shrinks together on a short screen rather than any one row
+    overflowing. Verified via Playwright at 700×380 and 800×360: `document.documentElement.scrollHeight
+    === clientHeight` (zero overflow) at both, with all six menu screens screenshotted.
+  - **Ball-in-hand "one tap" complaint — found the actual cause**: free-drag repositioning was
+    *already implemented* (`previewCuePlacement` on every `pointermove`, commit on `pointerup`), but
+    the hint text literally said "Tap the table to place the cue ball anywhere you want" — actively
+    telling the player to tap instead of drag. Fixed the copy (both `es`/`en`) to describe dragging;
+    no logic change needed.
+  - In-game HUD buttons/pills/chips shrunk further per "make the buttons smallest" (padding, font
+    sizes, avatar size all reduced); `#toast`'s position switched from a hardcoded `66px` offset to
+    `calc(var(--hud-h) + 8px)`, so it stays correctly placed regardless of the HUD's real height.
 
 - **Midnight integration underway — contract done, frontend wiring (workstream 2) done, Effectstream
   cross-chain and match stakes (workstreams 3-4) not started.** Plan file at

@@ -6,13 +6,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: true },
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
+      includeAssets: ['logo-source.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'],
       manifest: {
         name: 'Midnight Pool',
         short_name: 'Pool',
         description: 'A 2D pool game with peer-to-peer 1v1 multiplayer.',
         start_url: '/',
-        display: 'standalone',
+        display: 'fullscreen',
+        display_override: ['fullscreen', 'standalone'],
         orientation: 'landscape',
         background_color: '#04080a',
         theme_color: '#04080a',

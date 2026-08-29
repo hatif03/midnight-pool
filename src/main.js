@@ -152,10 +152,16 @@ async function main() {
   applyStatic();
 
   const markLang = () => document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
+  // Icon-only buttons (no data-i18n text) still get a localized tooltip.
+  const refreshIconTitles = () => {
+    ui.el('btn-settings').title = t('settings');
+    ui.el('btn-quit').title = t('quit');
+  };
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
-    b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
+    b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
   });
   markLang();
+  refreshIconTitles();
 
   const nickInput = document.getElementById('nickname-input');
   nickInput.value = identity.getNickname();
@@ -187,10 +193,14 @@ async function main() {
   const kick = () => {
     audio.resume();
     audio.startMusic();
-    // Best-effort only — the Screen Orientation Lock API isn't supported on iOS Safari at all
-    // (even installed as a PWA), and most browsers require fullscreen first. The CSS rotate
-    // overlay (index.html) is what actually enforces landscape everywhere; this just helps on the
-    // platforms (mainly Android/Chrome, standalone display mode) where it's available.
+    // Best-effort only — iOS Safari supports neither the Fullscreen nor the Screen Orientation
+    // Lock API (even installed as a PWA), and most browsers require fullscreen before an
+    // orientation lock will succeed at all. The CSS rotate overlay (index.html) is what actually
+    // enforces landscape everywhere; this just hides browser chrome and locks rotation on the
+    // platforms (mainly Android/Chrome) where it's available.
+    const root = document.documentElement;
+    const requestFs = root.requestFullscreen || root.webkitRequestFullscreen;
+    try { requestFs?.call(root)?.catch?.(() => {}); } catch {}
     try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch {}
     window.removeEventListener('pointerdown', kick);
   };
@@ -1123,7 +1133,7 @@ function wireMenu() {
   const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
 
   click('btn-play', () => ui.showScreen('screen-mode'));
-  click('btn-settings', () => { const s = ui.el('settings'); s.style.display = s.style.display === 'none' ? 'flex' : 'none'; });
+  click('btn-settings', () => ui.el('settings-modal').classList.add('show'));
   click('btn-quit', () => window.close());
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
 
