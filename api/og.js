@@ -1,9 +1,14 @@
 import { ImageResponse } from '@vercel/og';
 
-// Deliberately avoids JSX (see docs/adr/0005-dynamic-share-previews.md): this file is unverified
-// without a real Vercel deploy, and plain object literals sidestep any JSX-transpilation
-// uncertainty for a non-framework Vite project. `el(...)` mirrors what JSX compiles to.
-export const config = { runtime: 'edge' };
+// Deliberately avoids JSX (see docs/adr/0005-dynamic-share-previews.md): plain object literals
+// sidestep any JSX-transpilation uncertainty for a non-framework Vite project. `el(...)` mirrors
+// what JSX compiles to.
+//
+// Deliberately NOT `{ runtime: 'edge' }`: @vercel/og's WASM/font loading (via `import.meta.url`)
+// is only handled correctly by Next.js's special build pipeline. On Vercel's generic bundler for
+// non-Next.js projects it fails to deploy ("referencing unsupported modules"). Per Vercel's own
+// docs, ImageResponse is also supported on the plain Node.js serverless runtime, which is the
+// default when no runtime config is set — use that instead.
 
 function el(type, props, ...children) {
   return { type, props: { ...props, children: children.length === 1 ? children[0] : children } };

@@ -14,9 +14,9 @@ which means introducing server-side code to an otherwise static project for the 
 
 ## Decision
 
-- **`api/og.js`** — a Vercel Edge Function (`export const config = { runtime: 'edge' }`) using
-  `@vercel/og`'s `ImageResponse` to render a share-preview image from query params (inviter name +
-  code): "`<name>` invited you to a game of Midnight Pool."
+- **`api/og.js`** — a Vercel serverless function (**Node.js runtime, not Edge** — see "Corrected
+  after a real deploy" below) using `@vercel/og`'s `ImageResponse` to render a share-preview image
+  from query params (inviter name + code): "`<name>` invited you to a game of Midnight Pool."
 - **`vercel.json` rewrite + `api/invite.js`**: a `rewrites` entry sends `/i/:code` to
   `/api/invite?code=:code` (a plain, framework-agnostic Vercel platform feature), which returns a
   minimal HTML document with the correct `og:title`/`og:image`/`twitter:*` meta tags (image
@@ -33,17 +33,28 @@ which means introducing server-side code to an otherwise static project for the 
 ## Consequences
 
 - **This is the project's first server-side code in an otherwise static site.** Deploying now
-  depends on Vercel's Edge Runtime specifically — `middleware.js` and `api/*` with
-  `runtime: 'edge'` are Vercel-specific conventions, not portable to a different static host without
-  rework. That coupling is a deliberate tradeoff for the polish, not an accident.
-- **This cannot be verified without a real Vercel deployment.** There's no Vercel CLI or linked
-  project in this environment, and `@vercel/og`'s edge runtime doesn't run under plain `node`. The
-  code is written to the standard, stable `@vercel/og` + Edge Middleware conventions, but unlike
-  every other workstream so far, it has **not** been executed or tested — only built as static
-  assets and read for correctness. Verify for real after deploying: fetch `/i/CODE?n=Name` and
-  confirm the returned HTML's `og:title`/`og:image` are correct, fetch `/api/og?...` directly and
-  confirm it returns a valid image, and check an actual link-preview render (e.g. paste the link
-  into WhatsApp/iMessage).
+  depends on Vercel-specific conventions (`api/*`, `vercel.json` rewrites), not portable to a
+  different static host without rework. That coupling is a deliberate tradeoff for the polish, not
+  an accident.
 - `@vercel/og` is a new dependency on the frontend's `package.json` (separate from `server/`'s
   dependencies — this lives in the Vite project since it deploys alongside it on Vercel, not
   alongside the standalone matchmaking relay).
+
+### Corrected after a real deploy
+
+The original version of this ADR specified `api/og.js` as an **Edge Function**
+(`export const config = { runtime: 'edge' }`), flagged explicitly as unverified since there was no
+way to test it locally. On the first real Vercel deploy it failed exactly as that risk predicted:
+`The Edge Function "api/..." is referencing unsupported modules`. Root cause (confirmed against
+Vercel's own docs): `@vercel/og` loads its WASM/font assets via `import.meta.url` in a way that
+only Next.js's build pipeline handles specially — Vercel's generic bundler for non-Next.js edge
+functions can't resolve them. Vercel's docs explicitly confirm `ImageResponse` is *also* supported
+on the plain **Node.js serverless runtime**, which needs no special asset handling and is the
+default when no `runtime` config is set. Fix: removed the edge runtime config from `api/og.js` —
+no other code changes needed. `api/invite.js` is unaffected (pure string/URL work, no `@vercel/og`
+dependency) and stays on whatever Vercel defaults it to.
+
+**Still to verify for real** (unchanged from before — this environment still has no Vercel
+CLI/account): fetch `/i/CODE?n=Name` and confirm the returned HTML's `og:title`/`og:image` are
+correct, fetch `/api/og?...` directly and confirm it returns a valid image, and check an actual
+link-preview render (e.g. paste the link into WhatsApp/iMessage).
