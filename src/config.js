@@ -18,6 +18,11 @@ export const POWER_CURVE = 1.6;
 export const MAX_DRAG = 210;
 export const MIN_DRAG = 10;
 
+// Simplified English/spin model (see docs/adr and src/physics.js) — not real rigid-body billiards
+// spin physics, just enough curve/follow-draw feel to make cue-tier spin stats mean something.
+export const SPIN_CURVE = 0.16; // side-spin lateral acceleration per sub-step while moving
+export const SPIN_FOLLOW = 0.5; // top/backspin post-collision follow(+)/draw(-) kick strength
+
 export const BALL_COLORS = [
   0xffffff,
   0xe8c000, 0x1f48d8, 0xd81f1f, 0x6a1fb0, 0xe8742a, 0x1f8a3a, 0x8a1f1f, 0x161616,

@@ -9,8 +9,56 @@ import * as ui from './ui.js';
 import * as audio from './audio.js';
 import * as identity from './identity.js';
 import { t, setLang, getLang, applyStatic } from './i18n.js';
+import { loadProfile, saveProfile } from './profile.js';
+import * as economy from './economy.js';
+import { getCue, allCues, upgradeCost } from './cues.js';
+import * as dailyReward from './dailyReward.js';
+import * as passSys from './pass.js';
+import * as lootbox from './lootbox.js';
+import * as loyalty from './loyalty.js';
 
 const other = (p) => (p === 1 ? 2 : 1);
+
+let profile = loadProfile();
+let currentSpin = { x: 0, y: 0 };
+
+const equippedCue = () => getCue(profile.cues.equipped);
+
+function updateWallet() {
+  ui.el('wallet-coins').textContent = profile.coins;
+  ui.el('wallet-cash').textContent = profile.cash;
+  ui.el('wallet-level').textContent = profile.level;
+}
+
+function persistProfile() {
+  saveProfile(profile);
+  updateWallet();
+}
+
+function syncSpinGrid() {
+  const cap = equippedCue().spinCap;
+  currentSpin = { x: 0, y: 0 };
+  document.getElementById('spin-grid').classList.add('show');
+  document.querySelectorAll('#spin-grid button').forEach((b) => {
+    const isCenter = b.dataset.sx === '0' && b.dataset.sy === '0';
+    b.disabled = cap === 0 && !isCenter;
+    b.classList.toggle('active', isCenter);
+  });
+}
+
+function wireSpinGrid() {
+  document.querySelectorAll('#spin-grid button').forEach((b) => {
+    b.onclick = () => {
+      if (b.disabled) return;
+      const x = Number(b.dataset.sx), y = Number(b.dataset.sy);
+      const mag = Math.hypot(x, y) || 1;
+      currentSpin = mag > 1 ? { x: x / mag, y: y / mag } : { x, y };
+      document.querySelectorAll('#spin-grid button').forEach((o) => o.classList.remove('active'));
+      b.classList.add('active');
+      audio.uiClick();
+    };
+  });
+}
 
 const game = {
   mode: 'solo', myPlayer: 1, turn: 1, started: false,
@@ -95,6 +143,9 @@ async function main() {
   setupRack();
   setupInput();
   updatePlayersDisplay();
+  updateWallet();
+  wireSpinGrid();
+  wireEconomyMenus();
 
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
@@ -263,8 +314,8 @@ function placeCueAt(x, y) {
   if (game.mode === 'host') sendState();
 }
 
-function doShoot(dx, dy, power) {
-  shoot(game.cue, dx, dy, power);
+function doShoot(dx, dy, power, spin = { x: 0, y: 0 }) {
+  shoot(game.cue, dx, dy, power, spin);
   audio.cueStrike();
   game.shots++;
   game.shooting = true;
@@ -328,9 +379,22 @@ function resolveTurn() {
   sendState();
 }
 
+// Each side awards its OWN local profile from its OWN perspective of the result — there's no
+// shared/server-authoritative economy, so this runs independently on host and guest. Solo practice
+// deliberately doesn't award anything: it has no natural match-completion boundary (no win/loss,
+// just an open-ended rack you can restart anytime), and awarding on restart would be exploitable.
+function awardMatchResult(winner) {
+  if (game.mode === 'solo') return;
+  const award = economy.awardForMatch({ mode: game.mode, won: winner === game.myPlayer });
+  profile = economy.applyAward(profile, award);
+  profile.pass.points += award.xp || 0;
+  persistProfile();
+}
+
 function endGame(winner) {
   game.gameOver = true;
   game.winner = winner;
+  awardMatchResult(winner);
   refreshHud();
   showEndBanner();
   sendState();
@@ -491,7 +555,10 @@ function applyState(m) {
     maybeNotifyTurn();
   }
 
-  if (game.gameOver && !prevOver) showEndBanner();
+  if (game.gameOver && !prevOver) {
+    awardMatchResult(game.winner);
+    showEndBanner();
+  }
 }
 
 function setupInput() {
@@ -518,7 +585,7 @@ function setupInput() {
     const p = pos(e);
     const frac = Math.min(Math.hypot(game.cue.x - p.x, game.cue.y - p.y), MAX_DRAG) / MAX_DRAG;
     const power = Math.pow(frac, POWER_CURVE);
-    drawAim(aimLine, game.cue, p.x, p.y, power);
+    drawAim(aimLine, game.cue, p.x, p.y, power, equippedCue().aimBonus);
     drawPower(powerBar, powerLabel, power);
   });
 
@@ -529,9 +596,14 @@ function setupInput() {
     if (canShoot() && dragged > MIN_DRAG) {
       const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
       const dist = Math.hypot(dx, dy);
-      const power = Math.pow(Math.min(dist, MAX_DRAG) / MAX_DRAG, POWER_CURVE);
-      if (game.mode === 'guest') game.net.send({ type: 'shoot', dx, dy, power });
-      else doShoot(dx, dy, power);
+      // Scaled here, at the sending side, with the shooter's OWN local cue stats — each player's
+      // profile is local-only, so the host can't look up the guest's equipped cue. This way the
+      // message already carries the effective, fairness-capped values regardless of who shoots.
+      const cue = equippedCue();
+      const power = Math.pow(Math.min(dist, MAX_DRAG) / MAX_DRAG, POWER_CURVE) * cue.powerMult;
+      const spin = { x: currentSpin.x * cue.spinCap, y: currentSpin.y * cue.spinCap };
+      if (game.mode === 'guest') game.net.send({ type: 'shoot', dx, dy, power, spin });
+      else doShoot(dx, dy, power, spin);
     }
     dragStart = null;
     aimLine.clear();
@@ -555,6 +627,7 @@ function leaveGame() {
   stopBanners();
   ui.hideGameOver();
   ui.backToMenu();
+  document.getElementById('spin-grid').classList.remove('show');
   if (wasMulti) ui.toast(t('youLeft'));
 }
 
@@ -569,6 +642,7 @@ function onMessage(m) {
     game.opponentName = m.hostName || game.opponentName;
     updatePlayersDisplay();
     ui.enterGame();
+    syncSpinGrid();
     maybeAskNotifications().then(announceGroupAndTurn);
   } else if (m.type === 'state' && game.mode === 'guest') {
     applyState(m);
@@ -578,7 +652,7 @@ function onMessage(m) {
   } else if (m.type === 'reaction') {
     ui.toast(m.emoji);
   } else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) {
-    doShoot(m.dx, m.dy, m.power);
+    doShoot(m.dx, m.dy, m.power, m.spin);
   } else if (m.type === 'place' && game.mode === 'host' && game.turn === 2 && game.ballInHand) {
     applyCuePlacement(m.x, m.y);
     sendState();
@@ -607,6 +681,7 @@ function hostJoinedHandler() {
   audio.notify();
   ui.toast(t('rivalJoined'));
   ui.enterGame();
+  syncSpinGrid();
   game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
   sendState();
   maybeAskNotifications().then(announceGroupAndTurn);
@@ -666,6 +741,169 @@ function startQuickMatch() {
   });
 }
 
+function renderDailyModal() {
+  const claimable = dailyReward.canClaim(profile.streak);
+  const nextDay = (profile.streak.day % 7) + 1;
+  const days = ui.el('daily-days');
+  days.innerHTML = '';
+  for (let d = 1; d <= 7; d++) {
+    const pip = document.createElement('div');
+    pip.className = 'pip' + (profile.streak.lastClaim && d <= profile.streak.day ? ' done' : '') + (d === nextDay && claimable ? ' today' : '');
+    pip.textContent = d;
+    days.appendChild(pip);
+  }
+  ui.el('daily-claim').disabled = !claimable;
+  ui.el('daily-status').textContent = claimable ? '' : t('alreadyClaimedToday');
+}
+
+function renderCuesModal() {
+  const list = ui.el('cues-list');
+  list.innerHTML = '';
+  for (const cue of allCues()) {
+    const owned = profile.cues.owned.includes(cue.id);
+    const equipped = profile.cues.equipped === cue.id;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const spinTxt = cue.spinCap ? `${Math.round(cue.spinCap * 100)}%` : '—';
+    info.innerHTML = `<span class="name">${cue.name}</span><span class="sub">Power +${Math.round((cue.powerMult - 1) * 100)}% · Aim +${cue.aimBonus} · Spin ${spinTxt}</span>`;
+    row.appendChild(info);
+    const btn = document.createElement('button');
+    if (equipped) {
+      btn.textContent = t('equipped');
+      btn.disabled = true;
+    } else if (owned) {
+      btn.textContent = t('equip');
+      btn.onclick = () => { profile.cues.equipped = cue.id; persistProfile(); renderCuesModal(); };
+    } else {
+      const cost = upgradeCost(cue);
+      btn.textContent = `${t('unlock')} (${cue.piecesNeeded}\u{1F9E9} ${cost}\u{1FA99})`;
+      btn.disabled = profile.cues.pieces < cue.piecesNeeded || profile.coins < cost;
+      btn.onclick = () => {
+        profile.cues.pieces -= cue.piecesNeeded;
+        profile.coins -= cost;
+        profile.cues.owned.push(cue.id);
+        persistProfile();
+        renderCuesModal();
+      };
+    }
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function renderPassModal() {
+  const tiers = passSys.claimableTiers(profile.pass);
+  ui.el('pass-status').textContent = `${profile.pass.points} pts · Tier ${passSys.tierForPoints(profile.pass.points)}/20`;
+  const list = ui.el('pass-tiers');
+  list.innerHTML = '';
+  if (tiers.length === 0) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `<div class="info"><span class="name">${t('noPassRewards')}</span></div>`;
+    list.appendChild(row);
+  } else {
+    for (const tnum of tiers) {
+      const rewards = passSys.rewardForTier(tnum, profile.pass.premium);
+      const sub = rewards.map((r) => Object.entries(r).map(([k, v]) => `${v} ${k}`).join(', ')).join(' + ');
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `<div class="info"><span class="name">Tier ${tnum}</span><span class="sub">${sub}</span></div>`;
+      list.appendChild(row);
+    }
+  }
+  ui.el('pass-claim').disabled = tiers.length === 0;
+  ui.el('pass-unlock').disabled = profile.pass.premium || profile.cash < passSys.PREMIUM_UNLOCK_COST_CASH;
+  ui.el('pass-unlock').textContent = profile.pass.premium ? t('equipped') : t('unlockPremium');
+}
+
+function renderLoyaltyList() {
+  const list = ui.el('loyalty-list');
+  list.innerHTML = '';
+  for (const item of loyalty.LOYALTY_SHOP) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `<div class="info"><span class="name">${item.name}</span><span class="sub">${item.cost} pts</span></div>`;
+    const btn = document.createElement('button');
+    btn.textContent = t('redeem');
+    btn.disabled = !loyalty.canRedeem(profile.loyaltyPoints, item);
+    btn.onclick = () => {
+      const remaining = loyalty.redeem(profile.loyaltyPoints, item);
+      if (remaining === null) { ui.toast(t('notEnoughLoyalty')); return; }
+      profile.loyaltyPoints = remaining;
+      persistProfile();
+      ui.toast(`${t('redeemed')}: ${item.name}`);
+      renderLoyaltyList();
+    };
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function buyBox(tier, cost) {
+  const spent = economy.spend(profile, 'cash', cost);
+  if (!spent) { ui.toast(t('notEnoughCash')); return; }
+  profile = spent;
+  const reward = lootbox.openBox(tier);
+  profile = economy.applyAward(profile, { coins: reward.coins, cash: reward.cash || 0 });
+  if (reward.cuePiece) profile.cues.pieces += 1;
+  persistProfile();
+  const parts = [`+${reward.coins} coins`];
+  if (reward.cash) parts.push(`+${reward.cash} cash`);
+  if (reward.cuePiece) parts.push('+1 cue piece');
+  ui.el('reveal-text').textContent = parts.join(', ');
+  ui.el('shop-modal').classList.remove('show');
+  ui.el('reveal-modal').classList.add('show');
+}
+
+function wireEconomyMenus() {
+  const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
+
+  click('btn-daily', () => { renderDailyModal(); ui.el('daily-modal').classList.add('show'); });
+  click('btn-cues', () => { renderCuesModal(); ui.el('cues-modal').classList.add('show'); });
+  click('btn-pass', () => { renderPassModal(); ui.el('pass-modal').classList.add('show'); });
+  click('btn-shop', () => { renderLoyaltyList(); ui.el('shop-modal').classList.add('show'); });
+
+  click('daily-claim', () => {
+    const result = dailyReward.claim(profile.streak);
+    if (!result) return;
+    profile.streak = result.streak;
+    profile = economy.applyAward(profile, result.reward);
+    persistProfile();
+    renderDailyModal();
+    ui.toast(`+${result.reward.coins} coins` + (result.reward.cash ? ` +${result.reward.cash} cash` : ''));
+  });
+
+  click('pass-claim', () => {
+    const tiers = passSys.claimableTiers(profile.pass);
+    for (const tnum of tiers) {
+      for (const r of passSys.rewardForTier(tnum, profile.pass.premium)) profile = economy.applyAward(profile, r);
+    }
+    profile.pass.claimedTier = passSys.tierForPoints(profile.pass.points);
+    persistProfile();
+    renderPassModal();
+  });
+
+  click('pass-unlock', () => {
+    if (profile.pass.premium) return;
+    const spent = economy.spend(profile, 'cash', passSys.PREMIUM_UNLOCK_COST_CASH);
+    if (!spent) { ui.toast(t('notEnoughCash')); return; }
+    profile = spent;
+    profile.pass.premium = true;
+    persistProfile();
+    renderPassModal();
+  });
+
+  click('buy-silver', () => buyBox('silver', 10));
+  click('buy-gold', () => buyBox('gold', 25));
+  click('buy-diamond', () => buyBox('diamond', 60));
+
+  document.querySelectorAll('[data-close]').forEach((b) => {
+    b.onclick = () => { audio.uiClick(); document.getElementById(b.dataset.close).classList.remove('show'); };
+  });
+}
+
 function wireMenu() {
   const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
 
@@ -674,7 +912,7 @@ function wireMenu() {
   click('btn-quit', () => window.close());
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
 
-  click('btn-solo', () => { closeNet(); game.mode = 'solo'; setupRack(); stopBanners(); ui.enterGame(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
+  click('btn-solo', () => { closeNet(); game.mode = 'solo'; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
   click('btn-multi', () => ui.showScreen('screen-mp'));
   click('btn-create', () => { ui.showScreen('screen-host'); startHost(); });
   click('btn-share', shareInvite);

@@ -131,13 +131,13 @@ export function buildBallVisual(ball) {
   return c;
 }
 
-export function drawAim(g, cue, mx, my, power = 1) {
+export function drawAim(g, cue, mx, my, power = 1, aimBonus = 0) {
   g.clear();
   g.moveTo(cue.x, cue.y).lineTo(mx, my).stroke({ width: 1, color: 0xffffff, alpha: 0.25 });
 
   const len = Math.hypot(cue.x - mx, cue.y - my) || 1;
   let dx = (cue.x - mx) / len, dy = (cue.y - my) / len;
-  let x = cue.x, y = cue.y, remaining = 50 + power * 260;
+  let x = cue.x, y = cue.y, remaining = 50 + power * 260 + aimBonus;
   const minX = CUSHION + BALL_R, maxX = CUSHION + TABLE_W - BALL_R;
   const minY = CUSHION + BALL_R, maxY = CUSHION + TABLE_H - BALL_R;
 

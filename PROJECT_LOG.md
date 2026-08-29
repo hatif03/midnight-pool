@@ -7,6 +7,43 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-29)
 
+- **Workstreams 6-8 (economy, cues+spin, live-ops loop) — done, tested, and E2E-verified.**
+  Completes the approved plan's core scope; workstream 9 (leagues/tournaments) is deliberately
+  deferred — see below.
+  - **New pure modules, all self-tested** (`npm test` now runs 8 self-tests): `profile.js`
+    (versioned localStorage progression state — kept separate from `identity.js`'s nickname/avatar
+    rather than merging, since that already worked and there was no reason to risk it),
+    `economy.js` (XP curve, per-match awards, currency mutators that never go negative), `cues.js`
+    (cue collections with **original names**, not "Predator" — a real registered trademark, see
+    ADR-0001 — stat deltas asserted to stay within the agreed modest range),
+    `dailyReward.js`/`pass.js`/`lootbox.js`/`loyalty.js` (streak calendar, Pool Pass tiers,
+    Silver/Gold/Diamond box reward tables with weights asserted to sum to 1, loyalty catalog).
+  - **New physics capability: simplified spin/English**, since cue stats affecting gameplay (the
+    user's choice over cosmetic-only) only mean anything once spin exists — it didn't before. A
+    3x3 preset grid (not a full drag widget — simpler, no coordinate-math edge cases, delivers the
+    same feature) picks a spin direction, clamped by the equipped cue's `spinCap` (0 for the
+    starting House Cue, which the E2E test confirmed correctly disables every non-center button).
+    `physics.js` gained a lateral curve force while moving and a follow/draw kick on cue-ball
+    contact — marked with a `ponytail:` comment naming the real ceiling (no actual angular-momentum
+    model) and the upgrade path. Self-tested: a spin-applied shot's path diverges from a no-spin
+    control, and topspin measurably keeps the cue ball moving forward more after contact.
+  - **Fairness design**: cue stat deltas (power/aim/spin) are scaled at the *sending* side using
+    each player's own local profile before a shot is executed or transmitted — necessary because
+    profiles are local-only, so a host has no way to look up a guest's equipped cue, and vice versa.
+  - **Real E2E verification** (Playwright, not just unit tests): daily-reward claim actually moves
+    coins and then correctly disables itself for the day; the cues list renders all 5 tiers with
+    correct equip/unlock affordances; buying a box with insufficient Cash shows the right toast,
+    and buying one with enough Cash opens it and shows a real reward (coins, occasionally a cue
+    piece); the spin grid appears and is correctly locked to center-only for the un-upgraded
+    starting cue. **Found and fixed one more layering bug this way**: opening a box from inside the
+    shop modal left the shop modal visible (double-dimmed) behind the reveal modal — same
+    "two `.modal`s stacked" pattern as the earlier toast/gameover-modal bug. Fixed by hiding the
+    shop modal before showing the reveal.
+  - **Workstream 9 (leagues/tournaments) deliberately deferred, as the plan always scoped it** — it
+    needs the matchmaking relay to become a *stateful* service (tracking weekly standings across
+    players), a materially different risk/ops profile than today's disposable pairing queue, and
+    was explicitly marked in the plan as needing its own ADR "when actually started." Building it
+    now would mean guessing at a design with no real multi-player-base to validate it against yet.
 - **Live at https://midnight-pool-one.vercel.app/** — user-confirmed working in solo play after
   the Vercel/GCP deploy fixes above. First piece of real user feedback from the live deploy: the
   table scaled down uncomfortably small in portrait on a phone. Fixed with a landscape-only lock —
@@ -108,9 +145,8 @@ reasoning behind any decision marked with an ADR link.
     Vercel access here at all): whether the redeploy actually succeeds, whether `ImageResponse`
     renders a real image on the Node runtime, and real link-preview rendering — see ADR-0005's
     verification section for the exact post-deploy checks.
-  - **Workstreams 6-9 not started**: the player economy foundation (Coins/Cash/XP), cue collection
-    + new spin/English physics, the live-ops loop (daily reward/pass/boxes/spin-and-win/loyalty
-    shop), and leagues/tournaments (stretch). See the plan file for full detail on each.
+    (Workstreams 6-8 status has since moved on — see the entry at the top of this section; this
+    entry is left as the historical record of workstream 5's own deploy/fix cycle.)
 
 ## Decisions made
 
@@ -148,23 +184,28 @@ See `docs/adr/` for the full record:
 
 ## Next steps
 
-- **A human should still play a real match** — the Playwright pass above covers connection
-  wiring, rules-engine correctness signals (open table, turn-passing), and UI layout, scripted via
-  drag gestures. It doesn't cover an actual win/loss (hard to script reliably), real touch input,
-  or how it actually *feels* to play. Also worth a deliberate-foul pass (hit the wrong group on
-  purpose) once groups are assigned, which the scripted test didn't reach.
-- **Confirm the Vercel redeploy actually succeeds** after the `api/og.js` Node-runtime fix, then
-  verify workstream 5 for real: fetch `/i/CODE?n=Name` and confirm the `og:title`/`og:image` meta
-  tags are right, fetch `/api/og?n=Name` directly and confirm it returns a real image, and paste an
-  invite link into WhatsApp/iMessage to see the actual preview card render.
-- Continue the approved plan at workstream 6 (player economy foundation: Coins, Cash, XP/levels) —
-  the largest remaining chunk (workstreams 6-9 together).
+- **A human should still play a real match** — every Playwright pass so far covers connection
+  wiring, rules-engine correctness signals, UI layout, and the economy/shop/spin UI, all scripted.
+  None of it covers an actual win/loss (hard to script reliably), real touch input, or how it
+  actually *feels* to play — including whether the spin grid and cue-stat differences feel good
+  rather than just "work." Also worth a deliberate-foul pass (hit the wrong group on purpose) once
+  groups are assigned, which no scripted test has reached yet.
+- **The approved 9-workstream plan is now functionally complete** (1-8 shipped, 9 deliberately
+  deferred — see above). The plan file at
+  `C:\Users\mdhat\.claude\plans\now-we-start-the-harmonic-russell.md` has served its purpose;
+  whatever comes next (more live-ops depth, actual leagues, or moving on to the Midnight
+  integration) needs a fresh planning pass rather than continuing to treat that file as the
+  active spec.
+- Confirm the Vercel redeploy succeeded and verify workstream 5 for real: fetch `/i/CODE?n=Name`
+  and confirm the `og:title`/`og:image` meta tags are right, fetch `/api/og?n=Name` directly and
+  confirm it returns a real image, and paste an invite link into WhatsApp/iMessage.
 - Test PWA install on an actual phone (same-Wi-Fi `npm run dev -- --host` or `npm run preview
   -- --host`) — still not done from any session.
 - Decide the actual Midnight integration (private stakes? provable-fair shot outcomes? private
   ranking?) — still open, needs its own ADR once decided. Match-stakes wagering (workstream 3's
-  deferred item) is the natural bridge to this.
+  deferred item) is the natural bridge to this, and now has a real currency system underneath it
+  to make private, rather than a hypothetical one.
 - Cross-chain: evaluate Effectstream's `evm-midnight-v2` template once the Midnight-side contract
   exists.
 - Decide who commits the currently-uncommitted local changes given the concurrent-session
-  situation above (this session's diff now spans the PWA fixes plus all of workstreams 1-2).
+  situation noted above (this session's diff now spans the PWA fixes plus all of workstreams 1-8).

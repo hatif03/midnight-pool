@@ -1,6 +1,7 @@
 import {
   TABLE_W, TABLE_H, CUSHION, BALL_R, POCKET_R, BALL_COLORS,
   FRICTION, STOP_SPEED, WALL_RESTITUTION, BALL_RESTITUTION, MAX_SHOT_SPEED,
+  SPIN_CURVE, SPIN_FOLLOW,
 } from './config.js';
 
 const MIN_X = CUSHION + BALL_R;
@@ -23,7 +24,10 @@ export function pocketPositions() {
 
 export function rack() {
   const balls = [];
-  const make = (x, y, n) => ({ x, y, vx: 0, vy: 0, number: n, color: BALL_COLORS[n], potted: false });
+  const make = (x, y, n) => ({
+    x, y, vx: 0, vy: 0, number: n, color: BALL_COLORS[n], potted: false,
+    spin: n === 0 ? { x: 0, y: 0 } : null,
+  });
 
   balls.push(make(CUSHION + TABLE_W * 0.25, CUSHION + TABLE_H / 2, 0));
 
@@ -42,11 +46,15 @@ export function rack() {
   return balls;
 }
 
-export function shoot(cue, dirX, dirY, power) {
+// `spin` is {x, y} in [-1, 1]: x = side-spin/English (curves flight sideways), y = top/backspin
+// (follow/draw after contacting a ball). Simplified model — see SPIN_CURVE/SPIN_FOLLOW in
+// config.js and the ceiling noted below, not real rigid-body billiards spin.
+export function shoot(cue, dirX, dirY, power, spin = { x: 0, y: 0 }) {
   const len = Math.hypot(dirX, dirY) || 1;
   const speed = power * MAX_SHOT_SPEED;
   cue.vx = (dirX / len) * speed;
   cue.vy = (dirY / len) * speed;
+  cue.spin = { x: spin.x || 0, y: spin.y || 0 };
 }
 
 export function allStopped(balls) {
@@ -65,6 +73,7 @@ export function step(balls) {
     for (const b of active) {
       b.x += b.vx / sub;
       b.y += b.vy / sub;
+      applySpinCurve(b);
     }
     bounceWalls(active, hits);
     collideBalls(active, hits);
@@ -80,6 +89,20 @@ export function step(balls) {
   }
 
   return { potted: sinkPockets(balls), hits };
+}
+
+// ponytail: a real curve comes from friction converting spin into lateral force over time, which
+// would need per-ball angular velocity tracked and decayed independently of linear velocity. This
+// just nudges the cue ball sideways while it's moving, proportional to a fixed spin.x — same
+// visual idea (draw/curve), simpler state, no angular-momentum model. Upgrade path if this ever
+// needs to be more realistic: track angular velocity per ball and derive the curve force from it.
+function applySpinCurve(b) {
+  if (!b.spin || !b.spin.x) return;
+  const speed = Math.hypot(b.vx, b.vy);
+  if (speed < STOP_SPEED) return;
+  const px = -b.vy / speed, py = b.vx / speed;
+  b.vx += px * b.spin.x * SPIN_CURVE;
+  b.vy += py * b.spin.x * SPIN_CURVE;
 }
 
 function bounceWalls(active, hits) {
@@ -125,9 +148,27 @@ function collideBalls(active, hits) {
       const rvn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
       if (rvn <= 0) continue;
 
+      // Capture pre-impulse direction for the cue ball before its velocity changes below —
+      // follow/draw kicks in that direction, approximating topspin continuing forward through
+      // contact (follow) or backspin pulling it back (draw). See applySpinCurve for the same
+      // "simplified, not rigid-body" caveat.
+      const cueBall = a.number === 0 ? a : b.number === 0 ? b : null;
+      let cueDir = null;
+      if (cueBall && cueBall.spin && cueBall.spin.y) {
+        const cueSpeed = Math.hypot(cueBall.vx, cueBall.vy) || 1;
+        cueDir = { x: cueBall.vx / cueSpeed, y: cueBall.vy / cueSpeed };
+      }
+
       const jimp = ((1 + BALL_RESTITUTION) / 2) * rvn;
       a.vx -= jimp * nx; a.vy -= jimp * ny;
       b.vx += jimp * nx; b.vy += jimp * ny;
+
+      if (cueDir) {
+        const kick = cueBall.spin.y * SPIN_FOLLOW * rvn;
+        cueBall.vx += cueDir.x * kick;
+        cueBall.vy += cueDir.y * kick;
+      }
+
       // Two balls can collide with a third in the same sub-step; order here is array order,
       // not true physical time. Fine for a casual game — see rules.js for what depends on it.
       if (rvn > 1.5) hits.push({ type: 'ball', a: a.number, b: b.number, speed: rvn });
@@ -217,6 +258,23 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
     for (const h of hits) if (h.type === 'rail' && h.ball === 0) sawRail = true;
   }
   assert(sawRail, 'rail hit records the ball number');
+
+  const straight = [{ x: 100, y: 250, vx: 10, vy: 0, number: 0, potted: false, spin: { x: 0, y: 0 } }];
+  const curved = [{ x: 100, y: 250, vx: 10, vy: 0, number: 0, potted: false, spin: { x: 1, y: 0 } }];
+  for (let i = 0; i < 20; i++) { step(straight); step(curved); }
+  assert(Math.abs(straight[0].y - 250) < 0.5, 'no side-spin travels straight');
+  assert(Math.abs(curved[0].y - 250) > 3, 'side-spin curves the cue ball off a straight line');
+
+  const noFollow = [
+    { x: 300, y: 300, vx: 15, vy: 0, number: 0, potted: false, spin: { x: 0, y: 0 } },
+    { x: 340, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+  ];
+  const follow = [
+    { x: 300, y: 300, vx: 15, vy: 0, number: 0, potted: false, spin: { x: 0, y: 1 } },
+    { x: 340, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+  ];
+  for (let i = 0; i < 15; i++) { step(noFollow); step(follow); }
+  assert(follow[0].vx > noFollow[0].vx, 'topspin (follow) keeps the cue ball moving forward more than no spin after contact');
 
   console.log(`OK — break settled in ${frames} frames (~${(frames / 60).toFixed(1)}s)`);
 }
