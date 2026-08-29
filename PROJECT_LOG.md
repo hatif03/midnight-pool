@@ -7,6 +7,26 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-29)
 
+- **Real browser E2E verification done** for workstreams 1-4 (Playwright, headless Chromium,
+  installed in an isolated scratch location — not a project dependency). This is meaningfully
+  stronger than the build/unit-test checks noted below: it drove actual browser instances through
+  real PeerJS/WebRTC connections and the real matchmaking relay, not just isolated logic.
+  - Solo mode: loads, takes a real drag-shot, physics resolves, shots counter increments, zero
+    console/page errors.
+  - Manual host/join multiplayer, two real browser contexts: PeerJS connection established for
+    real, the "table's open" banner renders correctly on **both** sides confirming the rules-engine
+    fix is wired end-to-end (not just unit-tested), nickname exchange verified correct in **both**
+    directions (host saw "Alice"/"Bob" and guest saw "Bob"/"Alice" correctly cross-referenced), and
+    turn-passing after a non-potting break shot was correct on both sides.
+  - Quick Match against the live local relay: two browser contexts queued, paired, connected, and
+    entered a game with zero errors.
+  - **Found and fixed a real bug this way that no unit test or build check would have caught**: the
+    new player-chip avatars in the HUD were completely hidden behind the pre-existing `#toast`
+    notification for its ~2.6s duration, since both were positioned at the same top-left corner.
+    Fixed by moving `#toast` below the HUD row (`index.html`).
+  - Still not covered even by this: a full match to an actual win/loss (hard to script reliably via
+    drag-shot physics), the Vercel Edge Function pieces (workstream 5, genuinely can't run locally —
+    see below), and real mobile/touch input or an actual phone.
 - Renamed from **Pool** to **Midnight Pool** (`package.json`, `index.html`, README, in-game menu).
 - Mobile-first PWA rebuild done: `vite-plugin-pwa` manifest + service worker, icons generated from
   `favicon.svg`, responsive canvas scaling (CSS-only, no JS resize), safe-area insets on HUD/toast/
@@ -99,11 +119,11 @@ See `docs/adr/` for the full record:
 
 ## Next steps
 
-- **Manually test workstreams 1-4 in a browser** before continuing — `npm run dev` plus
-  `cd server && npm start` for the relay, play a full 2-player game start to finish: open-table
-  group assignment, a deliberate foul, an 8-ball win/loss, avatar/name/reactions/rematch, a manual
-  invite-link/QR join, and a Quick Match pairing. Automated tests cover the rules logic and the
-  relay's pairing logic in isolation; neither covers the DOM or the real PeerJS/WebRTC path.
+- **A human should still play a real match** — the Playwright pass above covers connection
+  wiring, rules-engine correctness signals (open table, turn-passing), and UI layout, scripted via
+  drag gestures. It doesn't cover an actual win/loss (hard to script reliably), real touch input,
+  or how it actually *feels* to play. Also worth a deliberate-foul pass (hit the wrong group on
+  purpose) once groups are assigned, which the scripted test didn't reach.
 - **Deploy and verify workstream 5 for real** — this is the one piece so far that genuinely
   couldn't be tested from this environment (no Vercel CLI/project link, `@vercel/og`'s edge runtime
   doesn't run under plain Node). After deploying: fetch `/i/CODE?n=Name` and confirm the `og:title`/
