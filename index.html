@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Pool" />
+    <meta name="apple-mobile-web-app-title" content="Midnight Pool" />
     <title>Midnight Pool</title>
     <style>
       :root {
@@ -54,7 +54,7 @@
       .brand img { width: 64px; height: 64px; image-rendering: pixelated; margin-bottom: 14px;
         filter: drop-shadow(0 8px 22px rgba(0,0,0,.55)) drop-shadow(0 0 22px rgba(78,232,146,.35)); }
       #menu h1 {
-        margin: 0; font-size: 76px; font-weight: 800; letter-spacing: 2px; line-height: 1;
+        margin: 0; font-size: clamp(36px, 11vw, 76px); font-weight: 800; letter-spacing: 2px; line-height: 1;
         background: linear-gradient(180deg, #ffffff 0%, #cdeede 100%);
         -webkit-background-clip: text; background-clip: text; color: transparent;
         text-shadow: 0 8px 36px rgba(0,0,0,.5);
@@ -100,9 +100,19 @@
       .seg-btn.active { background: linear-gradient(135deg, rgba(78,232,146,.45), rgba(34,170,110,.32));
         color: #fff; font-weight: 700; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 0 14px rgba(78,232,146,.25); }
       @keyframes settleIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+      #nickname-input {
+        font-family: inherit; font-size: 15px; text-align: center; color: #fff; outline: none;
+        width: 100%; padding: 10px 0; border-radius: 10px; box-sizing: border-box;
+        background: rgba(0,0,0,.25); border: 1px solid var(--glass-border);
+        transition: border-color .15s, box-shadow .15s;
+      }
+      #nickname-input:focus { border-color: rgba(130,255,190,.7); box-shadow: 0 0 0 3px rgba(78,232,146,.18); }
+      .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cfe9d8;
+        cursor: pointer; justify-content: center; }
+      .check-row input { accent-color: #4ee892; }
 
       .panel { display: flex; flex-direction: column; gap: 14px; align-items: center;
-        width: 340px; padding: 28px; border-radius: 18px; }
+        width: 340px; max-width: calc(100vw - 32px); padding: 28px; border-radius: 18px; box-sizing: border-box; }
       .panel .hint { font-size: 15px; opacity: .85; text-align: center; }
       .code { font-size: 54px; font-weight: 800; letter-spacing: 12px; color: var(--accent);
         font-family: ui-monospace, monospace; padding: 4px 0 4px 12px;
@@ -115,6 +125,7 @@
       .panel input:focus { border-color: rgba(130,255,190,.7); box-shadow: 0 0 0 3px rgba(78,232,146,.18); }
       .status { font-size: 13px; min-height: 18px; color: #bff5d2; text-align: center; }
       .status.error { color: #ff9b9b; }
+      #host-qr { border-radius: 12px; background: #fff; padding: 8px; box-sizing: border-box; }
 
       #hud {
         position: fixed; top: 0; left: 0; right: 0; z-index: 5;
@@ -126,11 +137,19 @@
       }
       @keyframes hudIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
       #hud.show { display: flex; }
-      #hud .stats { display: flex; gap: 10px; align-items: center; }
+      #hud .stats { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
       #hud .pill { padding: 7px 14px; border-radius: 12px; transition: background .2s, box-shadow .2s; }
       #hud .pill b { color: var(--accent); }
       #hud #hud-turn { font-weight: 700; transition: background .25s var(--ease), box-shadow .25s; }
       #hud #hud-group { font-weight: 700; color: #ffe7a6; }
+      .player-chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px 5px 6px; }
+      .player-chip .avatar {
+        width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 800; color: #04140b;
+      }
+      .player-chip .name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #hud-opp.hidden { display: none; }
       #hud .actions { display: flex; gap: 10px; pointer-events: auto; }
       #hud button {
         font-family: inherit; font-size: 13px; color: #fff; padding: 8px 14px; cursor: pointer; border-radius: 10px;
@@ -138,6 +157,9 @@
       }
       #hud button:hover { background: var(--glass-bg-hover); transform: translateY(-1px); }
       #hud button:active { transform: scale(.92); }
+      .reactions { display: none; gap: 4px; }
+      .reactions.show { display: flex; }
+      .reactions button { padding: 8px 10px; font-size: 15px; }
 
       #balls-left { position: fixed; top: calc(56px + env(safe-area-inset-top)); left: calc(18px + env(safe-area-inset-left)); z-index: 5; display: none;
         flex-direction: column; gap: 5px; pointer-events: none; padding: 8px 10px; border-radius: 10px;
@@ -207,12 +229,20 @@
 
     <div id="hud">
       <div class="stats">
+        <span class="pill player-chip" id="hud-me"><span class="avatar" id="hud-me-avatar"></span><span class="name" id="hud-me-name">You</span></span>
+        <span class="pill player-chip" id="hud-opp"><span class="avatar" id="hud-opp-avatar"></span><span class="name" id="hud-opp-name">Opponent</span></span>
         <span class="pill" id="hud-turn">Tú</span>
         <span class="pill" id="hud-group">Lisas</span>
         <span class="pill"><span data-i18n="shots">Tiros</span>: <b id="hud-shots">0</b></span>
         <span class="pill"><span data-i18n="potted">Embocadas</span>: <b id="hud-potted">0/7</b></span>
       </div>
       <div class="actions">
+        <span class="reactions" id="hud-reactions">
+          <button data-emoji="👍" title="👍">👍</button>
+          <button data-emoji="😅" title="😅">😅</button>
+          <button data-emoji="🎱" title="🎱">🎱</button>
+          <button data-emoji="😮" title="😮">😮</button>
+        </span>
         <button id="btn-mute" title="Silenciar">🔊</button>
         <button id="btn-restart" data-i18n="restart">Reiniciar</button>
         <button id="btn-menu" data-i18n="menu">Menú</button>
@@ -244,10 +274,20 @@
       </div>
     </div>
 
+    <div id="gameover-modal" class="modal">
+      <div class="box">
+        <p id="gameover-text">You won.</p>
+        <div class="row">
+          <button class="primary" id="gameover-rematch" data-i18n="rematch">Rematch</button>
+          <button id="gameover-menu" data-i18n="menu">Menu</button>
+        </div>
+      </div>
+    </div>
+
     <div id="menu">
       <div class="brand">
         <img src="/favicon.svg" alt="" />
-        <h1>Pool</h1>
+        <h1>Midnight Pool</h1>
       </div>
 
       <div class="screen active" id="screen-main">
@@ -255,11 +295,17 @@
         <button class="glass" id="btn-settings" data-i18n="settings">Ajustes</button>
         <button class="glass" id="btn-quit" data-i18n="quit">Salir</button>
         <div id="settings" style="display:none">
+          <span class="set-label" data-i18n="nickname">Nickname</span>
+          <input id="nickname-input" maxlength="16" autocomplete="off" spellcheck="false" />
           <span class="set-label" data-i18n="language">Idioma</span>
           <div class="seg" id="lang-seg">
             <button class="seg-btn" data-lang="es" data-i18n="spanish">Español</button>
             <button class="seg-btn" data-lang="en" data-i18n="english">Inglés</button>
           </div>
+          <label class="check-row">
+            <input type="checkbox" id="vibrate-toggle" />
+            <span data-i18n="vibrateOnTurn">Vibrate on your turn</span>
+          </label>
         </div>
       </div>
 
@@ -272,13 +318,24 @@
       <div class="screen" id="screen-mp">
         <button class="glass primary" id="btn-create" data-i18n="create">Crear partida</button>
         <button class="glass" id="btn-join" data-i18n="join">Unirse a partida</button>
+        <button class="glass" id="btn-quick" data-i18n="quickMatch">Partida rápida</button>
         <button class="glass small" data-back="screen-mode" data-i18n="back">Volver</button>
+      </div>
+
+      <div class="screen" id="screen-quick">
+        <div class="panel">
+          <div class="hint" data-i18n="quickHint">Buscando un rival al azar…</div>
+          <div class="status" id="quick-status"></div>
+        </div>
+        <button class="glass small" id="btn-quick-cancel" data-i18n="cancel">Cancelar</button>
       </div>
 
       <div class="screen" id="screen-host">
         <div class="panel">
           <div class="hint" data-i18n="hostHint">Comparte este código con quien quieras jugar.</div>
           <div class="code" id="host-code">····</div>
+          <canvas id="host-qr"></canvas>
+          <button class="glass primary small" id="btn-share" data-i18n="share">Compartir</button>
         </div>
         <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
       </div>

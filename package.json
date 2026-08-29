@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/physics.js",
+    "test": "node src/physics.js && node src/rules.js",
     "gen-icons": "node scripts/gen-icons.mjs"
   },
   "devDependencies": {
@@ -19,7 +19,9 @@
     "vite-plugin-pwa": "^1.3.0"
   },
   "dependencies": {
+    "@vercel/og": "^1.0.2",
     "peerjs": "^1.5.5",
-    "pixi.js": "^8.19.0"
+    "pixi.js": "^8.19.0",
+    "qrcode": "^1.5.4"
   }
 }

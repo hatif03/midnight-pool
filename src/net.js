@@ -47,3 +47,58 @@ export function join(code, handlers) {
     close: () => { try { conn?.close(); peer.destroy(); } catch {} },
   };
 }
+
+const RELAY_URL = import.meta.env.VITE_MATCH_RELAY_URL || 'ws://localhost:8787';
+
+// Pairs with a random waiting stranger via the matchmaking relay (server/, see
+// docs/adr/0004-matchmaking-relay.md), then falls through to the same host()/join() flow above —
+// the relay only ever sees a name string and a PeerJS code, never game traffic.
+export function findMatch(name, handlers) {
+  const ws = new WebSocket(RELAY_URL);
+  let net = null;
+  let retried = false;
+  let closed = false;
+
+  const queue = () => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'queue', name }));
+  };
+  ws.addEventListener('open', queue);
+
+  ws.addEventListener('message', (ev) => {
+    if (closed) return;
+    let m;
+    try { m = JSON.parse(ev.data); } catch { return; }
+
+    if (m.type === 'role' && m.role === 'host') {
+      handlers.assigned?.('host');
+      net = host({
+        ready: (code) => { ws.send(JSON.stringify({ type: 'ready', code })); handlers.ready?.(code); },
+        joined: handlers.joined,
+        message: handlers.message,
+        left: handlers.left,
+        error: (e) => {
+          if (!retried) { retried = true; ws.send(JSON.stringify({ type: 'hostFailed' })); queue(); }
+          else handlers.error?.(e);
+        },
+      });
+    } else if (m.type === 'role' && m.role === 'guest') {
+      handlers.assigned?.('guest');
+      net = join(m.code, handlers);
+    } else if (m.type === 'requeue') {
+      queue();
+    } else if (m.type === 'timeout') {
+      handlers.timeout?.();
+    }
+  });
+
+  ws.addEventListener('error', () => handlers.error?.(new Error('relay unreachable')));
+
+  return {
+    send: (o) => net?.send(o),
+    close: () => {
+      closed = true;
+      try { ws.close(); } catch {}
+      try { net?.close(); } catch {}
+    },
+  };
+}

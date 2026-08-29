@@ -1,7 +1,34 @@
 import { t } from './i18n.js';
 import { BALL_COLORS } from './config.js';
+import { avatarFor } from './identity.js';
 
 export const el = (id) => document.getElementById(id);
+
+function setChip(prefix, name) {
+  const { initial, color } = avatarFor(name);
+  el(`${prefix}-avatar`).textContent = initial;
+  el(`${prefix}-avatar`).style.background = color;
+  el(`${prefix}-name`).textContent = name;
+}
+
+export function updatePlayers(mode, myName, oppName) {
+  setChip('hud-me', myName);
+  el('hud-opp').classList.toggle('hidden', mode === 'solo');
+  if (mode !== 'solo') setChip('hud-opp', oppName);
+}
+
+export function showReactions(mode) {
+  el('hud-reactions').classList.toggle('show', mode !== 'solo');
+}
+
+export function showGameOver(text) {
+  el('gameover-text').textContent = text;
+  el('gameover-modal').classList.add('show');
+}
+
+export function hideGameOver() {
+  el('gameover-modal').classList.remove('show');
+}
 
 export function showScreen(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));

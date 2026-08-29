@@ -7,19 +7,19 @@
       }
     }
   },
-  "enabledPlugins": [
-    "midnight-expert@midnight-expert",
-    "core-concepts@midnight-expert",
-    "compact-core@midnight-expert",
-    "compact-examples@midnight-expert",
-    "compact-cli-dev@midnight-expert",
-    "midnight-dapp-dev@midnight-expert",
-    "midnight-tooling@midnight-expert",
-    "midnight-wallet@midnight-expert",
-    "midnight-verify@midnight-expert",
-    "midnight-cq@midnight-expert",
-    "midnight-status-codes@midnight-expert",
-    "midnight-fact-check@midnight-expert",
-    "midnight-plugin-utils@midnight-expert"
-  ]
+  "enabledPlugins": {
+    "midnight-expert@midnight-expert": true,
+    "core-concepts@midnight-expert": true,
+    "compact-core@midnight-expert": true,
+    "compact-examples@midnight-expert": true,
+    "compact-cli-dev@midnight-expert": true,
+    "midnight-dapp-dev@midnight-expert": true,
+    "midnight-tooling@midnight-expert": true,
+    "midnight-wallet@midnight-expert": true,
+    "midnight-verify@midnight-expert": true,
+    "midnight-cq@midnight-expert": true,
+    "midnight-status-codes@midnight-expert": true,
+    "midnight-fact-check@midnight-expert": true,
+    "midnight-plugin-utils@midnight-expert": true
+  }
 }

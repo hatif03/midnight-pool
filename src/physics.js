@@ -103,7 +103,7 @@ function bounceWalls(active, hits) {
       hit = Math.max(hit, Math.abs(b.vy));
       b.vy = -Math.abs(b.vy) * WALL_RESTITUTION;
     }
-    if (hit > 1.5) hits.push({ type: 'rail', speed: hit });
+    if (hit > 1.5) hits.push({ type: 'rail', ball: b.number, speed: hit });
   }
 }
 
@@ -128,7 +128,9 @@ function collideBalls(active, hits) {
       const jimp = ((1 + BALL_RESTITUTION) / 2) * rvn;
       a.vx -= jimp * nx; a.vy -= jimp * ny;
       b.vx += jimp * nx; b.vy += jimp * ny;
-      if (rvn > 1.5) hits.push({ type: 'ball', speed: rvn });
+      // Two balls can collide with a third in the same sub-step; order here is array order,
+      // not true physical time. Fine for a casual game — see rules.js for what depends on it.
+      if (rvn > 1.5) hits.push({ type: 'ball', a: a.number, b: b.number, speed: rvn });
     }
   }
 }
@@ -198,8 +200,23 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
     { x: 200, y: 300, vx: 20, vy: 0, number: 0, potted: false },
     { x: 300, y: 300, vx: 0, vy: 0, number: 1, potted: false },
   ];
-  for (let i = 0; i < 20; i++) step(balls);
+  let sawContact = false;
+  for (let i = 0; i < 20; i++) {
+    const { hits } = step(balls);
+    for (const h of hits) {
+      if (h.type === 'ball' && ((h.a === 0 && h.b === 1) || (h.a === 1 && h.b === 0))) sawContact = true;
+    }
+  }
   assert(balls[1].x > 300, 'struck ball moved forward');
+  assert(sawContact, 'ball-ball hit records both ball numbers');
+
+  balls = [{ x: 1000, y: 300, vx: 15, vy: 0, number: 0, potted: false }];
+  let sawRail = false;
+  for (let i = 0; i < 30 && !sawRail; i++) {
+    const { hits } = step(balls);
+    for (const h of hits) if (h.type === 'rail' && h.ball === 0) sawRail = true;
+  }
+  assert(sawRail, 'rail hit records the ball number');
 
   console.log(`OK — break settled in ${frames} frames (~${(frames / 60).toFixed(1)}s)`);
 }

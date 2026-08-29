@@ -82,14 +82,30 @@ The source is https://github.com/devrelaicom/midnight-expert if the user wants t
 ## Mobile-first PWA requirements
 
 - Design and build for touch/small-screen first; desktop is the secondary layout, not the other way
-  around (the current game is desktop-drag-first — this needs revisiting).
-- Add a web app manifest and service worker (none exist yet — `index.html` currently has no
-  `<link rel="manifest">` and there's no `sw.js`) so the app is installable and has basic offline
-  support. Use Vite's PWA plugin ecosystem rather than hand-writing manifest/SW boilerplate if a
-  well-maintained plugin covers it.
+  around.
+- Manifest + service worker are done via `vite-plugin-pwa` (see `vite.config.js` and
+  [ADR-0002](docs/adr/0002-pwa-tooling-choices.md)) — installable, offline-capable, icons generated
+  from `public/favicon.svg` via `npm run gen-icons`. Don't hand-write a competing `sw.js`.
 - "Sensitive information never leaves the device unproven" (Mobile Track framing) should shape the
   wallet/proving architecture: prefer in-browser proof generation / local key handling over sending
-  private data to a server, wherever Midnight's client SDK supports it.
+  private data to a server, wherever Midnight's client SDK supports it. This is still open — no
+  wallet/proving code exists yet.
+
+## Working agreements
+
+- **Architectural decisions get an ADR first.** Before a new dependency, a rework of how a
+  subsystem talks to another, or reversing an earlier decision, write
+  `docs/adr/000N-title.md` (copy `docs/adr/0000-template.md`) — context, decision, consequences —
+  before making the change, not as an afterthought. Routine feature work and bug fixes don't need
+  one. Index: [docs/adr/README.md](docs/adr/README.md).
+- **Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)**:
+  `type(scope): summary`, body explains *why* not *what*. Types: `feat`, `fix`, `refactor`, `docs`,
+  `chore`, `test`. Example: `feat(pwa): add vite-plugin-pwa manifest and service worker`. Note: the
+  repo's pre-existing commit history predates this convention (full-sentence style) — don't rewrite
+  those, just use Conventional Commits going forward.
+- **Update [PROJECT_LOG.md](PROJECT_LOG.md)** after a work session that changed project state or
+  direction (not after every trivial edit) — current state, what changed, what's next. It's the
+  first thing to read at the start of a session and the last thing to touch at the end of one.
 
 ## Skills
 

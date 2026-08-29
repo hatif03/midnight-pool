@@ -1,27 +1,59 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
+import QRCode from 'qrcode';
 import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE } from './config.js';
 import { rack, step, allStopped, shoot, placeCue } from './physics.js';
+import { groupOf, resolveShot } from './rules.js';
 import { drawTable, buildBallVisual, drawAim, drawPower, initBallTextures } from './scene.js';
-import { host, join } from './net.js';
+import { host, join, findMatch } from './net.js';
 import * as ui from './ui.js';
 import * as audio from './audio.js';
+import * as identity from './identity.js';
 import { t, setLang, getLang, applyStatic } from './i18n.js';
 
-const groupOf = (n) => (n === 0 ? 'cue' : n === 8 ? 'eight' : n <= 7 ? 'solids' : 'stripes');
 const other = (p) => (p === 1 ? 2 : 1);
 
 const game = {
   mode: 'solo', myPlayer: 1, turn: 1, started: false,
   balls: null, cue: null, sprites: null, byNumber: null,
   shots: 0, shooting: false, shotPotted: [], cueFoul: false,
-  groups: { 1: null, 2: null }, gameOver: false, winner: null,
+  groups: { 1: null, 2: null }, openTable: true, gameOver: false, winner: null,
+  firstContactBall: null, anyContact: false, anyRailAfterContact: false,
   net: null, settled: true, cuePotted: false, ballInHand: false,
+  opponentName: null,
   sfxBall: 0, sfxRail: 0, sfxPocket: 0,
 };
+
+function updatePlayersDisplay() {
+  ui.updatePlayers(game.mode, identity.getNickname(), game.opponentName || t('rival'));
+  ui.showReactions(game.mode);
+}
+
+function vibrateTurn() {
+  if (identity.getVibrateOnTurn() && navigator.vibrate) navigator.vibrate(200);
+}
 
 let app, ballLayer, aimLine, powerBar, powerLabel, frame = 0;
 let bannerQ = [], bannerBusy = false;
 let lastPhysics = 0;
+let shareUrl = '';
+
+function updateShareLink(code) {
+  const name = encodeURIComponent(identity.getNickname());
+  shareUrl = `${location.origin}/i/${code}?n=${name}`;
+  QRCode.toCanvas(document.getElementById('host-qr'), shareUrl, { width: 160, margin: 1 }, () => {});
+}
+
+async function shareInvite() {
+  const text = t('shareText').replace('{name}', identity.getNickname()).replace('{code}', ui.el('host-code').textContent);
+  if (navigator.share) {
+    try { await navigator.share({ text, url: shareUrl }); } catch {}
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(`${text} ${shareUrl}`);
+    ui.toast(t('linkCopied'));
+  } catch {}
+}
 
 async function main() {
   app = new Application();
@@ -48,17 +80,40 @@ async function main() {
   });
   markLang();
 
+  const nickInput = document.getElementById('nickname-input');
+  nickInput.value = identity.getNickname();
+  nickInput.addEventListener('change', () => {
+    identity.setNickname(nickInput.value);
+    nickInput.value = identity.getNickname();
+    updatePlayersDisplay();
+  });
+
+  const vibrateToggle = document.getElementById('vibrate-toggle');
+  vibrateToggle.checked = identity.getVibrateOnTurn();
+  vibrateToggle.addEventListener('change', () => identity.setVibrateOnTurn(vibrateToggle.checked));
+
   setupRack();
   setupInput();
+  updatePlayersDisplay();
 
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
   app.ticker.add(renderFrame);
 
   wireMenu();
+  applyJoinLinkIfAny();
 
   const kick = () => { audio.resume(); audio.startMusic(); window.removeEventListener('pointerdown', kick); };
   window.addEventListener('pointerdown', kick);
+}
+
+function applyJoinLinkIfAny() {
+  const code = new URLSearchParams(location.search).get('join');
+  if (!code) return;
+  history.replaceState(null, '', location.pathname);
+  ui.el('join-code').value = code.toUpperCase();
+  ui.setStatus('join-status', '');
+  ui.showScreen('screen-join');
 }
 
 function physicsLoop() {
@@ -79,9 +134,14 @@ function physicsFrame() {
     if (h.type === 'ball') {
       if (audible) audio.ballHit(h.speed);
       game.sfxBall = Math.max(game.sfxBall, h.speed);
+      if (h.a === 0 || h.b === 0) {
+        game.anyContact = true;
+        if (game.firstContactBall === null) game.firstContactBall = h.a === 0 ? h.b : h.a;
+      }
     } else {
       if (audible) audio.railHit(h.speed);
       game.sfxRail = Math.max(game.sfxRail, h.speed);
+      if (game.firstContactBall !== null) game.anyRailAfterContact = true;
     }
   }
 
@@ -141,6 +201,7 @@ function setupRack() {
   game.gameOver = false;
   game.winner = null;
   game.ballInHand = false;
+  ui.hideGameOver();
   refreshHud();
 }
 
@@ -200,6 +261,9 @@ function doShoot(dx, dy, power) {
   game.shooting = true;
   game.shotPotted = [];
   game.cueFoul = false;
+  game.firstContactBall = null;
+  game.anyContact = false;
+  game.anyRailAfterContact = false;
   refreshHud();
   ui.hideHint();
 }
@@ -219,21 +283,35 @@ function resolveSoloShot() {
 function resolveTurn() {
   game.shooting = false;
   const shooter = game.turn;
-  const mg = game.groups[shooter];
+  const shooterGroup = game.groups[shooter];
   const potted = game.shotPotted;
-  const cueFoul = game.cueFoul || potted.includes(0);
-  const eight = potted.includes(8);
-  const mineCount = potted.filter((n) => groupOf(n) === mg).length;
+  const groupCleared = shooterGroup
+    ? game.balls.filter((b) => groupOf(b.number) === shooterGroup && !b.potted).length === 0
+    : false;
 
-  if (eight) {
-    const cleared = game.balls.filter((b) => groupOf(b.number) === mg && !b.potted).length === 0;
-    endGame(cleared && !cueFoul ? shooter : other(shooter));
+  const result = resolveShot({
+    shooter,
+    openTable: game.openTable,
+    shooterGroup,
+    groups: game.groups,
+    potted,
+    firstContactBall: game.firstContactBall,
+    anyContact: game.anyContact,
+    anyRailAfterContact: game.anyRailAfterContact,
+    cueFoul: game.cueFoul || potted.includes(0),
+    groupCleared,
+  });
+
+  game.openTable = result.openTable;
+  game.groups = result.groups;
+
+  if (result.gameOver) {
+    endGame(result.winner);
     return;
   }
 
-  const keep = mineCount > 0 && !cueFoul;
-  if (!keep) game.turn = other(shooter);
-  game.ballInHand = cueFoul;
+  if (!result.keepShooting) game.turn = other(shooter);
+  game.ballInHand = result.foul;
   game.shotPotted = [];
   game.cueFoul = false;
   refreshHud();
@@ -251,7 +329,9 @@ function endGame(winner) {
 
 function showEndBanner() {
   const won = game.winner === game.myPlayer;
-  ui.banner(won ? t('won') : t('lost'));
+  const text = won ? t('won') : t('lost');
+  ui.banner(text);
+  ui.showGameOver(text);
   won ? audio.win() : audio.lose();
 }
 
@@ -264,17 +344,21 @@ function announceTurn() {
   } else {
     queueBanner(game.turn === game.myPlayer ? t('yourTurn') : t('rivalTurn'));
   }
-  if (game.turn === game.myPlayer) audio.turnChime();
+  if (game.turn === game.myPlayer) {
+    audio.turnChime();
+    vibrateTurn();
+  }
   maybeNotifyTurn();
 }
 
 function announceGroupAndTurn() {
   const mg = game.groups[game.myPlayer];
-  queueBanner(mg === 'stripes' ? t('mustStripes') : t('mustSolids'));
+  queueBanner(game.openTable ? t('tableOpen') : mg === 'stripes' ? t('mustStripes') : t('mustSolids'));
   queueBanner(game.turn === game.myPlayer ? t('yourTurn') : t('rivalTurn'));
   ui.updateTurn(game.mode, game.turn === game.myPlayer);
   if (game.turn === game.myPlayer) {
     audio.turnChime();
+    vibrateTurn();
     maybeNotifyTurn();
   }
   refreshHud();
@@ -343,7 +427,7 @@ function maybeAskNotifications() {
 function sendState() {
   game.net.send({
     type: 'state', turn: game.turn, settled: allStopped(game.balls), cuePotted: game.cue.potted,
-    ballInHand: game.ballInHand,
+    ballInHand: game.ballInHand, openTable: game.openTable,
     shots: game.shots, groups: game.groups, gameOver: game.gameOver, winner: game.winner,
     sfx: { b: game.sfxBall, r: game.sfxRail, p: game.sfxPocket },
     balls: game.balls.map((b) => ({ n: b.number, x: b.x, y: b.y, r: game.sprites.get(b).spin.rotation, p: b.potted })),
@@ -360,6 +444,7 @@ function applyState(m) {
   game.cuePotted = m.cuePotted;
   game.shots = m.shots;
   game.groups = m.groups;
+  game.openTable = m.openTable;
   game.gameOver = m.gameOver;
   game.winner = m.winner;
   game.ballInHand = m.ballInHand;
@@ -390,7 +475,10 @@ function applyState(m) {
     } else {
       queueBanner(game.turn === game.myPlayer ? t('yourTurn') : t('rivalTurn'));
     }
-    if (game.turn === game.myPlayer) audio.turnChime();
+    if (game.turn === game.myPlayer) {
+      audio.turnChime();
+      vibrateTurn();
+    }
     maybeNotifyTurn();
   }
 
@@ -456,6 +544,7 @@ function leaveGame() {
   closeNet();
   game.mode = 'solo';
   stopBanners();
+  ui.hideGameOver();
   ui.backToMenu();
   if (wasMulti) ui.toast(t('youLeft'));
 }
@@ -464,13 +553,21 @@ function onMessage(m) {
   if (m.type === 'start' && game.mode === 'guest') {
     setupRack();
     game.groups = m.groups;
+    game.openTable = m.openTable;
     game.turn = m.turn;
     game.started = true;
     game.gameOver = false;
+    game.opponentName = m.hostName || game.opponentName;
+    updatePlayersDisplay();
     ui.enterGame();
     maybeAskNotifications().then(announceGroupAndTurn);
   } else if (m.type === 'state' && game.mode === 'guest') {
     applyState(m);
+  } else if (m.type === 'hello') {
+    game.opponentName = m.name;
+    updatePlayersDisplay();
+  } else if (m.type === 'reaction') {
+    ui.toast(m.emoji);
   } else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) {
     doShoot(m.dx, m.dy, m.power);
   } else if (m.type === 'place' && game.mode === 'host' && game.turn === 2 && game.ballInHand) {
@@ -480,16 +577,34 @@ function onMessage(m) {
     setupRack();
     stopBanners();
     newMatchGroups();
-    game.net.send({ type: 'start', groups: game.groups, turn: game.turn });
+    game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
     sendState();
     announceGroupAndTurn();
   }
 }
 
 function newMatchGroups() {
-  const p1 = Math.random() < 0.5 ? 'solids' : 'stripes';
-  game.groups = { 1: p1, 2: p1 === 'solids' ? 'stripes' : 'solids' };
+  game.groups = { 1: null, 2: null };
+  game.openTable = true;
   game.turn = 1;
+}
+
+function hostJoinedHandler() {
+  setupRack();
+  newMatchGroups();
+  game.started = true;
+  game.opponentName = null;
+  updatePlayersDisplay();
+  audio.notify();
+  ui.toast(t('rivalJoined'));
+  ui.enterGame();
+  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
+  sendState();
+  maybeAskNotifications().then(announceGroupAndTurn);
+}
+
+function guestConnectedHandler() {
+  game.net.send({ type: 'hello', name: identity.getNickname() });
 }
 
 function startHost() {
@@ -498,18 +613,8 @@ function startHost() {
   game.myPlayer = 1;
   ui.el('host-code').textContent = '····';
   game.net = host({
-    ready: (code) => { ui.el('host-code').textContent = code; },
-    joined: () => {
-      setupRack();
-      newMatchGroups();
-      game.started = true;
-      audio.notify();
-      ui.toast(t('rivalJoined'));
-      ui.enterGame();
-      game.net.send({ type: 'start', groups: game.groups, turn: game.turn });
-      sendState();
-      maybeAskNotifications().then(announceGroupAndTurn);
-    },
+    ready: (code) => { ui.el('host-code').textContent = code; updateShareLink(code); },
+    joined: hostJoinedHandler,
     message: onMessage,
     left: () => ui.toast(t('rivalLeft')),
     error: () => {},
@@ -527,10 +632,28 @@ function startJoin() {
   game.myPlayer = 2;
   ui.setStatus('join-status', t('connecting'));
   game.net = join(code, {
-    connected: () => ui.setStatus('join-status', t('waitingHost')),
+    connected: () => { ui.setStatus('join-status', t('waitingHost')); guestConnectedHandler(); },
     message: onMessage,
     left: () => ui.setStatus('join-status', t('closed'), true),
     error: () => ui.setStatus('join-status', t('notFound'), true),
+  });
+}
+
+function startQuickMatch() {
+  closeNet();
+  ui.setStatus('quick-status', t('searching'));
+  game.net = findMatch(identity.getNickname(), {
+    assigned: (role) => {
+      game.mode = role === 'host' ? 'host' : 'guest';
+      game.myPlayer = role === 'host' ? 1 : 2;
+    },
+    ready: () => {},
+    joined: hostJoinedHandler,
+    connected: () => { ui.setStatus('quick-status', t('waitingHost')); guestConnectedHandler(); },
+    message: onMessage,
+    left: () => ui.toast(t('rivalLeft')),
+    error: () => ui.setStatus('quick-status', t('notFound'), true),
+    timeout: () => ui.setStatus('quick-status', t('quickTimeout'), true),
   });
 }
 
@@ -542,11 +665,14 @@ function wireMenu() {
   click('btn-quit', () => window.close());
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
 
-  click('btn-solo', () => { closeNet(); game.mode = 'solo'; setupRack(); stopBanners(); ui.enterGame(); ui.updateTurn('solo'); ui.updateGroup('solo'); });
+  click('btn-solo', () => { closeNet(); game.mode = 'solo'; setupRack(); stopBanners(); ui.enterGame(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
   click('btn-multi', () => ui.showScreen('screen-mp'));
   click('btn-create', () => { ui.showScreen('screen-host'); startHost(); });
+  click('btn-share', shareInvite);
   click('btn-join', () => { ui.setStatus('join-status', ''); ui.showScreen('screen-join'); });
   click('btn-connect', startJoin);
+  click('btn-quick', () => { ui.showScreen('screen-quick'); startQuickMatch(); });
+  click('btn-quick-cancel', () => { closeNet(); ui.showScreen('screen-mp'); });
 
   ui.el('btn-mute').onclick = () => { audio.resume(); audio.setMuted(!audio.isMuted()); ui.setMuteIcon(audio.isMuted()); audio.uiClick(); };
 
@@ -563,7 +689,7 @@ function wireMenu() {
     stopBanners();
     if (game.mode === 'host') {
       newMatchGroups();
-      game.net.send({ type: 'start', groups: game.groups, turn: game.turn });
+      game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
       sendState();
       announceGroupAndTurn();
     }
@@ -577,6 +703,18 @@ function wireMenu() {
     if (!ok) return;
     leaveGame();
   };
+
+  document.querySelectorAll('#hud-reactions button').forEach((b) => {
+    b.onclick = () => {
+      audio.resume();
+      const emoji = b.dataset.emoji;
+      game.net?.send({ type: 'reaction', emoji });
+      ui.toast(emoji);
+    };
+  });
+
+  ui.el('gameover-rematch').onclick = () => { ui.hideGameOver(); ui.el('btn-restart').click(); };
+  ui.el('gameover-menu').onclick = () => { ui.hideGameOver(); ui.el('btn-menu').click(); };
 
   document.querySelectorAll('.glass').forEach((b) => b.addEventListener('pointerenter', () => audio.uiHover()));
 }
