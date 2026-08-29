@@ -1,8 +1,8 @@
-# Pool
+# Midnight Pool
 [![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://pool-arelkair.vercel.app/)
 
 ![Gameplay screenshot](docs/screenshot.png)
-A 2D pool game for the browser, with online 1v1 multiplayer.
+A 2D pool game for the browser, with online 1v1 multiplayer. Being extended into a mobile-first PWA with Midnight Network privacy features — see [CLAUDE.md](CLAUDE.md) for the project direction.
 ## How to play
 - **Singleplayer**: Free practice.
 - **Multiplayer**: One player creates a game and shares the 4-letter code; the other joins with that code. It runs peer-to-peer over the internet, with no servers or router setup. Turns follow standard 8-ball rules.

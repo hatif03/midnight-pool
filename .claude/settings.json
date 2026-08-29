@@ -1,0 +1,25 @@
+{
+  "extraKnownMarketplaces": {
+    "midnight-expert": {
+      "source": {
+        "source": "url",
+        "url": "https://midnightntwrk.expert"
+      }
+    }
+  },
+  "enabledPlugins": [
+    "midnight-expert@midnight-expert",
+    "core-concepts@midnight-expert",
+    "compact-core@midnight-expert",
+    "compact-examples@midnight-expert",
+    "compact-cli-dev@midnight-expert",
+    "midnight-dapp-dev@midnight-expert",
+    "midnight-tooling@midnight-expert",
+    "midnight-wallet@midnight-expert",
+    "midnight-verify@midnight-expert",
+    "midnight-cq@midnight-expert",
+    "midnight-status-codes@midnight-expert",
+    "midnight-fact-check@midnight-expert",
+    "midnight-plugin-utils@midnight-expert"
+  ]
+}

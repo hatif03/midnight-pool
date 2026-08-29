@@ -1,0 +1,68 @@
+---
+description: Midnight Pool project context - mobile-first PWA + Midnight Network integration for the Aug 2026 Midnight Hackathon
+alwaysApply: true
+---
+
+# Midnight Pool
+
+This repo (`midnight-pool`) is a browser 2D pool game (PixiJS rendering, custom physics, PeerJS
+peer-to-peer 1v1 multiplayer, Vite build) being rebuilt into a **mobile-first PWA** with
+**Midnight Network** privacy features, for submission to the
+[Midnight Hackathon](https://midnight-hackathon-august-2026.devpost.com/) (MLH, 2026-08-28 to
+2026-08-30, submit by 11:45am EDT 08-30; also see the
+[MLH event page](https://events.mlh.com/events/14510-midnight-hackathon)).
+
+Treat the mobile-first PWA + Midnight direction as the target regardless of the code's current
+state — the pool-game-only version is the starting point, not the destination.
+
+## Targeted hackathon tracks (one project, three tracks)
+
+1. **Mobile Track** — "apps where sensitive information never leaves the device unproven." Must be
+   a real mobile-first PWA (installable, touch-first UI, offline-capable) — not a desktop layout
+   that merely renders on a phone.
+2. **Integrate Midnight Track** — add privacy features to an existing app, with a before/after.
+   Before = the current p2p pool game; after = same game + Midnight (private stakes/wagers,
+   provable-fair outcomes, private identity/ranking — exact design TBD).
+3. **Cross-Chain Track** — use [Effectstream](https://github.com/effectstream/effectstream)
+   (Midnight's own recommended multi-chain engine, supports EVM/Bitcoin/NEAR/Cardano/Solana sync
+   with Midnight) rather than a hand-rolled bridge.
+
+Judging weighs technology, originality, execution, completion, documentation, business value —
+keep scope small enough to finish and polish.
+
+## Always verify Midnight/Compact code against docs — don't trust memory
+
+Midnight and its contract language (Compact) are barely represented in model training data, per
+Midnight's own docs — any "recalled" Compact syntax or SDK call is likely hallucinated. Before
+writing or editing anything Midnight-related, check:
+
+- **https://docs.midnight.network/** — start at `/what-is-midnight`, `/getting-started`,
+  `/concepts`, `/compact` (language reference), `/tokens`, `/nodes`, `/glossary`,
+  `/category/troubleshoot`. This is the source of truth over anything remembered.
+- **https://github.com/kuiralabs** — Android/Kotlin Midnight mobile reference (`kuira-sdk-android`,
+  `kuira-starter-android`, `midnight-rs`). No PWA/web project exists there, so use it as an
+  *architecture* reference (embedded wallet, passkey/Sigil identity, contract wiring) — this
+  project's mobile layer is a web PWA, so the wallet/connector implementation should come from
+  Midnight's docs (dApp connector / Lace wallet), not ported Kotlin code.
+- **https://github.com/effectstream/effectstream** — cross-chain engine, first-class Midnight
+  support (`@effectstream/midnight-contracts`, `@effectstream/midnight-node`, `evm-midnight-v2`
+  template syncing an EVM contract with a Midnight ZK contract).
+- Claude Code users on this repo also have the `midnight-expert` plugin marketplace configured
+  (see `.claude/settings.json` / `CLAUDE.md`) with 13 Midnight-specific plugins (Compact contract
+  writing, dApp/wallet scaffolding, verification, devnet tooling, error-code lookup). If you're
+  pairing with a Claude Code session, prefer having it check those before generating Compact code.
+
+## Mobile-first PWA requirements
+
+- Touch/small-screen is the primary layout; desktop is secondary. The current game is
+  desktop-drag-first and needs revisiting for touch input.
+- No web app manifest or service worker exist yet (`index.html` has no `<link rel="manifest">`,
+  no `sw.js`). Add both for installability/offline support — prefer an existing Vite PWA plugin
+  over hand-rolled manifest/SW boilerplate.
+- Keep private data (keys, proof inputs) client-side wherever the Midnight SDK supports it —
+  this is both correct-by-design and what the Mobile Track judges for.
+
+## Submission constraints
+
+Public repo, ≤2min demo video naming the hackathon, built during the hackathon weekend (except the
+pre-existing "before" state for the Integrate Midnight track), ≤5 team members, one submission.
