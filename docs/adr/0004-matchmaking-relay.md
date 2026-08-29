@@ -45,21 +45,44 @@ disconnect while paired-but-not-yet-ready does the same for whichever side is st
 Once handoff to PeerJS actually happens, a stalled connection is the client's own problem — it
 needs its own "waiting for opponent… cancel" timeout independent of the relay's queue timeout.
 
-**Hosting**: a small always-on Node WebSocket service (Render.com's free Web Service tier is a
-reasonable default — zero-config git deploy, supports long-lived WebSocket connections; swap for
-Fly.io/Railway/a VPS if preferred, the code doesn't care). Free tiers commonly spin down when idle,
-so the **first quick-match after a quiet period may hang 30-50s on cold start** — a known tradeoff
-to flag in the UI copy, not a bug to chase.
+**Hosting — deployed to Google Cloud Run** (the user's choice; Render/Fly/Railway were the
+original defaults considered, but the code doesn't care which host runs it). Deployed via
+`gcloud run deploy midnight-pool-relay --source server --region us-central1
+--allow-unauthenticated --max-instances=1 --timeout=3600`, to the user's existing
+`project-f0b6b4ce-541f-43ff-9f7` project (chosen over creating a new dedicated project, to avoid
+the extra billing-account-linking step). Live at
+`wss://midnight-pool-relay-147606977567.us-central1.run.app`, verified with real `ws` clients
+against the deployed URL (queue → pair → code exchange all worked).
 
-The frontend points at the relay via a build-time env var, `VITE_MATCH_RELAY_URL` (defaults to
-`ws://localhost:8787` for local dev against `server/` running locally); production needs this set
-as a Vercel environment variable once the relay is actually deployed.
+Two Cloud-Run-specific correctness details that aren't optional:
+- **`--max-instances=1` is required, not a cost optimization.** The `Matchmaker`'s waiting queue
+  and pairs map are in-memory, single-process state (see `server/matchmaker.js`). If Cloud Run
+  scaled this to multiple instances, two waiting clients could land on different instances and
+  never see each other. `--min-instances` is left at Cloud Run's default (0) rather than pinned to
+  1 — since max is capped at 1, correctness holds either way, and staying at the default avoids
+  paying for a continuously-warm instance. The tradeoff is the same one Render's free tier would
+  have given for free: **the first quick-match after an idle period may hang on a cold start** —
+  same known tradeoff as originally written here for Render, just via a different mechanism.
+- **`--timeout=3600`** (Cloud Run's max): the default 300s request timeout would otherwise
+  forcibly cut a WebSocket connection — and therefore a match — off mid-game after 5 minutes,
+  since each open WS connection counts as one long-lived request from Cloud Run's perspective.
+
+The frontend points at the relay via a build-time env var, `VITE_MATCH_RELAY_URL`. Rather than a
+Vercel dashboard setting (which this environment has no way to configure — see ADR-0005's Vercel
+access gap), it's committed directly in **`.env.production`** at the repo root — the relay's URL
+isn't a secret, so there's nothing to protect by keeping it out of the repo, and this way every
+production build picks it up automatically. Local dev still falls back to `ws://localhost:8787`
+against `server/` running locally when `.env.production` isn't in play (`vite dev` doesn't load it).
 
 ## Consequences
 
 - A second deployable unit exists now (`server/`, its own `package.json`), separate from the static
-  Vite frontend — this repo is no longer "just a static site plus one Vercel project."
+  Vite frontend and now living in a **different cloud provider** (GCP) than the frontend (Vercel) —
+  two providers to know about, not one.
 - The relay holds no game state and no player data beyond a transient name string while queued —
   low operational/privacy burden, consistent with the project's local-only-identity approach.
-- `PROJECT_LOG.md`/`CLAUDE.md` need the deployed relay URL recorded once it's actually hosted
-  somewhere, and `VITE_MATCH_RELAY_URL` set in the Vercel project's environment variables.
+- The relay now lives in a GCP project (`project-f0b6b4ce-541f-43ff-9f7`) that's also used for
+  unrelated apps ("flocus", Gemini API usage) — it wasn't given a dedicated project, so keep that
+  in mind when reading Cloud Run logs/billing for that project; it's not exclusively this game's.
+- Redeploying after a `server/` code change means re-running the `gcloud run deploy` command above
+  (not yet wired to auto-deploy on push, unlike the Vercel frontend).

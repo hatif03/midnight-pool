@@ -70,21 +70,29 @@ reasoning behind any decision marked with an ADR link.
     `main.js` refactored `startHost`/`startJoin`'s inline logic into `hostJoinedHandler()`/
     `guestConnectedHandler()` so quick-match reuses the exact same match-start logic rather than
     duplicating it. New "Quick Match" screen with searching/cancel/timeout states.
-    **Gap**: relay is not deployed anywhere yet (`VITE_MATCH_RELAY_URL` still defaults to
-    `ws://localhost:8787`) — Quick Match only works today if `server/` is also running locally.
-  - **Workstream 5 (dynamic share previews) — code complete, unverifiable from this environment.**
-    [ADR-0005](docs/adr/0005-dynamic-share-previews.md) written first. `api/og.js` (`@vercel/og`
-    Edge Function, deliberately built with plain object literals instead of JSX to avoid any
-    JSX-transpilation uncertainty) and `api/invite.js` (Edge Function serving `/i/:code` via a
-    `vercel.json` rewrite, returning OG meta tags + a redirect script). `startHost()`'s share link
-    now points at `/i/:code?n=<nickname>`. **Real gap, not just "not yet tested on a phone" like
-    earlier workstreams**: there's no Vercel CLI or linked project in this environment, and
-    `@vercel/og`'s edge runtime doesn't run under plain Node, so this could only be verified as far
-    as: syntax-checked, the `invite.js` HTML-generation logic executed directly in Node (Node has
-    native `Request`/`Response`/`URL`) and confirmed to interpolate the name/code/image URL
-    correctly, and the `og.js` object-tree shape sanity-checked. The actual `ImageResponse` render,
-    the `vercel.json` rewrite, and real link-preview rendering are **unverified** until deployed —
-    see ADR-0005's verification section for the exact post-deploy checks.
+    **Deployed for real** to Google Cloud Run (the user's choice — `gcloud` was already
+    authenticated in this environment, unlike Vercel/Render): live at
+    `wss://midnight-pool-relay-147606977567.us-central1.run.app`, in the user's existing
+    `project-f0b6b4ce-541f-43ff-9f7` project. Verified against the *live* deployed URL with real
+    `ws` clients, not just localhost — queue → pair → code exchange all worked. `--max-instances=1`
+    is pinned (a correctness requirement, not a cost choice — see ADR-0004) and `--timeout=3600`
+    (Cloud Run's default 300s would otherwise cut a match off mid-game). The relay URL is committed
+    in **`.env.production`** (not a Vercel dashboard env var, since there's no Vercel access here) —
+    confirmed via `npm run build` that the real URL is now baked into the production bundle, so
+    Quick Match will work automatically once Vercel deploys this.
+  - **Workstream 5 (dynamic share previews) — code complete, one real bug found via an actual
+    deploy attempt and fixed.** [ADR-0005](docs/adr/0005-dynamic-share-previews.md) written first.
+    `api/og.js` (`@vercel/og`) and `api/invite.js` (serving `/i/:code` via a `vercel.json` rewrite,
+    returning OG meta tags + a redirect script). `startHost()`'s share link now points at
+    `/i/:code?n=<nickname>`. The user's first real Vercel deploy failed exactly as ADR-0005's risk
+    note predicted: `api/og.js`'s Edge Function config broke with "referencing unsupported
+    modules" — `@vercel/og`'s WASM/font loading only works inside Next.js's build pipeline. Fixed
+    by switching `api/og.js` to the Node.js serverless runtime (Vercel's own docs confirm
+    `ImageResponse` supports it) — a one-line removal, no other changes. `api/invite.js` was
+    unaffected (no `@vercel/og` dependency). Still genuinely unverified from this environment (no
+    Vercel access here at all): whether the redeploy actually succeeds, whether `ImageResponse`
+    renders a real image on the Node runtime, and real link-preview rendering — see ADR-0005's
+    verification section for the exact post-deploy checks.
   - **Workstreams 6-9 not started**: the player economy foundation (Coins/Cash/XP), cue collection
     + new spin/English physics, the live-ops loop (daily reward/pass/boxes/spin-and-win/loyalty
     shop), and leagues/tournaments (stretch). See the plan file for full detail on each.
@@ -116,6 +124,12 @@ See `docs/adr/` for the full record:
 - `enabledPlugins` in `.claude/settings.json` must be an **object** (`{"plugin@marketplace": true}`),
   not an array — an array parses as valid JSON but Claude Code's settings schema rejects it
   ("Expected record, but received array").
+- The matchmaking relay's GCP project (`project-f0b6b4ce-541f-43ff-9f7`, "My First Project") is
+  **shared with unrelated apps** ("flocus", Gemini API usage) — it wasn't given a dedicated
+  project. Don't be surprised by other services showing up in that project's Cloud Run/billing
+  console; they're not this game's.
+- `.env.production` at the repo root is committed (not gitignored) on purpose — it only holds the
+  public matchmaking relay WebSocket URL, which isn't a secret. Don't put anything sensitive there.
 
 ## Next steps
 
@@ -124,13 +138,10 @@ See `docs/adr/` for the full record:
   drag gestures. It doesn't cover an actual win/loss (hard to script reliably), real touch input,
   or how it actually *feels* to play. Also worth a deliberate-foul pass (hit the wrong group on
   purpose) once groups are assigned, which the scripted test didn't reach.
-- **Deploy and verify workstream 5 for real** — this is the one piece so far that genuinely
-  couldn't be tested from this environment (no Vercel CLI/project link, `@vercel/og`'s edge runtime
-  doesn't run under plain Node). After deploying: fetch `/i/CODE?n=Name` and confirm the `og:title`/
-  `og:image` meta tags are right, fetch `/api/og?n=Name` directly and confirm it returns a real
-  image, and paste an invite link into WhatsApp/iMessage to see the actual preview card render.
-- Deploy `server/` somewhere (Render.com free tier per ADR-0004, or swap it) and set
-  `VITE_MATCH_RELAY_URL` in Vercel's project env vars — Quick Match is local-only until then.
+- **Confirm the Vercel redeploy actually succeeds** after the `api/og.js` Node-runtime fix, then
+  verify workstream 5 for real: fetch `/i/CODE?n=Name` and confirm the `og:title`/`og:image` meta
+  tags are right, fetch `/api/og?n=Name` directly and confirm it returns a real image, and paste an
+  invite link into WhatsApp/iMessage to see the actual preview card render.
 - Continue the approved plan at workstream 6 (player economy foundation: Coins, Cash, XP/levels) —
   the largest remaining chunk (workstreams 6-9 together).
 - Test PWA install on an actual phone (same-Wi-Fi `npm run dev -- --host` or `npm run preview
