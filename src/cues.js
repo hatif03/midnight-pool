@@ -3,26 +3,27 @@
 // mitigation in the plan): since there's no real-money purchase path, this is earned advantage
 // from playtime, not bought advantage — but the deltas still need to stay small to keep matches
 // close to skill-based. powerMult scales max shot speed, aimBonus extends the aim-assist guide
-// line length (px), spinCap is the max |spin.x|/|spin.y| this cue allows (0 = spin locked).
+// line length (px), spinCap is the max |spin.x|/|spin.y| this cue allows (0 = spin locked),
+// timeBonus adds seconds to the Quick Match turn timer (only meaningful there).
 export const CUE_COLLECTIONS = [
   {
     id: 'house', name: 'House Cue',
     tiers: [
-      { id: 'house', name: 'House Cue', rarity: 'common', powerMult: 1.0, aimBonus: 0, spinCap: 0, piecesNeeded: 0 },
+      { id: 'house', name: 'House Cue', rarity: 'common', powerMult: 1.0, aimBonus: 0, spinCap: 0, timeBonus: 0, piecesNeeded: 0 },
     ],
   },
   {
     id: 'comet', name: 'Comet',
     tiers: [
-      { id: 'comet-1', name: 'Comet I', rarity: 'uncommon', powerMult: 1.03, aimBonus: 4, spinCap: 0.3, piecesNeeded: 4 },
-      { id: 'comet-2', name: 'Comet II', rarity: 'rare', powerMult: 1.06, aimBonus: 8, spinCap: 0.55, piecesNeeded: 8 },
+      { id: 'comet-1', name: 'Comet I', rarity: 'uncommon', powerMult: 1.03, aimBonus: 4, spinCap: 0.3, timeBonus: 5, piecesNeeded: 4 },
+      { id: 'comet-2', name: 'Comet II', rarity: 'rare', powerMult: 1.06, aimBonus: 8, spinCap: 0.55, timeBonus: 10, piecesNeeded: 8 },
     ],
   },
   {
     id: 'vortex', name: 'Vortex',
     tiers: [
-      { id: 'vortex-1', name: 'Vortex I', rarity: 'rare', powerMult: 1.08, aimBonus: 10, spinCap: 0.7, piecesNeeded: 6 },
-      { id: 'vortex-2', name: 'Vortex II', rarity: 'epic', powerMult: 1.12, aimBonus: 14, spinCap: 1.0, piecesNeeded: 10 },
+      { id: 'vortex-1', name: 'Vortex I', rarity: 'rare', powerMult: 1.08, aimBonus: 10, spinCap: 0.7, timeBonus: 15, piecesNeeded: 6 },
+      { id: 'vortex-2', name: 'Vortex II', rarity: 'epic', powerMult: 1.12, aimBonus: 14, spinCap: 1.0, timeBonus: 20, piecesNeeded: 10 },
     ],
   },
 ];
@@ -51,6 +52,7 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   for (const c of cues) {
     assert(c.powerMult >= 1.0 && c.powerMult <= 1.12, `${c.id} power multiplier stays within the agreed modest range`);
     assert(c.spinCap >= 0 && c.spinCap <= 1, `${c.id} spin cap is a valid [0,1] value`);
+    assert(c.timeBonus >= 0 && c.timeBonus <= 20, `${c.id} time bonus stays modest relative to the 60s base`);
   }
 
   console.log('OK — cues self-test passed');

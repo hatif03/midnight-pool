@@ -1,7 +1,7 @@
 import {
   TABLE_W, TABLE_H, CUSHION, BALL_R, POCKET_R, BALL_COLORS,
   FRICTION, STOP_SPEED, WALL_RESTITUTION, BALL_RESTITUTION, MAX_SHOT_SPEED,
-  SPIN_CURVE, SPIN_FOLLOW,
+  SPIN_CURVE, SPIN_FOLLOW, SPIN_THROW,
 } from './config.js';
 
 const MIN_X = CUSHION + BALL_R;
@@ -151,8 +151,13 @@ function collideBalls(active, hits) {
       // Capture pre-impulse direction for the cue ball before its velocity changes below —
       // follow/draw kicks in that direction, approximating topspin continuing forward through
       // contact (follow) or backspin pulling it back (draw). See applySpinCurve for the same
-      // "simplified, not rigid-body" caveat.
+      // "simplified, not rigid-body" caveat. `on` is +1 if the cue ball is `a`, -1 if it's `b` —
+      // needed below for the throw effect, since `nx,ny` is defined as `b - a` by array index, not
+      // by which one is the cue ball (a real sign bug here was caught in design review: without
+      // `on`, the throw's direction flips depending on incidental array order).
       const cueBall = a.number === 0 ? a : b.number === 0 ? b : null;
+      const objectBall = cueBall === a ? b : cueBall === b ? a : null;
+      const on = cueBall === a ? 1 : -1;
       let cueDir = null;
       if (cueBall && cueBall.spin && cueBall.spin.y) {
         const cueSpeed = Math.hypot(cueBall.vx, cueBall.vy) || 1;
@@ -167,6 +172,18 @@ function collideBalls(active, hits) {
         const kick = cueBall.spin.y * SPIN_FOLLOW * rvn;
         cueBall.vx += cueDir.x * kick;
         cueBall.vy += cueDir.y * kick;
+      }
+
+      // Throw effect: side-spin on the cue ball tangentially deflects the OBJECT ball's path —
+      // never the cue ball itself. ponytail: scaling by `rvn` makes this strongest on full hits
+      // and weakest on thin cuts, backwards from real billiards (thin cuts throw more) — an
+      // accepted stylization consistent with this file's other spin effects, not chasing physical
+      // accuracy. Upgrade path: model actual contact-patch friction if this ever needs to be exact.
+      if (cueBall && objectBall && cueBall.spin && cueBall.spin.x) {
+        const tx = -ny * on, ty = nx * on;
+        const throwKick = cueBall.spin.x * SPIN_THROW * rvn;
+        objectBall.vx += tx * throwKick;
+        objectBall.vy += ty * throwKick;
       }
 
       // Two balls can collide with a third in the same sub-step; order here is array order,
@@ -194,8 +211,11 @@ function sinkPockets(balls) {
   return justPotted;
 }
 
-export function placeCue(cue, balls, x, y) {
-  let nx = Math.min(Math.max(x, MIN_X), MAX_X);
+// `maxX` defaults to the full table but callers pass HEAD_STRING_X for kitchen-restricted
+// ball-in-hand (a break scratch — see rules.js's `kitchenOnly`). Safe to call on every
+// `pointermove` during a placement drag, not just once on release — it's just clamping math.
+export function placeCue(cue, balls, x, y, maxX = MAX_X) {
+  let nx = Math.min(Math.max(x, MIN_X), maxX);
   let ny = Math.min(Math.max(y, MIN_Y), MAX_Y);
   for (const b of balls) {
     if (b === cue || b.potted) continue;
@@ -206,7 +226,7 @@ export function placeCue(cue, balls, x, y) {
       ny = b.y + (dy / dist) * BALL_R * 2;
     }
   }
-  cue.x = Math.min(Math.max(nx, MIN_X), MAX_X);
+  cue.x = Math.min(Math.max(nx, MIN_X), maxX);
   cue.y = Math.min(Math.max(ny, MIN_Y), MAX_Y);
   cue.vx = 0;
   cue.vy = 0;
@@ -275,6 +295,46 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   ];
   for (let i = 0; i < 15; i++) { step(noFollow); step(follow); }
   assert(follow[0].vx > noFollow[0].vx, 'topspin (follow) keeps the cue ball moving forward more than no spin after contact');
+
+  // Stun: a head-on hit with no spin should transfer ~all velocity to the struck ball and leave
+  // the cue ball nearly stopped — this already emerges from the equal-mass elastic collision
+  // formula with no special-casing needed.
+  const stunTest = [
+    { x: 300, y: 300, vx: 15, vy: 0, number: 0, potted: false, spin: { x: 0, y: 0 } },
+    { x: 324, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+  ];
+  step(stunTest);
+  assert(Math.hypot(stunTest[0].vx, stunTest[0].vy) < 2, 'a head-on hit with no spin stuns the cue ball nearly dead');
+  assert(stunTest[1].vx > 10, 'the struck ball takes on most of the cue ball\'s speed');
+
+  // Throw effect: side-spin should deflect the STRUCK ball's path, in a consistent direction
+  // regardless of which array slot (a/b) the two balls occupy — regression test for the exact
+  // sign bug caught in design review.
+  const throwAB = [
+    { x: 300, y: 300, vx: 15, vy: 2, number: 0, potted: false, spin: { x: 1, y: 0 } },
+    { x: 330, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+  ];
+  const throwBA = [
+    { x: 330, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+    { x: 300, y: 300, vx: 15, vy: 2, number: 0, potted: false, spin: { x: 1, y: 0 } },
+  ];
+  const noThrow = [
+    { x: 300, y: 300, vx: 15, vy: 2, number: 0, potted: false, spin: { x: 0, y: 0 } },
+    { x: 330, y: 300, vx: 0, vy: 0, number: 1, potted: false, spin: null },
+  ];
+  for (let i = 0; i < 8; i++) { step(throwAB); step(throwBA); step(noThrow); }
+  const struckAB = throwAB.find((b) => b.number === 1);
+  const struckBA = throwBA.find((b) => b.number === 1);
+  const struckNone = noThrow.find((b) => b.number === 1);
+  assert(Math.abs(struckAB.vy - struckNone.vy) > 0.05, 'side-spin measurably deflects the struck ball vs. no spin');
+  const deflectAB = struckAB.vy - struckNone.vy;
+  const deflectBA = struckBA.vy - struckNone.vy;
+  assert(Math.sign(deflectAB) === Math.sign(deflectBA), 'throw deflection direction is consistent regardless of array order (a/b slot)');
+
+  // Kitchen-restricted placement: placeCue's maxX clamp keeps the cue ball at or left of it.
+  const kitchenBalls = [{ x: 0, y: 0, number: 0, potted: false }];
+  placeCue(kitchenBalls[0], kitchenBalls, 900, 300, 300);
+  assert(kitchenBalls[0].x <= 300, 'placeCue clamps to maxX when given a kitchen boundary');
 
   console.log(`OK — break settled in ${frames} frames (~${(frames / 60).toFixed(1)}s)`);
 }

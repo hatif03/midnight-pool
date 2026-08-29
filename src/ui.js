@@ -4,17 +4,26 @@ import { avatarFor } from './identity.js';
 
 export const el = (id) => document.getElementById(id);
 
-function setChip(prefix, name) {
+function setChip(prefix, name, level) {
   const { initial, color } = avatarFor(name);
   el(`${prefix}-avatar`).textContent = initial;
   el(`${prefix}-avatar`).style.background = color;
   el(`${prefix}-name`).textContent = name;
+  el(`${prefix}-level`).textContent = level;
 }
 
-export function updatePlayers(mode, myName, oppName) {
-  setChip('hud-me', myName);
+export function updatePlayers(mode, myName, myLevel, oppName, oppLevel) {
+  setChip('hud-me', myName, myLevel);
   el('hud-opp').classList.toggle('hidden', mode === 'solo');
-  if (mode !== 'solo') setChip('hud-opp', oppName);
+  if (mode !== 'solo') setChip('hud-opp', oppName, oppLevel);
+}
+
+export function updateTimer(seconds, show) {
+  const e = el('hud-timer');
+  e.classList.toggle('show', show);
+  if (!show) return;
+  e.textContent = Math.ceil(seconds);
+  e.classList.toggle('low', seconds <= 10);
 }
 
 export function showReactions(mode) {
@@ -84,11 +93,17 @@ export function updateTurn(mode, mine) {
   const e = el('hud-turn');
   if (mode === 'solo') {
     e.style.display = 'none';
+    el('hud-me').classList.remove('active', 'inactive');
     return;
   }
   e.style.display = '';
   e.textContent = mine ? t('you') : t('rival');
   e.style.background = mine ? 'rgba(70,220,140,.28)' : 'rgba(220,90,90,.28)';
+  // Adapted from the reference's dimmed/bold name pattern — additive to this existing pill.
+  el('hud-me').classList.toggle('active', mine);
+  el('hud-me').classList.toggle('inactive', !mine);
+  el('hud-opp').classList.toggle('active', !mine);
+  el('hud-opp').classList.toggle('inactive', mine);
 }
 
 export function updateGroup(mode, group) {
@@ -111,37 +126,32 @@ export function setMuteIcon(muted) {
   el('btn-mute').textContent = muted ? '🔇' : '🔊';
 }
 
-export function updateBallsLeft(mode, balls, groups, myPlayer) {
-  const box = el('balls-left');
-  if (mode === 'solo' || !balls) {
+function renderDots(containerId, group, balls) {
+  const box = el(containerId);
+  box.innerHTML = '';
+  if (!group) {
     box.classList.remove('show');
     return;
   }
   box.classList.add('show');
-  box.innerHTML = '';
-
-  for (const p of [myPlayer, myPlayer === 1 ? 2 : 1]) {
-    const group = groups[p];
-    if (!group) continue;
-
-    const nums = group === 'solids' ? [1, 2, 3, 4, 5, 6, 7] : [9, 10, 11, 12, 13, 14, 15];
-    const row = document.createElement('div');
-    row.className = 'row';
-
-    const lbl = document.createElement('span');
-    lbl.className = 'lbl';
-    lbl.textContent = p === myPlayer ? t('you') : t('rival');
-    row.appendChild(lbl);
-
-    for (const n of nums) {
-      const b = balls.find((x) => x.number === n);
-      const dot = document.createElement('span');
-      dot.className = 'dot' + (!b || b.potted ? ' gone' : '');
-      dot.style.background = '#' + BALL_COLORS[n].toString(16).padStart(6, '0');
-      row.appendChild(dot);
-    }
-    box.appendChild(row);
+  const nums = group === 'solids' ? [1, 2, 3, 4, 5, 6, 7] : [9, 10, 11, 12, 13, 14, 15];
+  for (const n of nums) {
+    const b = balls.find((x) => x.number === n);
+    const dot = document.createElement('span');
+    dot.className = 'dot' + (!b || b.potted ? ' gone' : '');
+    dot.style.background = '#' + BALL_COLORS[n].toString(16).padStart(6, '0');
+    box.appendChild(dot);
   }
+}
+
+export function updateBallsLeft(mode, balls, groups, myPlayer) {
+  if (mode === 'solo' || !balls) {
+    el('dots-me').classList.remove('show');
+    el('dots-opp').classList.remove('show');
+    return;
+  }
+  renderDots('dots-me', groups[myPlayer], balls);
+  renderDots('dots-opp', groups[myPlayer === 1 ? 2 : 1], balls);
 }
 
 function modal(modalId, acceptId, rejectId) {

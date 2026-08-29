@@ -22,6 +22,12 @@ export const MIN_DRAG = 10;
 // spin physics, just enough curve/follow-draw feel to make cue-tier spin stats mean something.
 export const SPIN_CURVE = 0.16; // side-spin lateral acceleration per sub-step while moving
 export const SPIN_FOLLOW = 0.5; // top/backspin post-collision follow(+)/draw(-) kick strength
+export const SPIN_THROW = 0.12; // side-spin's tangential "throw" deflection on the struck ball
+
+// Standard pool geometry: the head string sits a quarter of the table length from the head rail —
+// already implicitly used as the cue ball's own break/rack position below, just named here so
+// rules.js/main.js can reference "the kitchen" boundary without re-deriving it.
+export const HEAD_STRING_X = CUSHION + TABLE_W * 0.25;
 
 export const BALL_COLORS = [
   0xffffff,

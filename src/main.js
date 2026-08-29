@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import QRCode from 'qrcode';
-import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE } from './config.js';
+import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE, HEAD_STRING_X } from './config.js';
 import { rack, step, allStopped, shoot, placeCue } from './physics.js';
 import { groupOf, resolveShot } from './rules.js';
 import { drawTable, buildBallVisual, drawAim, drawPower, initBallTextures } from './scene.js';
@@ -35,29 +35,51 @@ function persistProfile() {
   updateWallet();
 }
 
+function resetTurnTimer() {
+  if (!game.timedMode) return;
+  const bonus = game.turn === game.myPlayer ? equippedCue().timeBonus : game.opponentTimeBonus;
+  game.turnTimeLeft = 60 + bonus;
+}
+
+// Function names kept as-is (syncSpinGrid/wireSpinGrid) even though the control is no longer a
+// grid — every call site (enterGame transitions, quick-match, solo) already calls these, so
+// keeping the names means only this implementation needed to change, not every caller.
 function syncSpinGrid() {
   const cap = equippedCue().spinCap;
   currentSpin = { x: 0, y: 0 };
-  document.getElementById('spin-grid').classList.add('show');
-  document.querySelectorAll('#spin-grid button').forEach((b) => {
-    const isCenter = b.dataset.sx === '0' && b.dataset.sy === '0';
-    b.disabled = cap === 0 && !isCenter;
-    b.classList.toggle('active', isCenter);
-  });
+  const widget = document.getElementById('spin-widget');
+  widget.classList.add('show');
+  widget.classList.toggle('disabled', cap === 0);
+  const dot = document.getElementById('spin-dot');
+  dot.style.left = '50%';
+  dot.style.top = '50%';
 }
 
 function wireSpinGrid() {
-  document.querySelectorAll('#spin-grid button').forEach((b) => {
-    b.onclick = () => {
-      if (b.disabled) return;
-      const x = Number(b.dataset.sx), y = Number(b.dataset.sy);
-      const mag = Math.hypot(x, y) || 1;
-      currentSpin = mag > 1 ? { x: x / mag, y: y / mag } : { x, y };
-      document.querySelectorAll('#spin-grid button').forEach((o) => o.classList.remove('active'));
-      b.classList.add('active');
-      audio.uiClick();
-    };
+  const widget = document.getElementById('spin-widget');
+  const dot = document.getElementById('spin-dot');
+  let dragging = false;
+
+  const setFromPointer = (e) => {
+    const r = widget.getBoundingClientRect();
+    const radius = r.width / 2;
+    const cx = r.left + radius, cy = r.top + radius;
+    let x = (e.clientX - cx) / radius, y = (e.clientY - cy) / radius;
+    const mag = Math.hypot(x, y);
+    if (mag > 1) { x /= mag; y /= mag; }
+    currentSpin = { x, y };
+    dot.style.left = `${50 + x * 50}%`;
+    dot.style.top = `${50 + y * 50}%`;
+  };
+
+  widget.addEventListener('pointerdown', (e) => {
+    if (widget.classList.contains('disabled')) return;
+    dragging = true;
+    audio.uiClick();
+    setFromPointer(e);
   });
+  window.addEventListener('pointermove', (e) => { if (dragging) setFromPointer(e); });
+  window.addEventListener('pointerup', () => { dragging = false; });
 }
 
 const game = {
@@ -65,14 +87,15 @@ const game = {
   balls: null, cue: null, sprites: null, byNumber: null,
   shots: 0, shooting: false, shotPotted: [], cueFoul: false,
   groups: { 1: null, 2: null }, openTable: true, gameOver: false, winner: null,
-  firstContactBall: null, anyContact: false, anyRailAfterContact: false,
-  net: null, settled: true, cuePotted: false, ballInHand: false,
-  opponentName: null,
+  firstContactBall: null, anyContact: false, anyRailAfterContact: false, shotRailBalls: new Set(),
+  net: null, settled: true, cuePotted: false, ballInHand: false, kitchenOnly: false,
+  opponentName: null, opponentLevel: 1, opponentTimeBonus: 0,
+  timedMode: false, turnTimeLeft: 0,
   sfxBall: 0, sfxRail: 0, sfxPocket: 0,
 };
 
 function updatePlayersDisplay() {
-  ui.updatePlayers(game.mode, identity.getNickname(), game.opponentName || t('rival'));
+  ui.updatePlayers(game.mode, identity.getNickname(), profile.level, game.opponentName || t('rival'), game.opponentLevel);
   ui.showReactions(game.mode);
 }
 
@@ -202,6 +225,7 @@ function physicsFrame() {
       if (audible) audio.railHit(h.speed);
       game.sfxRail = Math.max(game.sfxRail, h.speed);
       if (game.firstContactBall !== null) game.anyRailAfterContact = true;
+      if (h.ball !== 0) game.shotRailBalls.add(h.ball);
     }
   }
 
@@ -217,6 +241,21 @@ function physicsFrame() {
     if (game.mode === 'host') resolveTurn();
     else resolveSoloShot();
   }
+
+  // Quick Match only — the clock runs whenever it's this player's turn to act (aiming OR placing
+  // a ball-in-hand — pausing for placement would let a player stall indefinitely by exploiting
+  // it), pausing only while balls are actually in motion (`game.shooting`). Only the host ticks
+  // it; the guest just displays whatever sendState() tells it, avoiding clock drift between two
+  // independently-running timers.
+  if (game.timedMode && game.mode === 'host' && game.started && !game.shooting && !game.gameOver) {
+    game.turnTimeLeft -= 1 / 60;
+    if (game.turnTimeLeft <= 0) {
+      game.turnTimeLeft = 0;
+      game.cueFoul = true;
+      resolveTurn();
+    }
+  }
+
   if (game.mode === 'host' && game.started && game.net && (++frame % 2 === 0)) sendState();
 }
 
@@ -234,6 +273,7 @@ function renderFrame() {
     }
     spr.position.set(ball.x, ball.y);
   }
+  ui.updateTimer(game.turnTimeLeft, game.timedMode && game.started && !game.gameOver);
 }
 
 function setupRack() {
@@ -296,11 +336,19 @@ function canPlaceCue() {
   return game.turn === game.myPlayer;
 }
 
-function applyCuePlacement(x, y) {
-  placeCue(game.cue, game.balls, x, y);
+// Called on every pointermove during a ball-in-hand drag — cheap (just clamping/collision-avoidance
+// math), local-only, no network traffic. Lets the player reposition freely, as many times as they
+// want, before committing (matching physics.placeCue's own doc comment on this).
+function previewCuePlacement(x, y) {
+  placeCue(game.cue, game.balls, x, y, game.kitchenOnly ? HEAD_STRING_X : undefined);
   game.cue.tx = game.cue.x;
   game.cue.ty = game.cue.y;
+}
+
+function commitCuePlacement(x, y) {
+  previewCuePlacement(x, y);
   game.ballInHand = false;
+  game.kitchenOnly = false;
   ui.el('hint').textContent = t('aimHint');
   ui.showHint();
 }
@@ -310,7 +358,7 @@ function placeCueAt(x, y) {
     game.net.send({ type: 'place', x, y });
     return;
   }
-  applyCuePlacement(x, y);
+  commitCuePlacement(x, y);
   if (game.mode === 'host') sendState();
 }
 
@@ -324,6 +372,7 @@ function doShoot(dx, dy, power, spin = { x: 0, y: 0 }) {
   game.firstContactBall = null;
   game.anyContact = false;
   game.anyRailAfterContact = false;
+  game.shotRailBalls = new Set();
   refreshHud();
   ui.hideHint();
 }
@@ -360,6 +409,8 @@ function resolveTurn() {
     anyRailAfterContact: game.anyRailAfterContact,
     cueFoul: game.cueFoul || potted.includes(0),
     groupCleared,
+    isBreakShot: game.shots === 1,
+    ballsToRail: game.shotRailBalls.size,
   });
 
   game.openTable = result.openTable;
@@ -372,8 +423,10 @@ function resolveTurn() {
 
   if (!result.keepShooting) game.turn = other(shooter);
   game.ballInHand = result.foul;
+  game.kitchenOnly = result.kitchenOnly;
   game.shotPotted = [];
   game.cueFoul = false;
+  resetTurnTimer();
   refreshHud();
   announceTurn();
   sendState();
@@ -500,7 +553,8 @@ function maybeAskNotifications() {
 function sendState() {
   game.net.send({
     type: 'state', turn: game.turn, settled: allStopped(game.balls), cuePotted: game.cue.potted,
-    ballInHand: game.ballInHand, openTable: game.openTable,
+    ballInHand: game.ballInHand, kitchenOnly: game.kitchenOnly, openTable: game.openTable,
+    turnTimeLeft: game.turnTimeLeft,
     shots: game.shots, groups: game.groups, gameOver: game.gameOver, winner: game.winner,
     sfx: { b: game.sfxBall, r: game.sfxRail, p: game.sfxPocket },
     balls: game.balls.map((b) => ({ n: b.number, x: b.x, y: b.y, r: game.sprites.get(b).spin.rotation, p: b.potted })),
@@ -521,6 +575,8 @@ function applyState(m) {
   game.gameOver = m.gameOver;
   game.winner = m.winner;
   game.ballInHand = m.ballInHand;
+  game.kitchenOnly = m.kitchenOnly;
+  if (game.timedMode) game.turnTimeLeft = m.turnTimeLeft;
 
   for (const bs of m.balls) {
     const e = game.byNumber.get(bs.n);
@@ -563,6 +619,7 @@ function applyState(m) {
 
 function setupInput() {
   let dragStart = null;
+  let placingCue = false;
 
   const pos = (e) => {
     const r = app.canvas.getBoundingClientRect();
@@ -573,7 +630,8 @@ function setupInput() {
     if (!document.hasFocus()) return;
     const p = pos(e);
     if (canPlaceCue()) {
-      placeCueAt(p.x, p.y);
+      placingCue = true;
+      previewCuePlacement(p.x, p.y);
       return;
     }
     if (!canShoot()) return;
@@ -581,6 +639,11 @@ function setupInput() {
   });
 
   window.addEventListener('pointermove', (e) => {
+    if (placingCue) {
+      const p = pos(e);
+      previewCuePlacement(p.x, p.y);
+      return;
+    }
     if (!dragStart) return;
     const p = pos(e);
     const frac = Math.min(Math.hypot(game.cue.x - p.x, game.cue.y - p.y), MAX_DRAG) / MAX_DRAG;
@@ -590,6 +653,15 @@ function setupInput() {
   });
 
   window.addEventListener('pointerup', (e) => {
+    if (placingCue) {
+      // Free drag-and-reposition, not tap-to-place: the final position is already set by the last
+      // previewCuePlacement() call above, live throughout the drag. Releasing just commits it —
+      // canPlaceCue() stays true until an actual shot is taken, so a new pointerdown on the ball
+      // starts another placement attempt, naturally allowing as many repositions as wanted.
+      placingCue = false;
+      placeCueAt(game.cue.x, game.cue.y);
+      return;
+    }
     if (!dragStart) return;
     const p = pos(e);
     const dragged = Math.hypot(p.x - dragStart.x, p.y - dragStart.y);
@@ -627,7 +699,7 @@ function leaveGame() {
   stopBanners();
   ui.hideGameOver();
   ui.backToMenu();
-  document.getElementById('spin-grid').classList.remove('show');
+  document.getElementById('spin-widget').classList.remove('show');
   if (wasMulti) ui.toast(t('youLeft'));
 }
 
@@ -640,6 +712,10 @@ function onMessage(m) {
     game.started = true;
     game.gameOver = false;
     game.opponentName = m.hostName || game.opponentName;
+    game.opponentLevel = m.hostLevel || 1;
+    game.opponentTimeBonus = m.hostTimeBonus || 0;
+    game.timedMode = !!m.timedMode;
+    game.turnTimeLeft = game.timedMode ? 60 + (game.turn === game.myPlayer ? equippedCue().timeBonus : game.opponentTimeBonus) : 0;
     updatePlayersDisplay();
     ui.enterGame();
     syncSpinGrid();
@@ -648,19 +724,21 @@ function onMessage(m) {
     applyState(m);
   } else if (m.type === 'hello') {
     game.opponentName = m.name;
+    game.opponentLevel = m.level || 1;
+    game.opponentTimeBonus = m.timeBonus || 0;
     updatePlayersDisplay();
   } else if (m.type === 'reaction') {
     ui.toast(m.emoji);
   } else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) {
     doShoot(m.dx, m.dy, m.power, m.spin);
   } else if (m.type === 'place' && game.mode === 'host' && game.turn === 2 && game.ballInHand) {
-    applyCuePlacement(m.x, m.y);
+    commitCuePlacement(m.x, m.y);
     sendState();
   } else if (m.type === 'restart' && game.mode === 'host') {
     setupRack();
     stopBanners();
     newMatchGroups();
-    game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
+    game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
     sendState();
     announceGroupAndTurn();
   }
@@ -670,6 +748,7 @@ function newMatchGroups() {
   game.groups = { 1: null, 2: null };
   game.openTable = true;
   game.turn = 1;
+  resetTurnTimer();
 }
 
 function hostJoinedHandler() {
@@ -682,19 +761,20 @@ function hostJoinedHandler() {
   ui.toast(t('rivalJoined'));
   ui.enterGame();
   syncSpinGrid();
-  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
+  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
   sendState();
   maybeAskNotifications().then(announceGroupAndTurn);
 }
 
 function guestConnectedHandler() {
-  game.net.send({ type: 'hello', name: identity.getNickname() });
+  game.net.send({ type: 'hello', name: identity.getNickname(), level: profile.level, timeBonus: equippedCue().timeBonus });
 }
 
 function startHost() {
   closeNet();
   game.mode = 'host';
   game.myPlayer = 1;
+  game.timedMode = false;
   ui.el('host-code').textContent = '····';
   game.net = host({
     ready: (code) => { ui.el('host-code').textContent = code; updateShareLink(code); },
@@ -714,6 +794,7 @@ function startJoin() {
   closeNet();
   game.mode = 'guest';
   game.myPlayer = 2;
+  game.timedMode = false;
   ui.setStatus('join-status', t('connecting'));
   game.net = join(code, {
     connected: () => { ui.setStatus('join-status', t('waitingHost')); guestConnectedHandler(); },
@@ -725,6 +806,7 @@ function startJoin() {
 
 function startQuickMatch() {
   closeNet();
+  game.timedMode = true;
   ui.setStatus('quick-status', t('searching'));
   game.net = findMatch(identity.getNickname(), {
     assigned: (role) => {
@@ -862,6 +944,7 @@ function wireEconomyMenus() {
 
   click('btn-daily', () => { renderDailyModal(); ui.el('daily-modal').classList.add('show'); });
   click('btn-cues', () => { renderCuesModal(); ui.el('cues-modal').classList.add('show'); });
+  click('btn-cues-quick', () => { renderCuesModal(); ui.el('cues-modal').classList.add('show'); });
   click('btn-pass', () => { renderPassModal(); ui.el('pass-modal').classList.add('show'); });
   click('btn-shop', () => { renderLoyaltyList(); ui.el('shop-modal').classList.add('show'); });
 
@@ -912,7 +995,7 @@ function wireMenu() {
   click('btn-quit', () => window.close());
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
 
-  click('btn-solo', () => { closeNet(); game.mode = 'solo'; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
+  click('btn-solo', () => { closeNet(); game.mode = 'solo'; game.timedMode = false; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
   click('btn-multi', () => ui.showScreen('screen-mp'));
   click('btn-create', () => { ui.showScreen('screen-host'); startHost(); });
   click('btn-share', shareInvite);
@@ -936,7 +1019,7 @@ function wireMenu() {
     stopBanners();
     if (game.mode === 'host') {
       newMatchGroups();
-      game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname() });
+      game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
       sendState();
       announceGroupAndTurn();
     }

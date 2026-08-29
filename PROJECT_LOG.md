@@ -7,6 +7,54 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-29)
 
+- **Purple theme, 8-Ball-Pool-style HUD, Quick Match timer, continuous spin, throw effect, rules
+  completeness, free-drag ball-in-hand — done, tested, E2E-verified.** (Plan file at
+  `C:\Users\mdhat\.claude\plans\now-we-start-the-harmonic-russell.md`, superseding the earlier
+  9-workstream plan there.) User feedback after live-testing: recolor to purple/white, restructure
+  the HUD to match the 8 Ball Pool reference's spatial layout, add a 60s Quick-Match-only turn
+  timer, and several physics/rules requests.
+  - **Color theme**: recolored app chrome (menu gradient, `--accent`, buttons, HUD pills) from
+    green to purple, with a white glow at the top fading into deep purple — table felt/rails/balls
+    deliberately left unchanged (that's the simulated table's own realistic colors, independent of
+    app theme, matching how the reference app itself keeps a blue felt table under navy chrome).
+    Verified with a screenshot — readable, cohesive, no contrast regressions found.
+  - **HUD restructure**: menu icon relocated to the far left (icon button, was a text button in
+    the actions row), level badges added to both player chips (opponent's level now synced
+    alongside name via the existing `hello`/`start` messages — same pattern, no new protocol),
+    ball-tracker dots moved from a separate floating `#balls-left` panel into two inline
+    containers flanking each player chip, turn state now also dims/highlights the whole chip (on
+    top of the existing `hud-turn` pill, not replacing it), a cue quick-select icon added to the
+    in-game HUD. Verified end-to-end with Playwright — real screenshot confirms the layout.
+  - **Quick Match turn timer (60s)**: host-only, ticks via the existing `physicsFrame()` fixed
+    timestep (no new `setInterval`), broadcasts via the existing `sendState()`. On expiry: sets
+    `cueFoul = true` and calls `resolveTurn()` directly — reuses the exact foul/turn-pass path a
+    real scratch takes, no bespoke timeout branch. **Live-verified with two real browser contexts**:
+    Quick Match shows the timer and it counts down (58→56 over ~2s); manual host/join multiplayer
+    shows no timer at all, confirming the "Quick Match only" scoping actually holds. Cue `timeBonus`
+    stat (seconds added) synced alongside name/level.
+  - **Continuous touch-point spin control** replaces the earlier 3x3 preset grid — a cue-ball-face
+    widget you drag on directly (offset from center = spin direction/strength, clamped to the
+    equipped cue's `spinCap`), matching the user's own description of "adjusting the cue ball touch
+    point." Same function names (`syncSpinGrid`/`wireSpinGrid`) kept so no call site needed to
+    change, only the implementation.
+  - **Throw effect**: side-spin now tangentially deflects the STRUCK ball, not just the cue ball
+    (`physics.js`). A real sign bug (direction flipping based on incidental array order) was caught
+    in design review before writing any code and fixed with an explicit `on = cueBall === a ? 1 :
+    -1` correction — self-tested with both array orders to confirm the fix holds.
+  - **Rules completeness, researched not assumed**: confirmed against the WPA ruleset and
+    Miniclip's own support docs (not memory) that a legal break needs a pot or 4+ rails, and a
+    break *scratch* specifically restricts ball-in-hand to behind the head string ("the kitchen") —
+    both were real gaps, now closed in `rules.js`/`physics.js`/`main.js`. Explicitly simplified: an
+    illegal break without a scratch is a plain foul (not the official 3-way choice), and a
+    kitchen-placed cue ball can still directly target a ball inside the kitchen (the further
+    official sub-rule on that is skipped as fiddly and rarely relevant).
+  - **Ball-in-hand is now a free, repeatable drag**, not tap-to-place — `previewCuePlacement()`
+    runs live on every `pointermove`, `commitCuePlacement()` only on release. **Visually verified**:
+    a screenshot mid-drag shows the ball at one position, a second mid-drag screenshot (same
+    continuous gesture, no release in between) shows it at a completely different position,
+    confirming live tracking rather than a single jump.
+  - All of the above verified together in one Playwright pass with zero console/page errors across
+    every browser context used.
 - **Workstreams 6-8 (economy, cues+spin, live-ops loop) — done, tested, and E2E-verified.**
   Completes the approved plan's core scope; workstream 9 (leagues/tournaments) is deliberately
   deferred — see below.
@@ -185,17 +233,19 @@ See `docs/adr/` for the full record:
 ## Next steps
 
 - **A human should still play a real match** — every Playwright pass so far covers connection
-  wiring, rules-engine correctness signals, UI layout, and the economy/shop/spin UI, all scripted.
-  None of it covers an actual win/loss (hard to script reliably), real touch input, or how it
-  actually *feels* to play — including whether the spin grid and cue-stat differences feel good
-  rather than just "work." Also worth a deliberate-foul pass (hit the wrong group on purpose) once
-  groups are assigned, which no scripted test has reached yet.
-- **The approved 9-workstream plan is now functionally complete** (1-8 shipped, 9 deliberately
-  deferred — see above). The plan file at
-  `C:\Users\mdhat\.claude\plans\now-we-start-the-harmonic-russell.md` has served its purpose;
-  whatever comes next (more live-ops depth, actual leagues, or moving on to the Midnight
-  integration) needs a fresh planning pass rather than continuing to treat that file as the
-  active spec.
+  wiring, rules-engine correctness signals, UI layout, the economy/shop/spin UI, the new HUD, the
+  timer, and the ball-in-hand drag, all scripted. None of it covers an actual win/loss (hard to
+  script reliably), real touch input, or how it actually *feels* to play — including whether the
+  continuous spin widget and cue-stat differences feel good rather than just "work," and whether
+  60s actually feels right for a Quick Match turn. Also worth: a deliberate-foul pass (hit the
+  wrong group on purpose) once groups are assigned, and a real break that scratches (to see the
+  kitchen restriction in the actual UI, not just asserted in a test) — neither reached by scripted
+  tests yet.
+- **The purple/HUD/timer/spin/rules plan is now functionally complete.** Whatever comes next (cue
+  art assets once the user provides them — PNG/transparent, ~128×512px, given as guidance; more
+  live-ops depth; leagues; or the Midnight integration) needs a fresh planning pass.
+- Cue asset integration is waiting on the user to actually provide files — no code to write until
+  then.
 - Confirm the Vercel redeploy succeeded and verify workstream 5 for real: fetch `/i/CODE?n=Name`
   and confirm the `og:title`/`og:image` meta tags are right, fetch `/api/og?n=Name` directly and
   confirm it returns a real image, and paste an invite link into WhatsApp/iMessage.

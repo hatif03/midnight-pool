@@ -16,8 +16,18 @@ export function isLegalFirstContact(firstContactBall, openTable, shooterGroup, g
   return g === shooterGroup;
 }
 
-export function isFoul({ cueFoul, anyContact, firstContactBall, anyRailAfterContact, potted, openTable, shooterGroup, groupCleared }) {
+// A legal break needs a pot or at least 4 distinct object balls (1-15) driven to a cushion — the
+// actual WPA rule, and Miniclip's own 8 Ball Pool enforces the same idea. Simplified from the full
+// official rule (which gives the incoming player a 3-way choice: accept the table, re-rack and
+// break, or re-rack and let the offending player break again) to a plain foul — a fiddly 3-way
+// choice UI isn't worth it for how rarely a break actually fails this.
+export function isIllegalBreak({ isBreakShot, potted, ballsToRail }) {
+  return isBreakShot && potted.length === 0 && ballsToRail < 4;
+}
+
+export function isFoul({ cueFoul, anyContact, firstContactBall, anyRailAfterContact, potted, openTable, shooterGroup, groupCleared, isBreakShot, ballsToRail }) {
   if (cueFoul) return true;
+  if (isIllegalBreak({ isBreakShot, potted, ballsToRail })) return true;
   if (!anyContact) return true; // total miss
   if (!isLegalFirstContact(firstContactBall, openTable, shooterGroup, groupCleared)) return true;
   if (potted.length === 0 && !anyRailAfterContact) return true; // no rail after contact, nothing potted
@@ -44,17 +54,23 @@ function groupsFromPotted(numberedPotted) {
  * @param {boolean} p.cueFoul - cue ball was potted (scratch)
  * @param {boolean} p.groupCleared - shooter's group (pre-shot) has no balls left on the table,
  *   accounting for this shot's pots — only meaningful once groups are assigned
+ * @param {boolean} [p.isBreakShot] - this is the first shot of the rack (game.shots === 1)
+ * @param {number} [p.ballsToRail] - count of distinct object balls (1-15) that touched a cushion
  */
 export function resolveShot({
   shooter, openTable, shooterGroup, groups, potted,
   firstContactBall, anyContact, anyRailAfterContact, cueFoul, groupCleared,
+  isBreakShot = false, ballsToRail = 0,
 }) {
-  const foul = isFoul({ cueFoul, anyContact, firstContactBall, anyRailAfterContact, potted, openTable, shooterGroup, groupCleared });
+  const foul = isFoul({ cueFoul, anyContact, firstContactBall, anyRailAfterContact, potted, openTable, shooterGroup, groupCleared, isBreakShot, ballsToRail });
+  // Kitchen-restricted ball-in-hand is specifically for a break *scratch* — an illegal break with
+  // no scratch (too few rails, nothing potted) still gets anywhere ball-in-hand, matching Miniclip.
+  const kitchenOnly = isBreakShot && cueFoul;
   const numberedPotted = potted.filter((n) => n !== 0 && n !== 8);
 
   if (potted.includes(8)) {
     const won = groupCleared && !foul;
-    return { foul, gameOver: true, winner: won ? shooter : otherPlayer(shooter), openTable, groups, keepShooting: false };
+    return { foul, kitchenOnly, gameOver: true, winner: won ? shooter : otherPlayer(shooter), openTable, groups, keepShooting: false };
   }
 
   let newOpenTable = openTable;
@@ -72,7 +88,7 @@ export function resolveShot({
   else if (newOpenTable) keepShooting = numberedPotted.length > 0;
   else keepShooting = numberedPotted.some((n) => groupOf(n) === newGroups[shooter]);
 
-  return { foul, gameOver: false, winner: null, openTable: newOpenTable, groups: newGroups, keepShooting };
+  return { foul, kitchenOnly, gameOver: false, winner: null, openTable: newOpenTable, groups: newGroups, keepShooting };
 }
 
 if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWith('rules.js') && process.argv[1].endsWith('rules.js')) {
@@ -152,6 +168,39 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   assert(isLegalFirstContact(8, false, 'solids', true), '8-ball is legal first contact once cleared');
   assert(!isLegalFirstContact(8, false, 'solids', false), '8-ball is illegal first contact before cleared');
   assert(!isLegalFirstContact(8, true, null, false), '8-ball is illegal first contact on an open table');
+
+  // Illegal break (no pot, fewer than 4 rails): foul, but anywhere ball-in-hand (not kitchen-only)
+  // — that restriction is specifically for a break *scratch*.
+  r = resolveShot({
+    shooter: 1, openTable: true, shooterGroup: null, groups: openGroups, potted: [],
+    firstContactBall: 1, anyContact: true, anyRailAfterContact: true, cueFoul: false, groupCleared: false,
+    isBreakShot: true, ballsToRail: 2,
+  });
+  assert(r.foul, 'a break with fewer than 4 rails and no pot is an illegal break');
+  assert(!r.kitchenOnly, 'an illegal break without a scratch is NOT kitchen-restricted');
+
+  // A legal break (4+ rails, no pot) is not a foul on its own.
+  r = resolveShot({
+    shooter: 1, openTable: true, shooterGroup: null, groups: openGroups, potted: [],
+    firstContactBall: 1, anyContact: true, anyRailAfterContact: true, cueFoul: false, groupCleared: false,
+    isBreakShot: true, ballsToRail: 4,
+  });
+  assert(!r.foul, 'a break with 4+ rails is legal even with nothing potted');
+
+  // Break scratch: foul AND kitchen-restricted.
+  r = resolveShot({
+    shooter: 1, openTable: true, shooterGroup: null, groups: openGroups, potted: [0],
+    firstContactBall: 1, anyContact: true, anyRailAfterContact: true, cueFoul: true, groupCleared: false,
+    isBreakShot: true, ballsToRail: 4,
+  });
+  assert(r.foul && r.kitchenOnly, 'a break scratch is a foul with kitchen-restricted ball-in-hand');
+
+  // A normal (non-break) mid-game scratch is unaffected — still anywhere ball-in-hand.
+  r = resolveShot({
+    shooter: 1, openTable: false, shooterGroup: 'solids', groups: { 1: 'solids', 2: 'stripes' }, potted: [0],
+    firstContactBall: 3, anyContact: true, anyRailAfterContact: true, cueFoul: true, groupCleared: false,
+  });
+  assert(r.foul && !r.kitchenOnly, 'a normal mid-game scratch is not kitchen-restricted');
 
   console.log('OK — rules self-test passed');
 }
