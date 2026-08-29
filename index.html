@@ -5,9 +5,289 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Pool</title>
+    <style>
+      :root {
+        --glass-bg: rgba(255,255,255,.08);
+        --glass-bg-hover: rgba(255,255,255,.16);
+        --glass-border: rgba(255,255,255,.22);
+        --glass-blur: blur(18px);
+        --glass-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.22);
+        --accent: #4ee892;
+        --accent-soft: rgba(78,232,146,.35);
+        --ease: cubic-bezier(.22,1,.36,1);
+      }
+      html, body { margin: 0; height: 100%; background: #04080a; overflow: hidden; overscroll-behavior: none;
+        font-family: system-ui, 'Segoe UI', sans-serif; color: #fff; touch-action: none; }
+      #app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        box-sizing: border-box;
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+                 max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+      #app canvas { cursor: grab; border-radius: 4px; width: auto; height: auto;
+        max-width: 100%; max-height: 100%; touch-action: none; }
+      #app canvas:active { cursor: grabbing; }
+
+      .glass, .panel, #hud .pill, #hud button, #toast, .modal .box, .panel input {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+        box-shadow: var(--glass-shadow);
+      }
+
+      #menu {
+        position: fixed; inset: 0; z-index: 10;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background:
+          radial-gradient(ellipse 60% 40% at 50% 14%, rgba(78,232,146,.16), transparent 60%),
+          radial-gradient(ellipse 50% 35% at 85% 85%, rgba(30,140,220,.10), transparent 60%),
+          radial-gradient(circle at 50% 40%, #155539 0%, #0a2418 55%, #03100b 100%);
+      }
+      #menu.hidden { display: none; }
+      .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: 34px;
+        animation: brandIn .6s var(--ease) both; }
+      @keyframes brandIn { from { opacity: 0; transform: translateY(-14px) scale(.96); } to { opacity: 1; transform: none; } }
+      .brand img { width: 64px; height: 64px; image-rendering: pixelated; margin-bottom: 14px;
+        filter: drop-shadow(0 8px 22px rgba(0,0,0,.55)) drop-shadow(0 0 22px rgba(78,232,146,.35)); }
+      #menu h1 {
+        margin: 0; font-size: 76px; font-weight: 800; letter-spacing: 2px; line-height: 1;
+        background: linear-gradient(180deg, #ffffff 0%, #cdeede 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        text-shadow: 0 8px 36px rgba(0,0,0,.5);
+        filter: drop-shadow(0 0 36px rgba(78,232,146,.35));
+      }
+      .brand .sub { margin-top: 10px; font-size: 14px; letter-spacing: 5px; text-transform: uppercase; color: #9fe9c0; opacity: .8; }
+
+      .screen { display: none; flex-direction: column; align-items: center; gap: 14px; }
+      .screen.active { display: flex; animation: screenIn .35s var(--ease) both; }
+      @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+      .glass {
+        position: relative; overflow: hidden;
+        width: 300px; padding: 16px 0; font-size: 18px; font-weight: 600; color: #fff; text-align: center;
+        border-radius: 14px; cursor: pointer;
+        transition: background .18s var(--ease), transform .12s var(--ease), box-shadow .18s var(--ease), border-color .18s;
+      }
+      .glass::before {
+        content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+        background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.22) 50%, transparent 60%);
+        transform: translateX(-120%); transition: transform .55s var(--ease);
+      }
+      .glass:hover { background: var(--glass-bg-hover); transform: translateY(-2px); border-color: rgba(255,255,255,.4);
+        box-shadow: 0 16px 34px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3), 0 0 0 1px rgba(255,255,255,.06); }
+      .glass:hover::before { transform: translateX(120%); }
+      .glass:active { transform: scale(.97); }
+      .glass.small { width: 150px; font-size: 15px; padding: 12px 0; }
+      .glass.primary { background: linear-gradient(135deg, rgba(78,232,146,.32), rgba(34,170,110,.22)); border-color: rgba(130,255,190,.55); }
+      .glass.primary:hover { background: linear-gradient(135deg, rgba(78,232,146,.44), rgba(34,170,110,.32)); }
+
+      #settings { width: 300px; padding: 22px 24px; border-radius: 18px; box-sizing: border-box;
+        color: #eafff2; flex-direction: column; align-items: stretch; gap: 14px;
+        background: var(--glass-bg); border: 1px solid var(--glass-border);
+        backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+        animation: settleIn .25s var(--ease); }
+      #settings .set-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: .75; text-align: center; }
+      .seg { display: flex; gap: 6px; padding: 5px; border-radius: 13px; background: rgba(0,0,0,.3); }
+      .seg-btn { flex: 1; padding: 11px 0; border: none; border-radius: 9px; cursor: pointer;
+        font-family: inherit; font-size: 15px; color: #cfe9d8; background: transparent;
+        transition: background .15s var(--ease), color .15s, transform .08s; }
+      .seg-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+      .seg-btn:active { transform: scale(.96); }
+      .seg-btn.active { background: linear-gradient(135deg, rgba(78,232,146,.45), rgba(34,170,110,.32));
+        color: #fff; font-weight: 700; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 0 14px rgba(78,232,146,.25); }
+      @keyframes settleIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+      .panel { display: flex; flex-direction: column; gap: 14px; align-items: center;
+        width: 340px; padding: 28px; border-radius: 18px; }
+      .panel .hint { font-size: 15px; opacity: .85; text-align: center; }
+      .code { font-size: 54px; font-weight: 800; letter-spacing: 12px; color: var(--accent);
+        font-family: ui-monospace, monospace; padding: 4px 0 4px 12px;
+        text-shadow: 0 0 24px rgba(78,232,146,.5); }
+      .panel input {
+        font-family: ui-monospace, monospace; font-size: 28px; letter-spacing: 10px; text-align: center; text-transform: uppercase;
+        width: 100%; padding: 12px 0; border-radius: 12px; color: #fff; outline: none; box-sizing: border-box;
+        transition: border-color .15s, box-shadow .15s;
+      }
+      .panel input:focus { border-color: rgba(130,255,190,.7); box-shadow: 0 0 0 3px rgba(78,232,146,.18); }
+      .status { font-size: 13px; min-height: 18px; color: #bff5d2; text-align: center; }
+      .status.error { color: #ff9b9b; }
+
+      #hud {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+        display: none; align-items: center; justify-content: space-between;
+        padding: calc(12px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+                 12px calc(18px + env(safe-area-inset-left));
+        font-size: 14px; pointer-events: none;
+        animation: hudIn .4s var(--ease) both;
+      }
+      @keyframes hudIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+      #hud.show { display: flex; }
+      #hud .stats { display: flex; gap: 10px; align-items: center; }
+      #hud .pill { padding: 7px 14px; border-radius: 12px; transition: background .2s, box-shadow .2s; }
+      #hud .pill b { color: var(--accent); }
+      #hud #hud-turn { font-weight: 700; transition: background .25s var(--ease), box-shadow .25s; }
+      #hud #hud-group { font-weight: 700; color: #ffe7a6; }
+      #hud .actions { display: flex; gap: 10px; pointer-events: auto; }
+      #hud button {
+        font-family: inherit; font-size: 13px; color: #fff; padding: 8px 14px; cursor: pointer; border-radius: 10px;
+        transition: background .15s var(--ease), transform .08s;
+      }
+      #hud button:hover { background: var(--glass-bg-hover); transform: translateY(-1px); }
+      #hud button:active { transform: scale(.92); }
+
+      #balls-left { position: fixed; top: calc(56px + env(safe-area-inset-top)); left: calc(18px + env(safe-area-inset-left)); z-index: 5; display: none;
+        flex-direction: column; gap: 5px; pointer-events: none; padding: 8px 10px; border-radius: 10px;
+        background: rgba(0,0,0,.22); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+      #balls-left.show { display: flex; }
+      #balls-left .row { display: flex; gap: 4px; align-items: center; }
+      #balls-left .row .lbl { font-size: 11px; opacity: .75; width: 44px; }
+      #balls-left .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        border: 1px solid rgba(255,255,255,.45); box-shadow: 0 1px 2px rgba(0,0,0,.4);
+        transition: opacity .3s, transform .3s; }
+      #balls-left .dot.gone { opacity: .15; border-color: rgba(255,255,255,.15); box-shadow: none; transform: scale(.8); }
+
+      #hint {
+        position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+        padding: 12px 18px; border-radius: 12px; color: #eafff2; font-size: 13px; line-height: 1.5; text-align: center;
+        background: var(--glass-bg); border: 1px solid var(--glass-border);
+        backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+        transition: opacity .4s var(--ease); pointer-events: none;
+      }
+      #hint.gone { opacity: 0; }
+
+      #toast {
+        position: fixed; top: calc(18px + env(safe-area-inset-top)); left: calc(18px + env(safe-area-inset-left)); z-index: 20;
+        padding: 14px 20px; border-radius: 14px; font-size: 15px; font-weight: 600; color: #eafff2;
+        opacity: 0; transform: translateX(-20px); transition: opacity .35s var(--ease), transform .35s var(--ease); pointer-events: none;
+      }
+      #toast.show { opacity: 1; transform: translateX(0); }
+
+      #banner {
+        position: fixed; inset: 0; z-index: 18; display: flex; align-items: center; justify-content: center;
+        pointer-events: none; opacity: 0;
+      }
+      #banner .txt {
+        font-size: 56px; font-weight: 800; color: #fff; text-align: center; padding: 0 30px;
+        text-shadow: 0 6px 30px rgba(0,0,0,.6), 0 0 44px rgba(78,232,146,.5);
+      }
+      #banner.show { animation: bannerPop 2.4s var(--ease) forwards; }
+      @keyframes bannerPop {
+        0% { opacity: 0; transform: scale(.6); }
+        15% { opacity: 1; transform: scale(1.08); }
+        25% { transform: scale(1); }
+        78% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.1); }
+      }
+
+      .modal { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center;
+        background: rgba(0,0,0,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+      .modal.show { display: flex; animation: modalIn .2s var(--ease); }
+      @keyframes modalIn { from { opacity: 0; } to { opacity: 1; } }
+      .modal .box { width: 380px; max-width: 86vw; padding: 26px; border-radius: 18px; text-align: center;
+        animation: settleIn .25s var(--ease); }
+      .modal .box p { margin: 0 0 22px; font-size: 16px; line-height: 1.6; }
+      .modal .box .row { display: flex; gap: 12px; justify-content: center; }
+      .modal .box button {
+        flex: 1; font-family: inherit; font-size: 15px; font-weight: 600; color: #fff; padding: 12px 0; cursor: pointer;
+        border-radius: 12px; background: rgba(255,255,255,.1); border: 1px solid var(--glass-border);
+        backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+        transition: background .15s var(--ease), transform .08s;
+      }
+      .modal .box button:hover { background: var(--glass-bg-hover); }
+      .modal .box button:active { transform: scale(.95); }
+      .modal .box button.primary { background: rgba(78,232,146,.32); border-color: rgba(130,255,190,.6); }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+
+    <div id="hud">
+      <div class="stats">
+        <span class="pill" id="hud-turn">TÃº</span>
+        <span class="pill" id="hud-group">Lisas</span>
+        <span class="pill"><span data-i18n="shots">Tiros</span>: <b id="hud-shots">0</b></span>
+        <span class="pill"><span data-i18n="potted">Embocadas</span>: <b id="hud-potted">0/7</b></span>
+      </div>
+      <div class="actions">
+        <button id="btn-mute" title="Silenciar">ðŸ”Š</button>
+        <button id="btn-restart" data-i18n="restart">Reiniciar</button>
+        <button id="btn-menu" data-i18n="menu">MenÃº</button>
+      </div>
+    </div>
+
+    <div id="balls-left"></div>
+    <div id="hint" data-i18n="aimHint">Arrastra desde la bola blanca y suelta para tirar. Cuanto mÃ¡s estiras, mÃ¡s fuerza.</div>
+    <div id="toast"></div>
+    <div id="banner"><div class="txt"></div></div>
+
+    <div id="notif-modal" class="modal">
+      <div class="box">
+        <p data-i18n="notifQuestion">Â¿Deseas habilitar las notificaciones para saber cuando es tu turno si estÃ¡s haciendo otras cosas?</p>
+        <div class="row">
+          <button class="primary" id="notif-accept" data-i18n="accept">Aceptar</button>
+          <button id="notif-reject" data-i18n="reject">Rechazar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="modal">
+      <div class="box">
+        <p id="confirm-text">Â¿EstÃ¡s seguro de que quieres reiniciar la partida?</p>
+        <div class="row">
+          <button class="primary" id="confirm-accept" data-i18n="accept">Aceptar</button>
+          <button id="confirm-reject" data-i18n="reject">Rechazar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" />
+        <h1>Pool</h1>
+      </div>
+
+      <div class="screen active" id="screen-main">
+        <button class="glass primary" id="btn-play" data-i18n="play">Jugar</button>
+        <button class="glass" id="btn-settings" data-i18n="settings">Ajustes</button>
+        <button class="glass" id="btn-quit" data-i18n="quit">Salir</button>
+        <div id="settings" style="display:none">
+          <span class="set-label" data-i18n="language">Idioma</span>
+          <div class="seg" id="lang-seg">
+            <button class="seg-btn" data-lang="es" data-i18n="spanish">EspaÃ±ol</button>
+            <button class="seg-btn" data-lang="en" data-i18n="english">InglÃ©s</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-mode">
+        <button class="glass primary" id="btn-solo" data-i18n="solo">Solo</button>
+        <button class="glass" id="btn-multi" data-i18n="multiplayer">Multijugador</button>
+        <button class="glass small" data-back="screen-main" data-i18n="back">Volver</button>
+      </div>
+
+      <div class="screen" id="screen-mp">
+        <button class="glass primary" id="btn-create" data-i18n="create">Crear partida</button>
+        <button class="glass" id="btn-join" data-i18n="join">Unirse a partida</button>
+        <button class="glass small" data-back="screen-mode" data-i18n="back">Volver</button>
+      </div>
+
+      <div class="screen" id="screen-host">
+        <div class="panel">
+          <div class="hint" data-i18n="hostHint">Comparte este cÃ³digo con quien quieras jugar.</div>
+          <div class="code" id="host-code">Â·Â·Â·Â·</div>
+        </div>
+        <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
+      </div>
+
+      <div class="screen" id="screen-join">
+        <div class="panel">
+          <div class="hint" data-i18n="joinHint">Escribe el cÃ³digo de la sala.</div>
+          <input id="join-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
+          <button class="glass primary" id="btn-connect" data-i18n="connect">Conectar</button>
+          <div class="status" id="join-status"></div>
+        </div>
+        <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
