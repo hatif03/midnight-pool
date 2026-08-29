@@ -429,6 +429,16 @@
       </div>
     </div>
 
+    <div id="audit-modal" class="modal">
+      <div class="box">
+        <p data-i18n="auditTitle">Midnight Activity</p>
+        <div id="audit-list" class="item-list"></div>
+        <div class="row">
+          <button data-close="audit-modal" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="menu">
       <div class="brand">
         <img src="/favicon.svg" alt="" />
@@ -462,6 +472,10 @@
             <input type="checkbox" id="vibrate-toggle" />
             <span data-i18n="vibrateOnTurn">Vibrate on your turn</span>
           </label>
+          <span class="set-label" data-i18n="midnightSection">Midnight</span>
+          <button class="glass small" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
+          <div class="status" id="mn-wallet-status"></div>
+          <button class="glass small" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
         </div>
       </div>
 
@@ -474,6 +488,10 @@
       <div class="screen" id="screen-mp">
         <button class="glass primary" id="btn-create" data-i18n="create">Crear partida</button>
         <button class="glass" id="btn-join" data-i18n="join">Unirse a partida</button>
+        <label class="check-row">
+          <input type="checkbox" id="ranked-toggle" />
+          <span data-i18n="rankedToggle">Ranked (privately prove level ≥ 5)</span>
+        </label>
         <button class="glass" id="btn-quick" data-i18n="quickMatch">Partida rápida</button>
         <button class="glass small" data-back="screen-mode" data-i18n="back">Volver</button>
       </div>

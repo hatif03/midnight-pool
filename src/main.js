@@ -16,8 +16,13 @@ import * as dailyReward from './dailyReward.js';
 import * as passSys from './pass.js';
 import * as lootbox from './lootbox.js';
 import * as loyalty from './loyalty.js';
+import * as breakOrder from './midnight/breakOrder.js';
+import * as mnHooks from './midnight/hooks.js';
+import * as mnAudit from './midnight/audit.js';
+import * as mnWallet from './midnight/wallet.js';
 
 const other = (p) => (p === 1 ? 2 : 1);
+const RANKED_LEVEL_THRESHOLD = 5;
 
 let profile = loadProfile();
 let currentSpin = { x: 0, y: 0 };
@@ -83,7 +88,7 @@ function wireSpinGrid() {
 }
 
 const game = {
-  mode: 'solo', myPlayer: 1, turn: 1, started: false,
+  mode: 'solo', myPlayer: 1, turn: 1, started: false, pendingBreakNegotiation: null,
   balls: null, cue: null, sprites: null, byNumber: null,
   shots: 0, shooting: false, shotPotted: [], cueFoul: false,
   groups: { 1: null, 2: null }, openTable: true, gameOver: false, winner: null,
@@ -169,6 +174,7 @@ async function main() {
   updateWallet();
   wireSpinGrid();
   wireEconomyMenus();
+  wireMidnightMenu();
 
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
@@ -442,6 +448,7 @@ function awardMatchResult(winner) {
   profile = economy.applyAward(profile, award);
   profile.pass.points += award.xp || 0;
   persistProfile();
+  mnHooks.hookCommitStats(profile);
 }
 
 function endGame(winner) {
@@ -735,25 +742,64 @@ function onMessage(m) {
     commitCuePlacement(m.x, m.y);
     sendState();
   } else if (m.type === 'restart' && game.mode === 'host') {
-    setupRack();
-    stopBanners();
-    newMatchGroups();
-    game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
-    sendState();
-    announceGroupAndTurn();
+    restartHostRack();
+  } else if (m.type === 'breakCommit' && m.role === 1 && game.mode === 'guest' && !game.pendingBreakNegotiation) {
+    // Guest's half of the break-order handshake (breakOrder.js): the host just
+    // sent its fixed commitment, matchId included, so this is where the guest
+    // learns about the negotiation and joins in.
+    const { promise, handleMessage } = breakOrder.negotiate({ role: 2, matchId: m.matchId, send: (msg) => game.net.send(msg) });
+    game.pendingBreakNegotiation = handleMessage;
+    handleMessage(m);
+    promise
+      .then(({ winner }) => mnHooks.hookRecordBreakOrder({ matchId: m.matchId, role: 2, winner }))
+      .catch(() => {})
+      .finally(() => { game.pendingBreakNegotiation = null; });
+  } else if ((m.type === 'breakCommit' || m.type === 'breakReveal') && game.pendingBreakNegotiation) {
+    game.pendingBreakNegotiation(m);
   }
 }
 
 function newMatchGroups() {
   game.groups = { 1: null, 2: null };
   game.openTable = true;
-  game.turn = 1;
+  game.turn = 1; // fallback -- negotiateBreakOrder() below overrides this before 'start' is sent
   resetTurnTimer();
 }
 
-function hostJoinedHandler() {
+// Provably-fair break order (docs/adr/0006): host and guest run a 3-message
+// commit-reveal handshake over the existing P2P channel (breakOrder.js) so the
+// host can no longer just always break first. This only runs for the host --
+// the guest never decides `turn` locally, it just receives whatever 'start'
+// says, same as before; the guest's half of the handshake lives in onMessage.
+// The result is also fire-and-forget submitted to the Midnight contract for a
+// tamper-evident record (hookRecordBreakOrder) -- that submission never gates
+// this, and a peer that doesn't respond within the timeout just forfeits the
+// flip back to the pre-existing "host breaks" default rather than stalling.
+async function negotiateBreakOrder() {
+  if (game.mode !== 'host') return;
+  const matchId = breakOrder.toHex(breakOrder.newMatchId());
+  const { promise, handleMessage } = breakOrder.negotiate({
+    role: 1,
+    matchId,
+    send: (m) => game.net.send(m),
+  });
+  game.pendingBreakNegotiation = handleMessage;
+  try {
+    const { winner } = await promise;
+    game.turn = winner;
+    mnHooks.hookRecordBreakOrder({ matchId, role: 1, winner });
+  } catch {
+    game.turn = 1;
+    mnAudit.record({ circuit: 'resolveBreak', mode: 'p2p', disclosed: { matchId }, ok: false, note: 'negotiation timed out, defaulted to host breaking' });
+  } finally {
+    game.pendingBreakNegotiation = null;
+  }
+}
+
+async function hostJoinedHandler() {
   setupRack();
   newMatchGroups();
+  await negotiateBreakOrder();
   game.started = true;
   game.opponentName = null;
   updatePlayersDisplay();
@@ -764,6 +810,16 @@ function hostJoinedHandler() {
   game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
   sendState();
   maybeAskNotifications().then(announceGroupAndTurn);
+}
+
+async function restartHostRack() {
+  setupRack();
+  stopBanners();
+  newMatchGroups();
+  await negotiateBreakOrder();
+  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
+  sendState();
+  announceGroupAndTurn();
 }
 
 function guestConnectedHandler() {
@@ -867,6 +923,7 @@ function renderCuesModal() {
         profile.coins -= cost;
         profile.cues.owned.push(cue.id);
         persistProfile();
+        mnHooks.hookClaimCue(cue.id);
         renderCuesModal();
       };
     }
@@ -939,6 +996,55 @@ function buyBox(tier, cost) {
   ui.el('reveal-modal').classList.add('show');
 }
 
+function renderAuditModal() {
+  const list = ui.el('audit-list');
+  list.innerHTML = '';
+  const entries = mnAudit.readAll();
+  if (entries.length === 0) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `<div class="info"><span class="name">${t('auditEmpty')}</span></div>`;
+    list.appendChild(row);
+    return;
+  }
+  for (const e of entries) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const when = new Date(e.at).toLocaleTimeString();
+    const status = e.ok ? '✅' : '⚠️';
+    const detail = e.note || e.error || JSON.stringify(e.disclosed || {});
+    row.innerHTML = `<div class="info"><span class="name">${status} ${e.circuit} · ${e.mode}</span><span class="sub">${when} — ${detail}</span></div>`;
+    list.appendChild(row);
+  }
+}
+
+function updateMidnightWalletStatus() {
+  const w = mnWallet.current();
+  ui.el('mn-wallet-status').textContent = w ? t('walletConnected').replace('{name}', w.name) : t('walletMockMode');
+}
+
+// Only connects to the first detected wallet rather than offering a picker --
+// one wallet (Lace) is the realistic case for this demo; add a picker if/when
+// that stops being true.
+function wireMidnightMenu() {
+  const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
+
+  updateMidnightWalletStatus();
+
+  click('btn-mn-connect', async () => {
+    const wallets = mnWallet.detectWallets();
+    if (wallets.length === 0) { ui.toast(t('walletNotFound')); return; }
+    try {
+      await mnWallet.connect(wallets[0].id);
+      updateMidnightWalletStatus();
+    } catch (err) {
+      ui.toast(String(err?.reason || err?.message || err));
+    }
+  });
+
+  click('btn-mn-audit', () => { renderAuditModal(); ui.el('audit-modal').classList.add('show'); });
+}
+
 function wireEconomyMenus() {
   const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
 
@@ -1001,7 +1107,14 @@ function wireMenu() {
   click('btn-share', shareInvite);
   click('btn-join', () => { ui.setStatus('join-status', ''); ui.showScreen('screen-join'); });
   click('btn-connect', startJoin);
-  click('btn-quick', () => { ui.showScreen('screen-quick'); startQuickMatch(); });
+  click('btn-quick', async () => {
+    if (ui.el('ranked-toggle').checked) {
+      const qualifies = await mnHooks.hookProveThreshold(profile, RANKED_LEVEL_THRESHOLD, false);
+      if (!qualifies) { ui.toast(t('rankedNotQualified')); return; }
+    }
+    ui.showScreen('screen-quick');
+    startQuickMatch();
+  });
   click('btn-quick-cancel', () => { closeNet(); ui.showScreen('screen-mp'); });
 
   ui.el('btn-mute').onclick = () => { audio.resume(); audio.setMuted(!audio.isMuted()); ui.setMuteIcon(audio.isMuted()); audio.uiClick(); };
@@ -1015,13 +1128,11 @@ function wireMenu() {
       game.net.send({ type: 'restart' });
       return;
     }
-    setupRack();
-    stopBanners();
     if (game.mode === 'host') {
-      newMatchGroups();
-      game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
-      sendState();
-      announceGroupAndTurn();
+      await restartHostRack();
+    } else {
+      setupRack();
+      stopBanners();
     }
     ui.showHint();
   };

@@ -8,7 +8,7 @@ export function xpToNext(level) {
 export function awardForMatch({ mode, won }) {
   if (mode === 'solo') return { coins: 5, xp: 5, loyaltyPoints: 0 };
   return won
-    ? { coins: 50, xp: 30, loyaltyPoints: 1 }
+    ? { coins: 50, xp: 30, loyaltyPoints: 1, wins: 1 }
     : { coins: 10, xp: 10, loyaltyPoints: 1 };
 }
 
@@ -17,6 +17,7 @@ export function applyAward(profile, award) {
   p.coins = Math.max(0, p.coins + (award.coins || 0));
   p.cash = Math.max(0, p.cash + (award.cash || 0));
   p.loyaltyPoints = Math.max(0, p.loyaltyPoints + (award.loyaltyPoints || 0));
+  p.wins = (p.wins || 0) + (award.wins || 0);
   p.xp += award.xp || 0;
   while (p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);
@@ -38,13 +39,18 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
 
   assert(xpToNext(1) < xpToNext(2) && xpToNext(2) < xpToNext(3), 'xp requirement grows with level');
 
-  const base = { coins: 100, cash: 0, xp: 0, level: 1, loyaltyPoints: 0 };
+  const base = { coins: 100, cash: 0, xp: 0, level: 1, loyaltyPoints: 0, wins: 0 };
   let p = applyAward(base, awardForMatch({ mode: 'host', won: true }));
   assert(p.coins === 150, 'multiplayer win awards coins');
   assert(p.loyaltyPoints === 1, 'multiplayer win awards a loyalty point');
+  assert(p.wins === 1, 'multiplayer win increments the win counter');
+
+  p = applyAward(base, awardForMatch({ mode: 'host', won: false }));
+  assert(p.wins === 0, 'multiplayer loss does not increment the win counter');
 
   p = applyAward(base, awardForMatch({ mode: 'solo', won: true }));
   assert(p.coins === 105 && p.loyaltyPoints === 0, 'solo practice awards reduced coins, no loyalty points');
+  assert(p.wins === 0, 'solo practice does not count toward the win counter');
 
   p = applyAward({ ...base, xp: xpToNext(1) - 5 }, { xp: 20 });
   assert(p.level === 2, 'crossing the xp threshold levels up');

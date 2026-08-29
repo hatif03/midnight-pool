@@ -67,3 +67,14 @@ syntax should be trusted from memory and compilation alone doesn't prove correct
   anti-cheat, this would be a misrepresentation, not just an incomplete feature.
 - The break-order fix changes actual game behavior (who breaks is no longer always the host) —
   a real gameplay fairness improvement independent of the Midnight framing.
+
+**Implementation note added once workstream 2 was built**: gameplay cannot wait on an indexer
+round trip to learn who breaks, so `src/midnight/breakOrder.js` replays the same commit-reveal
+*shape* (both peers commit a nonce, then reveal, then combine) directly over the existing PeerJS
+channel — an independent SHA-256 computation, not a byte-for-byte replica of the contract's
+`persistentHash` struct encoding, since only an unbiased combination of both nonces is required for
+gameplay. The real `commitBreakChoice`/`revealBreakChoice`/`resolveBreak` circuits are still called
+(`hookRecordBreakOrder` in `src/midnight/hooks.js`) with the same nonces, fire-and-forget, purely
+for the tamper-evident on-chain record — this call never gates `game.turn`. This keeps the
+"never blocks the game" property for the low-latency P2P path while the chain submission inherits
+whatever latency/availability the indexer has that day.

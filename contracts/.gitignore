@@ -1,0 +1,3 @@
+# Compiler output: generated TypeScript, ZKIR, and ~28MB of proving/verifying
+# keys. Reproduce with `npm run compile`.
+managed/

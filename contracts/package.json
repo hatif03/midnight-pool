@@ -1,0 +1,23 @@
+{
+  "name": "midnight-pool-contracts",
+  "version": "0.1.0",
+  "description": "Compact smart contract for Midnight Pool: stat commitments, threshold credentials, soulbound cue claims, and a provably-fair break-order coin flip.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "compact compile midnight-pool.compact managed/midnight-pool",
+    "compile:fast": "compact compile --skip-zk midnight-pool.compact managed/midnight-pool",
+    "format": "compact format midnight-pool.compact",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx test/simulator.test.ts"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.0"
+  }
+}

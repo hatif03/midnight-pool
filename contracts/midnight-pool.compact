@@ -1,0 +1,301 @@
+pragma language_version >= 0.26;
+
+import CompactStandardLibrary;
+
+// Midnight Pool — privacy layer for the browser pool game.
+//
+// Four features, one contract:
+//   1. commitStats        — tamper-evident commitment to a player's level / win count
+//   2. proveThreshold     — prove "level >= N" / "wins >= N" without revealing the number
+//   3. claimCue           — soulbound, non-double-claimable "I unlocked this cue tier"
+//   4. commit/revealBreakChoice + resolveBreak — provably-fair 2-party break-order coin flip
+//
+// KNOWN LIMITATION (see docs/adr/0006): these circuits prove a *relation* about a
+// committed value, not that the value is *true*. The game's stats are client-editable
+// with no attesting issuer, so a player can commit fabricated stats and then truthfully
+// "prove" a threshold over them. Closing that needs a signing authority and is out of scope.
+
+// ---------------------------------------------------------------------------
+// Domain separation — every derivation uses a distinct prefix so that
+// commitments, public keys and nullifiers from different features cannot be
+// correlated or replayed across features.
+// ---------------------------------------------------------------------------
+
+export struct PlayerStats {
+  level: Uint<64>,
+  wins: Uint<64>,
+}
+
+// persistentHash / persistentCommit take a single generic value, so each
+// derivation gets a struct carrying its own domain tag alongside its inputs.
+struct PkPreimage {
+  domain: Bytes<32>,
+  sk: Bytes<32>,
+}
+
+struct StatsPreimage {
+  domain: Bytes<32>,
+  level: Uint<64>,
+  wins: Uint<64>,
+}
+
+struct CuePreimage {
+  domain: Bytes<32>,
+  sk: Bytes<32>,
+  tier: Uint<8>,
+}
+
+struct SlotPreimage {
+  domain: Bytes<32>,
+  matchId: Bytes<32>,
+  role: Uint<8>,
+}
+
+struct BreakPreimage {
+  domain: Bytes<32>,
+  nonce: Bytes<32>,
+}
+
+struct FlipPreimage {
+  domain: Bytes<32>,
+  nonce1: Bytes<32>,
+  nonce2: Bytes<32>,
+}
+
+// ---------------------------------------------------------------------------
+// Public ledger state
+// ---------------------------------------------------------------------------
+
+// player public key -> commitment over (level, wins). Overwriting is allowed:
+// a player's stats change as they play, so re-committing is the normal path.
+export ledger statsCommitment: Map<Bytes<32>, Bytes<32>>;
+
+// Spent cue-claim nullifiers. Membership is the whole record — there is no
+// token and no transfer, so a claim is inherently soulbound.
+export ledger claimedCues: Set<Bytes<32>>;
+
+// break slot (matchId + role) -> commitment to that player's nonce
+export ledger breakCommitment: Map<Bytes<32>, Bytes<32>>;
+
+// break slot (matchId + role) -> the revealed nonce
+export ledger breakReveal: Map<Bytes<32>, Bytes<32>>;
+
+// matchId -> block time after which un-revealed players forfeit the flip
+export ledger breakDeadline: Map<Bytes<32>, Uint<64>>;
+
+// matchId -> role (1 or 2) that won the flip and breaks first
+export ledger breakWinner: Map<Bytes<32>, Uint<8>>;
+
+// ---------------------------------------------------------------------------
+// Witnesses — supplied locally by the player's browser, never sent anywhere.
+// ---------------------------------------------------------------------------
+
+witness localSecretKey(): Bytes<32>;
+
+witness localStats(): PlayerStats;
+
+witness localStatsSalt(): Bytes<32>;
+
+witness localCueTier(): Uint<8>;
+
+witness localBreakNonce(): Bytes<32>;
+
+witness localBreakSalt(): Bytes<32>;
+
+// ---------------------------------------------------------------------------
+// Derivations
+// ---------------------------------------------------------------------------
+
+circuit derivePublicKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<PkPreimage>(PkPreimage { domain: pad(32, "midnightpool:pk:"), sk: sk, });
+}
+
+circuit commitToStats(stats: PlayerStats, salt: Bytes<32>): Bytes<32> {
+  return persistentCommit<StatsPreimage>(
+           StatsPreimage { domain: pad(32, "midnightpool:stats:"),
+                           level: stats.level,
+                           wins: stats.wins, },
+           salt
+           );
+}
+
+circuit deriveCueNullifier(sk: Bytes<32>, tier: Uint<8>): Bytes<32> {
+  return persistentHash<CuePreimage>(
+           CuePreimage { domain: pad(32, "midnightpool:cue-nul:"), sk: sk, tier: tier, }
+           );
+}
+
+// matchId and role are public circuit inputs, so this is only a key-packing
+// helper — but it still gets its own domain tag to stay clear of the others.
+circuit deriveBreakSlot(matchId: Bytes<32>, role: Uint<8>): Bytes<32> {
+  return persistentHash<SlotPreimage>(
+           SlotPreimage { domain: pad(32, "midnightpool:slot:"), matchId: matchId, role: role, }
+           );
+}
+
+circuit commitToBreakNonce(nonce: Bytes<32>, salt: Bytes<32>): Bytes<32> {
+  return persistentCommit<BreakPreimage>(
+           BreakPreimage { domain: pad(32, "midnightpool:break:"), nonce: nonce, },
+           salt
+           );
+}
+
+// ---------------------------------------------------------------------------
+// 1. Stat commitment
+// ---------------------------------------------------------------------------
+
+// Publishes a commitment to the caller's current level and win count under
+// their derived public key. Re-committing overwrites: stats change over time.
+//
+// Disclosed: the public key (it is the Map key, so it must be visible) and the
+// fact that this player committed. The level and win count stay hidden inside
+// the commitment.
+export circuit commitStats(): [] {
+  const pk = disclose(derivePublicKey(localSecretKey()));
+  statsCommitment.insert(pk, commitToStats(localStats(), localStatsSalt()));
+}
+
+// ---------------------------------------------------------------------------
+// 2. Threshold credential proof
+// ---------------------------------------------------------------------------
+
+// Proves the caller's committed level (or win count) meets `threshold`,
+// disclosing ONLY the boolean answer — never the underlying number.
+//
+// `checkWins` selects which field is tested: false -> level, true -> wins.
+export circuit proveThreshold(threshold: Uint<64>, checkWins: Boolean): Boolean {
+  const pk = disclose(derivePublicKey(localSecretKey()));
+  assert(statsCommitment.member(pk), "no stats committed for this player");
+
+  const stats = localStats();
+  // Binds the answer to what is actually on-chain: a player cannot swap in
+  // different stats at proving time than the ones they committed to.
+  assert(statsCommitment.lookup(pk) == commitToStats(stats, localStatsSalt()),
+         "stats do not match the on-chain commitment"
+         );
+
+  const value = checkWins ? stats.wins : stats.level;
+  return disclose(value >= threshold);
+}
+
+// ---------------------------------------------------------------------------
+// 3. Soulbound cue-ownership claim
+// ---------------------------------------------------------------------------
+
+// Records a one-time, non-transferable claim on a cue tier. The nullifier is
+// derived from the secret key and the tier under a dedicated domain prefix, so
+// it cannot be correlated with the player's stats public key.
+//
+// Disclosed: the nullifier only. Which tier was claimed, and by whom, stay
+// private — an observer sees an opaque 32-byte value entering the set.
+export circuit claimCue(): [] {
+  const nullifier = disclose(deriveCueNullifier(localSecretKey(), localCueTier()));
+  assert(!claimedCues.member(nullifier), "cue tier already claimed");
+  claimedCues.insert(nullifier);
+}
+
+// ---------------------------------------------------------------------------
+// 4. Provably-fair break order
+// ---------------------------------------------------------------------------
+
+// Commit phase. `revealDeadline` is a block time (Unix epoch seconds); the
+// first player to commit fixes it for the match and the second inherits it.
+//
+// The deadline is what removes the classic last-revealer bias: a player who
+// sees the opponent's nonce and dislikes the outcome cannot profit by
+// withholding, because once the deadline passes the party who *did* reveal
+// wins the flip by default.
+export circuit commitBreakChoice(matchId: Bytes<32>, role: Uint<8>, revealDeadline: Uint<64>): [] {
+  // matchId, role and the deadline are public protocol identifiers — both
+  // players and any observer must agree on which slot is being written. Compact
+  // treats every exported-circuit parameter as private by default, so they are
+  // disclosed explicitly here. Only the nonce and its salt stay private.
+  const mid = disclose(matchId);
+  const slotRole = disclose(role);
+  const deadline = disclose(revealDeadline);
+
+  assert(slotRole == 1 || slotRole == 2, "role must be 1 or 2");
+  assert(blockTimeLt(deadline), "reveal deadline is already in the past");
+
+  const slot = deriveBreakSlot(mid, slotRole);
+  assert(!breakCommitment.member(slot), "this role already committed");
+
+  breakCommitment.insert(slot, commitToBreakNonce(localBreakNonce(), localBreakSalt()));
+
+  // The first player to commit fixes the deadline; the second inherits it, so
+  // the two players cannot end up racing against different clocks.
+  if (!breakDeadline.member(mid)) {
+    breakDeadline.insert(mid, deadline);
+  }
+}
+
+// Reveal phase. Opens the commitment and publishes the nonce.
+export circuit revealBreakChoice(matchId: Bytes<32>, role: Uint<8>): [] {
+  const mid = disclose(matchId);
+  const slotRole = disclose(role);
+
+  assert(slotRole == 1 || slotRole == 2, "role must be 1 or 2");
+
+  const slot = deriveBreakSlot(mid, slotRole);
+  assert(breakCommitment.member(slot), "nothing committed for this role");
+  assert(!breakReveal.member(slot), "this role already revealed");
+  assert(breakDeadline.member(mid), "no deadline recorded for this match");
+  assert(blockTimeLt(breakDeadline.lookup(mid)), "reveal deadline has passed");
+
+  const nonce = localBreakNonce();
+  assert(breakCommitment.lookup(slot) == commitToBreakNonce(nonce, localBreakSalt()),
+         "reveal does not open the stored commitment"
+         );
+
+  // Revealing the nonce is the entire point of this phase.
+  breakReveal.insert(slot, disclose(nonce));
+}
+
+// Decides who breaks and records it. Idempotent once written.
+//
+//   both revealed        -> unbiased flip over both nonces (resolvable immediately)
+//   deadline passed and
+//     exactly one revealed -> the revealer breaks (forfeit by the silent party)
+//     neither revealed     -> unresolvable; the transaction fails
+export circuit resolveBreak(matchId: Bytes<32>): Uint<8> {
+  const mid = disclose(matchId);
+
+  if (breakWinner.member(mid)) {
+    return breakWinner.lookup(mid);
+  }
+
+  const slot1 = deriveBreakSlot(mid, 1);
+  const slot2 = deriveBreakSlot(mid, 2);
+  const revealed1 = breakReveal.member(slot1);
+  const revealed2 = breakReveal.member(slot2);
+
+  assert(revealed1 || revealed2, "no reveals recorded for this match");
+
+  const winner = revealed1 && revealed2
+                   ? flipWinner(breakReveal.lookup(slot1), breakReveal.lookup(slot2))
+                   : forfeitWinner(mid, revealed1);
+
+  breakWinner.insert(mid, winner);
+  return winner;
+}
+
+// Both nonces present: hash them together and take the top bit of the first
+// byte. Compact has no XOR or modulo operator, but Bytes<32> is indexable, and
+// byte 0 of a SHA-256-based hash is uniform over 0..255 — so `< 128` is an
+// unbiased bit that neither player can steer without breaking the hash.
+circuit flipWinner(nonce1: Bytes<32>, nonce2: Bytes<32>): Uint<8> {
+  const combined =
+          persistentHash<FlipPreimage>(
+            FlipPreimage { domain: pad(32, "midnightpool:flip:"), nonce1: nonce1, nonce2: nonce2, }
+            );
+  return combined[0] < 128 ? 1 : 2;
+}
+
+// Only one nonce present: the revealer wins, but only once the deadline has
+// passed — before that the other player still has time to reveal.
+circuit forfeitWinner(matchId: Bytes<32>, revealed1: Boolean): Uint<8> {
+  assert(blockTimeGte(breakDeadline.lookup(matchId)),
+         "only one player revealed and the deadline has not passed yet"
+         );
+  return revealed1 ? 1 : 2;
+}

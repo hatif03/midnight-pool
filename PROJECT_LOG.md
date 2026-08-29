@@ -7,6 +7,54 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-29)
 
+- **Midnight integration underway — contract done, frontend wiring (workstream 2) done, Effectstream
+  cross-chain and match stakes (workstreams 3-4) not started.** Plan file at
+  `C:\Users\mdhat\.claude\plans\now-we-start-the-harmonic-russell.md`. Triggered by the user's ask
+  to build out all three hackathon tracks (Mobile, Integrate Midnight, Cross-Chain); the plan was
+  revised mid-review after the user pointed at a real reference project
+  (SoumyaEXE/Among-Midnight's "Shadow Protocol") whose integration shape (thin fire-and-forget
+  bridge, mock mode, audit dashboard) is adopted directly, with client-side proving as a deliberate
+  correction to that project's server-side-proving gap. ADRs
+  [0006](docs/adr/0006-midnight-contract-architecture.md),
+  [0007](docs/adr/0007-effectstream-cross-chain.md),
+  [0008](docs/adr/0008-match-stakes-trust-model.md) written before any code, per the working
+  agreement.
+  - **Workstream 1 (contract) — done.** `contracts/midnight-pool.compact` + `witnesses.ts`,
+    written by a `compact-core:compact-dev` agent, compiled with full ZK keys and every circuit
+    actually executed (34 checks in `contracts/test/simulator.test.ts`), not just compiled. Six
+    circuits: `commitStats`, `proveThreshold`, `claimCue`, `commitBreakChoice`/`revealBreakChoice`/
+    `resolveBreak`. Real deviations from the plan, found only by compiling against the actual
+    toolchain (per the standing "don't trust recalled Compact syntax" rule): there is no block-height
+    primitive at all, only block-*time* (Unix seconds, verified against the runtime source after the
+    verification tooling itself incorrectly reported milliseconds); Compact has no XOR/modulo, so the
+    break flip uses `persistentHash(...)[0] < 128` instead; exported-circuit parameters are treated
+    as private by the disclosure analysis, so even `matchId`/`role` need explicit `disclose()`. A real
+    soundness bug (nonce minted inside a witness, not a pure read — unopenable commitments on a proof
+    retry) was caught by `witness-verifier` and fixed before being called done. No Compact CLI exists
+    for Windows — compile steps run in WSL, `npm test`/`typecheck` run natively.
+  - **Workstream 2 (frontend integration) — done, not live-tested (no browser automation tool
+    available this session; verified by build + curl + code review, not an actual click-through).**
+    Added a `wins` counter to `profile.js`/`economy.js` (nothing tracked it before; needed for the
+    contract's `PlayerStats.wins`). New `src/midnight/` module: `breakOrder.js` (pure P2P commit-reveal
+    replica, self-tested), `audit.js` (localStorage activity log), `wallet.js` (DApp Connector
+    detection/connect via plain `window.midnight`, no new dependency), `hooks.js` (fire-and-forget
+    `commitStats`/`proveThreshold`/`claimCue`/`resolveBreak`, mock-mode-by-default, real-mode
+    explicitly logs "not wired" rather than faking a result — see the note below). Wired into
+    `main.js`: the host-always-breaks-first bug is fixed for real — `newMatchGroups()`'s rack start
+    now runs a 3-message commit-reveal handshake with the guest over the existing PeerJS channel
+    before broadcasting `'start'`, falling back to "host breaks" only on a 4s timeout (see the
+    implementation note added to ADR-0006); cue unlock and match-end now fire `hookClaimCue`/
+    `hookCommitStats`; a new "Ranked" toggle on the multiplayer menu gates Quick Match behind
+    `hookProveThreshold(profile, 5, false)`; a wallet-connect button and a Midnight Activity audit
+    modal were added to the settings panel. `npm test` (now includes `breakOrder.js`'s self-test) and
+    `npm run build` both pass.
+  - **Deliberately not built this pass: real on-chain circuit submission.** Wiring `deployContract`/
+    `callTx` against an actual deployed contract needs the pinned `@midnight-ntwrk/midnight-js-*`
+    packages (not added as dependencies) plus a live indexer/proof-server, neither installable/
+    verifiable from this environment. `hooks.js` is structured so this is a contained follow-up
+    (swap what happens when `wallet.getMode() === 'real'`), not a rewrite — this was a deliberate
+    scope decision to avoid shipping half-wired SDK code that couldn't be tested, not an oversight.
+
 - **Purple theme, 8-Ball-Pool-style HUD, Quick Match timer, continuous spin, throw effect, rules
   completeness, free-drag ball-in-hand — done, tested, E2E-verified.** (Plan file at
   `C:\Users\mdhat\.claude\plans\now-we-start-the-harmonic-russell.md`, superseding the earlier
@@ -209,6 +257,13 @@ See `docs/adr/` for the full record:
   third-party BaaS queue.
 - [0005](docs/adr/0005-dynamic-share-previews.md) — dynamic per-invite share previews via Vercel
   Edge, the project's first server-side code.
+- [0006](docs/adr/0006-midnight-contract-architecture.md) — one Compact contract for stat
+  commitment, threshold credentials, soulbound cue claims, and fair break order; client-side
+  proving as the deliberate departure from Shadow Protocol's server-side-proving gap.
+- [0007](docs/adr/0007-effectstream-cross-chain.md) — cross-chain via the full Effectstream
+  `evm-midnight-v2` stack, with a documented fallback to a lighter custom join.
+- [0008](docs/adr/0008-match-stakes-trust-model.md) — match stakes scoped to non-purchasable Coins,
+  honest about what the corrected escrow design does and doesn't fix.
 
 ## Known quirks / gotchas
 
@@ -251,11 +306,25 @@ See `docs/adr/` for the full record:
   confirm it returns a real image, and paste an invite link into WhatsApp/iMessage.
 - Test PWA install on an actual phone (same-Wi-Fi `npm run dev -- --host` or `npm run preview
   -- --host`) — still not done from any session.
-- Decide the actual Midnight integration (private stakes? provable-fair shot outcomes? private
-  ranking?) — still open, needs its own ADR once decided. Match-stakes wagering (workstream 3's
-  deferred item) is the natural bridge to this, and now has a real currency system underneath it
-  to make private, rather than a hypothetical one.
-- Cross-chain: evaluate Effectstream's `evm-midnight-v2` template once the Midnight-side contract
-  exists.
+- **Midnight workstream 3 (Effectstream cross-chain)** — not started. Per ADR-0007: Hardhat "Champion
+  Badge" ERC-721 + Midnight-side threshold-credential disclosure + Effectstream's sync node joining
+  both, OR the documented lighter fallback if the full local devnet stack proves too unstable to get
+  running in time. Toolchain (Bun 1.2.19, Foundry/forge+anvil 1.2.3-stable, Docker 29.5.2) already
+  confirmed present on this machine.
+- **Midnight workstream 4 (match stakes)** — not started. Per ADR-0008: Escrow + timestamped 2-of-2
+  attestation, corrected so a timeout resolves in favor of whichever attestation arrived first
+  (closes the "go silent when losing" exploit; does not fix a host fabricating results from the
+  start — no guest-side physics verification exists). Needs the Playwright scenarios described in
+  the plan (happy path, disagreement, the timeout exploit test, and the explicit accepted-gap test).
+- **Real on-chain circuit submission** — deliberately deferred in workstream 2 (see above); needs
+  the pinned `@midnight-ntwrk/midnight-js-*` packages added and a live indexer/proof-server to
+  verify against.
+- **A human should actually click through the new Midnight UI in a browser** — no browser
+  automation tool was available this session, so workstream 2 was verified by `npm test`/
+  `npm run build`/curl and code review only, never an actual click-through. In particular: the
+  wallet-connect button (expected to show "no wallet found" without a Lace-equivalent extension
+  installed), the ranked-toggle gate, and — most importantly — the break-order handshake between
+  two real browser tabs (host + guest), which no automated check here exercises end-to-end.
 - Decide who commits the currently-uncommitted local changes given the concurrent-session
-  situation noted above (this session's diff now spans the PWA fixes plus all of workstreams 1-8).
+  situation noted above (this session's diff now spans the PWA fixes plus all of workstreams 1-8
+  plus the Midnight work above).

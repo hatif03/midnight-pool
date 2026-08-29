@@ -42,6 +42,11 @@ const STR = {
     notEnoughCoins: 'No tienes suficientes monedas.', notEnoughCash: 'No tienes suficiente efectivo.',
     notEnoughLoyalty: 'No tienes suficientes puntos de fidelidad.', redeem: 'Canjear', redeemed: 'Canjeado',
     noPassRewards: 'No hay recompensas que reclamar todavía.',
+    midnightSection: 'Midnight', connectWallet: 'Conectar cartera', viewActivity: 'Ver actividad on-chain',
+    walletConnected: 'Conectado: {name}', walletNotFound: 'No se ha encontrado ninguna cartera Midnight.',
+    walletMockMode: 'Modo simulado (sin cartera conectada)',
+    rankedToggle: 'Clasificada (probar nivel ≥ 5 en privado)', rankedNotQualified: 'No cumples el nivel mínimo para partidas clasificadas.',
+    auditTitle: 'Actividad Midnight', auditEmpty: 'Todavía no hay actividad registrada.',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -86,6 +91,11 @@ const STR = {
     notEnoughCoins: 'Not enough coins.', notEnoughCash: 'Not enough cash.',
     notEnoughLoyalty: 'Not enough loyalty points.', redeem: 'Redeem', redeemed: 'Redeemed',
     noPassRewards: 'No rewards to claim yet.',
+    midnightSection: 'Midnight', connectWallet: 'Connect Wallet', viewActivity: 'View On-Chain Activity',
+    walletConnected: 'Connected: {name}', walletNotFound: 'No Midnight wallet extension found.',
+    walletMockMode: 'Mock mode (no wallet connected)',
+    rankedToggle: 'Ranked (privately prove level ≥ 5)', rankedNotQualified: "You don't meet the minimum level for ranked matches.",
+    auditTitle: 'Midnight Activity', auditEmpty: 'No activity recorded yet.',
   },
 };
 
