@@ -89,6 +89,7 @@ function wireSpinGrid() {
 
 const game = {
   mode: 'solo', myPlayer: 1, turn: 1, started: false, pendingBreakNegotiation: null,
+  stakeEligible: false, stakeAmount: 0, currentMatchId: null,
   balls: null, cue: null, sprites: null, byNumber: null,
   shots: 0, shooting: false, shotPotted: [], cueFoul: false,
   groups: { 1: null, 2: null }, openTable: true, gameOver: false, winner: null,
@@ -444,9 +445,14 @@ function resolveTurn() {
 // just an open-ended rack you can restart anytime), and awarding on restart would be exploitable.
 function awardMatchResult(winner) {
   if (game.mode === 'solo') return;
-  const award = economy.awardForMatch({ mode: game.mode, won: winner === game.myPlayer });
+  const won = winner === game.myPlayer;
+  const award = economy.awardForMatch({ mode: game.mode, won });
   profile = economy.applyAward(profile, award);
   profile.pass.points += award.xp || 0;
+  if (game.stakeAmount > 0 && game.currentMatchId) {
+    profile = economy.applyStake(profile, won, game.stakeAmount);
+    mnHooks.hookAttestResult({ matchId: game.currentMatchId, role: game.myPlayer, winner });
+  }
   persistProfile();
   mnHooks.hookCommitStats(profile);
 }
@@ -723,6 +729,10 @@ function onMessage(m) {
     game.opponentTimeBonus = m.hostTimeBonus || 0;
     game.timedMode = !!m.timedMode;
     game.turnTimeLeft = game.timedMode ? 60 + (game.turn === game.myPlayer ? equippedCue().timeBonus : game.opponentTimeBonus) : 0;
+    game.currentMatchId = m.matchId || null;
+    game.stakeAmount = m.stake || 0;
+    openStakeIfAny(2);
+    if (game.stakeAmount > 0) ui.toast(t('stakingToast').replace('{amount}', game.stakeAmount));
     updatePlayersDisplay();
     ui.enterGame();
     syncSpinGrid();
@@ -778,6 +788,7 @@ function newMatchGroups() {
 async function negotiateBreakOrder() {
   if (game.mode !== 'host') return;
   const matchId = breakOrder.toHex(breakOrder.newMatchId());
+  game.currentMatchId = matchId;
   const { promise, handleMessage } = breakOrder.negotiate({
     role: 1,
     matchId,
@@ -796,10 +807,22 @@ async function negotiateBreakOrder() {
   }
 }
 
+// Match stakes (docs/adr/0008) -- host-created (code-based) matches only, never Quick
+// Match (game.stakeEligible is only ever set true by startHost()). Recording the
+// open is fire-and-forget audit only; the actual Coins transfer happens client-side
+// in awardMatchResult() regardless of whether this call ever lands anywhere.
+function openStakeIfAny(role) {
+  if (game.stakeAmount > 0 && game.currentMatchId) {
+    mnHooks.hookOpenStake({ matchId: game.currentMatchId, role, amount: game.stakeAmount });
+  }
+}
+
 async function hostJoinedHandler() {
   setupRack();
   newMatchGroups();
+  game.stakeAmount = game.stakeEligible ? Math.max(0, parseInt(ui.el('stake-amount').value, 10) || 0) : 0;
   await negotiateBreakOrder();
+  openStakeIfAny(1);
   game.started = true;
   game.opponentName = null;
   updatePlayersDisplay();
@@ -807,7 +830,7 @@ async function hostJoinedHandler() {
   ui.toast(t('rivalJoined'));
   ui.enterGame();
   syncSpinGrid();
-  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
+  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, matchId: game.currentMatchId, stake: game.stakeAmount, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
   sendState();
   maybeAskNotifications().then(announceGroupAndTurn);
 }
@@ -817,7 +840,8 @@ async function restartHostRack() {
   stopBanners();
   newMatchGroups();
   await negotiateBreakOrder();
-  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
+  openStakeIfAny(1);
+  game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, matchId: game.currentMatchId, stake: game.stakeAmount, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
   sendState();
   announceGroupAndTurn();
 }
@@ -831,6 +855,7 @@ function startHost() {
   game.mode = 'host';
   game.myPlayer = 1;
   game.timedMode = false;
+  game.stakeEligible = true;
   ui.el('host-code').textContent = '····';
   game.net = host({
     ready: (code) => { ui.el('host-code').textContent = code; updateShareLink(code); },
@@ -863,6 +888,7 @@ function startJoin() {
 function startQuickMatch() {
   closeNet();
   game.timedMode = true;
+  game.stakeEligible = false;
   ui.setStatus('quick-status', t('searching'));
   game.net = findMatch(identity.getNickname(), {
     assigned: (role) => {

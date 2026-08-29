@@ -26,6 +26,13 @@ export function applyAward(profile, award) {
   return p;
 }
 
+// Applies a match stake (docs/adr/0008): the winner gains `amount` coins, the loser loses it,
+// each side computing this independently from its own local result, same as awardForMatch/
+// applyAward above — there's no shared/server-authoritative economy here either.
+export function applyStake(profile, won, amount) {
+  return { ...profile, coins: Math.max(0, profile.coins + (won ? amount : -amount)) };
+}
+
 // Returns the profile with `amount` deducted from `currency`, or null if funds are insufficient —
 // the caller decides how to react (e.g. show "not enough coins"), this never goes negative itself.
 export function spend(profile, currency, amount) {
@@ -61,6 +68,10 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   let s = spend({ ...base, coins: 50 }, 'coins', 30);
   assert(s.coins === 20, 'spend deducts the amount');
   assert(spend({ ...base, coins: 10 }, 'coins', 30) === null, 'spend refuses insufficient funds');
+
+  assert(applyStake({ ...base, coins: 100 }, true, 50).coins === 150, 'winning a stake adds the amount');
+  assert(applyStake({ ...base, coins: 100 }, false, 50).coins === 50, 'losing a stake subtracts the amount');
+  assert(applyStake({ ...base, coins: 20 }, false, 50).coins === 0, 'losing a stake never goes negative');
 
   console.log('OK — economy self-test passed');
 }

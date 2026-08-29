@@ -507,6 +507,8 @@
       <div class="screen" id="screen-host">
         <div class="panel">
           <div class="hint" data-i18n="hostHint">Comparte este código con quien quieras jugar.</div>
+          <span class="set-label" data-i18n="stakeLabel">Stake (coins, 0 = none)</span>
+          <input id="stake-amount" type="number" min="0" step="10" value="0" />
           <div class="code" id="host-code">····</div>
           <canvas id="host-qr"></canvas>
           <button class="glass primary small" id="btn-share" data-i18n="share">Compartir</button>

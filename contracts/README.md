@@ -1,8 +1,14 @@
-# Midnight Pool — Compact contract
+# Midnight Pool — Compact contracts
 
-One contract (`midnight-pool.compact`) providing the privacy layer described in
-[ADR-0006](../docs/adr/0006-midnight-contract-architecture.md), plus its
-TypeScript witnesses (`witnesses.ts`).
+Two contracts:
+
+- `midnight-pool.compact` — the privacy layer described in
+  [ADR-0006](../docs/adr/0006-midnight-contract-architecture.md) (stat commitment, threshold
+  credentials, soulbound cue claims, fair break order), plus its TypeScript witnesses
+  (`witnesses.ts`).
+- `stakes.compact` — the match-stakes audit record described in
+  [ADR-0008](../docs/adr/0008-match-stakes-trust-model.md). No witnesses: every value it touches is
+  already public (match id, role, amount, claimed winner), so there is nothing to keep private.
 
 Toolchain: Compact CLI 0.5.2, compiler 0.34.0, language version 0.26.0,
 `@midnight-ntwrk/compact-runtime` 0.19.0.
@@ -19,7 +25,7 @@ npm test             # executes every circuit, incl. failure paths
 > `compact` on the Windows PATH is the unrelated NTFS compression tool. Run the
 > compile steps inside WSL. `npm test` and `npm run typecheck` run natively.
 
-## Circuits
+## Circuits — midnight-pool.compact
 
 | Circuit | Signature | Discloses |
 |---|---|---|
@@ -29,6 +35,17 @@ npm test             # executes every circuit, incl. failure paths
 | `commitBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>, revealDeadline: Uint<64>): []` | matchId, role, deadline (public protocol data) |
 | `revealBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>): []` | matchId, role, and the revealed nonce |
 | `resolveBreak` | `(matchId: Bytes<32>): Uint<8>` | matchId and the winning role (1 or 2) |
+
+## Circuits — stakes.compact
+
+Everything here is public by design (see ADR-0008) — there is no private value to hide, so no
+`disclose()` calls appear beyond the parameter list itself.
+
+| Circuit | Signature | Notes |
+|---|---|---|
+| `openStake` | `(matchId: Bytes<32>, role: Uint<8>, amount: Uint<64>): []` | the second role to open must match the first's `amount`, or it's rejected |
+| `attestResult` | `(matchId: Bytes<32>, role: Uint<8>, winner: Uint<8>): []` | write-once per `matchId` — whichever attestation lands on-chain first is final, agreeing or not |
+| `resolveStake` | `(matchId: Bytes<32>): Uint<8>` | fails until `attestResult` has been called at least once for that match |
 
 ## Call sequence
 
@@ -69,3 +86,7 @@ s = forgetMatch(s, matchId);
   applies no entitlement check — any key can claim any tier once. Closing either
   needs a signing authority, which ADR-0006 puts out of scope. Do not present
   this as anti-cheat.
+- **`stakes.compact`'s `role` is not signature-bound either.** A third party who reads a match's
+  public `matchId` could call `openStake`/`attestResult` claiming a role it isn't part of. Neither
+  circuit gates real custody (the Coins transfer happens client-side) or real gameplay, so the
+  consequence is a polluted audit record for one match, not a stolen stake — see ADR-0008.

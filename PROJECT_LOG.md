@@ -48,6 +48,27 @@ reasoning behind any decision marked with an ADR link.
     `hookProveThreshold(profile, 5, false)`; a wallet-connect button and a Midnight Activity audit
     modal were added to the settings panel. `npm test` (now includes `breakOrder.js`'s self-test) and
     `npm run build` both pass.
+  - **Workstream 4 (match stakes) — done, independently compiled+executed, not live-tested (same
+    browser-automation caveat as workstream 2).** `contracts/stakes.compact` (`openStake`/
+    `attestResult`/`resolveStake`), no witnesses needed — every value is already public. **Real
+    design correction found while implementing, not just planning**: ADR-0008's original
+    "timestamped on-chain, resolve in favor of whichever attestation arrived first" mechanism
+    assumed block time could be *read* and stored per attestation for comparison — compiling
+    against the real toolchain confirmed (again, same as workstream 1's discovery) that it can't be;
+    only comparisons against a caller-supplied value exist. Replaced with a write-once ledger cell
+    per match: whichever attestation lands on-chain first is permanently canonical, full stop, no
+    deadline or stored time needed at all — a simplification, not a scope cut, and it closes the
+    exact same "host goes silent when losing" exploit (proven by a dedicated test: a late,
+    self-favoring host claim cannot displace the guest's earlier honest one). 12 execution checks in
+    `contracts/test/stakes.test.ts`, run via `npm test` in `contracts/`. Wired into `main.js`: a
+    stake-amount input on the host-create screen only (`game.stakeEligible`, set true only by
+    `startHost()` — deliberately excluded from Quick Match to avoid a stale input value leaking into
+    an unrelated game), the agreed amount rides along in the existing `'start'` broadcast, the
+    Coins transfer applies client-side in `awardMatchResult` via a new `economy.applyStake` (winner
+    +N, loser −N, clamped at 0, self-tested), with `hookOpenStake`/`hookAttestResult` recording the
+    fire-and-forget audit trail. Same known limitation as the other contract: `role` isn't
+    signature-bound, so a third party could grief one match's audit record — doesn't affect real
+    custody or gameplay, documented in ADR-0008 and the contracts README.
   - **Deliberately not built this pass: real on-chain circuit submission.** Wiring `deployContract`/
     `callTx` against an actual deployed contract needs the pinned `@midnight-ntwrk/midnight-js-*`
     packages (not added as dependencies) plus a live indexer/proof-server, neither installable/
@@ -311,11 +332,12 @@ See `docs/adr/` for the full record:
   both, OR the documented lighter fallback if the full local devnet stack proves too unstable to get
   running in time. Toolchain (Bun 1.2.19, Foundry/forge+anvil 1.2.3-stable, Docker 29.5.2) already
   confirmed present on this machine.
-- **Midnight workstream 4 (match stakes)** — not started. Per ADR-0008: Escrow + timestamped 2-of-2
-  attestation, corrected so a timeout resolves in favor of whichever attestation arrived first
-  (closes the "go silent when losing" exploit; does not fix a host fabricating results from the
-  start — no guest-side physics verification exists). Needs the Playwright scenarios described in
-  the plan (happy path, disagreement, the timeout exploit test, and the explicit accepted-gap test).
+- **Midnight workstream 4 (match stakes) — contract + client wiring done** (see the entry above);
+  still needs the Playwright scenarios described in the plan (happy path, disagreement — no longer
+  meaningfully distinct from the exploit test now that resolution is write-once rather than
+  timestamp-compared, so this may collapse to two scenarios: agreement, and the "first attestation
+  wins" exploit-closing test — and the explicit accepted-gap test for a host fabricating from the
+  start). No browser-automation tool was available this session to write/run them.
 - **Real on-chain circuit submission** — deliberately deferred in workstream 2 (see above); needs
   the pinned `@midnight-ntwrk/midnight-js-*` packages added and a live indexer/proof-server to
   verify against.

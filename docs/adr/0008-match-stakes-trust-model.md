@@ -56,3 +56,29 @@ worth documenting clearly here rather than overselling "provably fair wagering,"
   "check both match."
 - The genuine upgrade path (guest-side physics verification) is a substantial future project, not
   a quick follow-up — noted here so it isn't mistaken for an oversight to "just fix later."
+
+**Design correction made while implementing `contracts/stakes.compact`**: the "timestamped on-chain"
+mechanism above assumed block time could be *read* and *stored* per attestation for later
+comparison. Compiling against the real toolchain (the same discovery ADR-0006 already made for the
+break-order deadline) confirmed it cannot — Compact only exposes `blockTimeGreaterThan`/
+`blockTimeLessThan`-shaped comparisons against a caller-supplied value, never a way to read the
+current time out as data. There is nothing to store per attestation to compare "who was first."
+
+The ledger's own write order already **is** that ordering, more directly than a stored timestamp
+would be: `attestResult` writes to a single slot per match, write-once. Whichever attestation
+actually lands on-chain first becomes the permanent record; a second attestation for the same
+match — agreeing or not — is rejected outright rather than silently overwritten or compared by
+time. This needs no deadline and no stored time at all, and closes the exact same exploit: a host
+about to lose gains nothing by staying silent, because the guest's honest, already-submitted
+attestation is already final by the time the host could try to submit a conflicting one — see
+`contracts/test/stakes.test.ts`'s "the first attestation wins even if a conflicting one arrives
+later" check. This is a simplification, not a scope change: the "still does not fix" limitation
+above (a host fabricating the result from the very start) is unaffected either way.
+
+**Same known limitation as ADR-0006's contract, not a new one**: `role` in `openStake`/
+`attestResult` is a bare public argument, not bound to a wallet signature — a third party who reads
+a match's public `matchId` could call either circuit claiming a role it isn't part of. Neither
+circuit gates real custody or real gameplay (the actual Coins transfer happens client-side, same as
+every other award in this game), so the consequence is a polluted audit record for that one match,
+not a stolen stake. Closing it needs signature-bound roles — out of scope for the same reason
+ADR-0006 gives.

@@ -47,6 +47,7 @@ const STR = {
     walletMockMode: 'Modo simulado (sin cartera conectada)',
     rankedToggle: 'Clasificada (probar nivel ≥ 5 en privado)', rankedNotQualified: 'No cumples el nivel mínimo para partidas clasificadas.',
     auditTitle: 'Actividad Midnight', auditEmpty: 'Todavía no hay actividad registrada.',
+    stakeLabel: 'Apuesta (monedas, 0 = ninguna)', stakingToast: 'En juego: {amount} monedas.',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -96,6 +97,7 @@ const STR = {
     walletMockMode: 'Mock mode (no wallet connected)',
     rankedToggle: 'Ranked (privately prove level ≥ 5)', rankedNotQualified: "You don't meet the minimum level for ranked matches.",
     auditTitle: 'Midnight Activity', auditEmpty: 'No activity recorded yet.',
+    stakeLabel: 'Stake (coins, 0 = none)', stakingToast: 'Staking {amount} coins.',
   },
 };
 

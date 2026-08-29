@@ -1,0 +1,99 @@
+pragma language_version >= 0.26;
+
+import CompactStandardLibrary;
+
+// Midnight Pool — match stakes (docs/adr/0008).
+//
+// Coins are a client-side, non-purchasable currency (src/economy.js) with no on-chain
+// token behind them, so this contract does NOT hold funds in escrow the way the
+// Escrow pattern usually implies. Its job is narrower and honest about it: produce a
+// tamper-evident, agreed record of {match, stake amount, winner} that both clients'
+// existing client-side Coins award (economy.applyAward) can point to. See ADR-0008
+// for what this does and does not fix.
+//
+// DESIGN CORRECTION from the original ADR-0008 text (found by trying to compile the
+// originally-planned "compare timestamps, resolve in favor of whichever arrived
+// first" rule — see contracts/midnight-pool.compact's own header for the same
+// discovery): Compact has no way to READ the current block time as a value, only to
+// COMPARE it against a caller-supplied one (kernel.blockTimeGreaterThan /
+// kernel.blockTimeLessThan-shaped predicates). There is nothing to store per
+// attestation to later compare "who was first." The ledger's own write order already
+// *is* that ordering, more directly than a stored timestamp would be: `attestResult`
+// writes to a single write-once slot per match, so whichever attestation actually
+// lands on-chain first becomes canonical, and the second call --  whether it agrees
+// or not -- is rejected outright rather than silently overwritten. This needs no
+// deadline and no stored time at all, and closes the same exploit ADR-0008 named: a
+// host that goes silent right as it's about to lose gains nothing by delaying,
+// because the guest's honest, already-submitted attestation is already final by the
+// time the host could try to submit a conflicting one.
+//
+// KNOWN LIMITATION, same class as docs/adr/0006's: `role` here is a bare public
+// argument, not bound to any wallet signature. Nothing stops a third party who reads
+// a public matchId from calling `openStake`/`attestResult` claiming to be a role in a
+// match it isn't part of. Since neither of these circuits gates real custody or real
+// gameplay -- the actual Coins transfer happens client-side, same as every other
+// award in this game -- the consequence of that griefing is a polluted audit record
+// for one match, not a stolen stake. Closing it needs signature-bound roles, out of
+// scope here for the same reason ADR-0006 gives.
+
+struct SlotPreimage {
+  domain: Bytes<32>,
+  matchId: Bytes<32>,
+  role: Uint<8>,
+}
+
+// slot (matchId, role) -> the amount that role proposed staking
+export ledger stakeOpened: Map<Bytes<32>, Uint<64>>;
+
+// matchId -> the winning role recorded by whichever attestation landed on-chain first
+export ledger stakeAttestation: Map<Bytes<32>, Uint<8>>;
+
+circuit deriveStakeSlot(matchId: Bytes<32>, role: Uint<8>): Bytes<32> {
+  return persistentHash<SlotPreimage>(
+           SlotPreimage { domain: pad(32, "midnightpool:stake-slot:"), matchId: matchId, role: role, }
+           );
+}
+
+// Records one side's proposed stake. The second side to open must match the first's
+// amount -- there is no separate "accept" step, matching amounts on open IS
+// acceptance. Mismatched or duplicate opens are simply rejected; the caller can retry.
+export circuit openStake(matchId: Bytes<32>, role: Uint<8>, amount: Uint<64>): [] {
+  const mid = disclose(matchId);
+  const r = disclose(role);
+  const amt = disclose(amount);
+
+  assert(r == 1 || r == 2, "role must be 1 or 2");
+
+  const slot = deriveStakeSlot(mid, r);
+  assert(!stakeOpened.member(slot), "this role already opened a stake for this match");
+
+  const otherSlot = deriveStakeSlot(mid, r == 1 ? 2 : 1);
+  if (stakeOpened.member(otherSlot)) {
+    assert(stakeOpened.lookup(otherSlot) == amt, "stake amount does not match the other player's");
+  }
+
+  stakeOpened.insert(slot, amt);
+}
+
+// Records the caller's claimed winner. Write-once per match: whichever attestation
+// (from either role) lands on-chain first becomes the permanent record; a second
+// attestation for the same match is rejected, agreeing or not.
+export circuit attestResult(matchId: Bytes<32>, role: Uint<8>, winner: Uint<8>): [] {
+  const mid = disclose(matchId);
+  const r = disclose(role);
+  const w = disclose(winner);
+
+  assert(r == 1 || r == 2, "role must be 1 or 2");
+  assert(w == 1 || w == 2, "winner must be 1 or 2");
+  assert(stakeOpened.member(deriveStakeSlot(mid, r)), "this role has not opened a stake for this match");
+  assert(!stakeAttestation.member(mid), "this match already has a recorded attestation");
+
+  stakeAttestation.insert(mid, w);
+}
+
+// Reads back the recorded winner. Fails if nothing has been attested yet.
+export circuit resolveStake(matchId: Bytes<32>): Uint<8> {
+  const mid = disclose(matchId);
+  assert(stakeAttestation.member(mid), "no attestation recorded for this match");
+  return stakeAttestation.lookup(mid);
+}

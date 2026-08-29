@@ -93,3 +93,21 @@ export function hookClaimCue(tierId) {
 export function hookRecordBreakOrder({ matchId, role, winner }) {
   return run('resolveBreak', { matchId, role, winner }, async () => {});
 }
+
+/**
+ * Mirrors `stakes.compact`'s openStake -- records this side's proposed stake
+ * for the audit trail (docs/adr/0008). The actual Coins transfer at match end
+ * happens client-side regardless of whether this call ever lands anywhere.
+ */
+export function hookOpenStake({ matchId, role, amount }) {
+  return run('openStake', { matchId, role, amount }, async () => {});
+}
+
+/**
+ * Mirrors `stakes.compact`'s attestResult -- records this side's claimed
+ * winner for the audit trail. Fire-and-forget, same as hookRecordBreakOrder;
+ * the Coins award already happened locally by the time this is called.
+ */
+export function hookAttestResult({ matchId, role, winner }) {
+  return run('attestResult', { matchId, role, winner }, async () => {});
+}
