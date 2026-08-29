@@ -3,8 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Pool</title>
+    <meta name="theme-color" content="#04080a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pool" />
+    <title>Midnight Pool</title>
     <style>
       :root {
         --glass-bg: rgba(255,255,255,.08);
@@ -201,26 +207,26 @@
 
     <div id="hud">
       <div class="stats">
-        <span class="pill" id="hud-turn">TÃº</span>
+        <span class="pill" id="hud-turn">Tú</span>
         <span class="pill" id="hud-group">Lisas</span>
         <span class="pill"><span data-i18n="shots">Tiros</span>: <b id="hud-shots">0</b></span>
         <span class="pill"><span data-i18n="potted">Embocadas</span>: <b id="hud-potted">0/7</b></span>
       </div>
       <div class="actions">
-        <button id="btn-mute" title="Silenciar">ðŸ”Š</button>
+        <button id="btn-mute" title="Silenciar">🔊</button>
         <button id="btn-restart" data-i18n="restart">Reiniciar</button>
-        <button id="btn-menu" data-i18n="menu">MenÃº</button>
+        <button id="btn-menu" data-i18n="menu">Menú</button>
       </div>
     </div>
 
     <div id="balls-left"></div>
-    <div id="hint" data-i18n="aimHint">Arrastra desde la bola blanca y suelta para tirar. Cuanto mÃ¡s estiras, mÃ¡s fuerza.</div>
+    <div id="hint" data-i18n="aimHint">Arrastra desde la bola blanca y suelta para tirar. Cuanto más estiras, más fuerza.</div>
     <div id="toast"></div>
     <div id="banner"><div class="txt"></div></div>
 
     <div id="notif-modal" class="modal">
       <div class="box">
-        <p data-i18n="notifQuestion">Â¿Deseas habilitar las notificaciones para saber cuando es tu turno si estÃ¡s haciendo otras cosas?</p>
+        <p data-i18n="notifQuestion">¿Deseas habilitar las notificaciones para saber cuando es tu turno si estás haciendo otras cosas?</p>
         <div class="row">
           <button class="primary" id="notif-accept" data-i18n="accept">Aceptar</button>
           <button id="notif-reject" data-i18n="reject">Rechazar</button>
@@ -230,7 +236,7 @@
 
     <div id="confirm-modal" class="modal">
       <div class="box">
-        <p id="confirm-text">Â¿EstÃ¡s seguro de que quieres reiniciar la partida?</p>
+        <p id="confirm-text">¿Estás seguro de que quieres reiniciar la partida?</p>
         <div class="row">
           <button class="primary" id="confirm-accept" data-i18n="accept">Aceptar</button>
           <button id="confirm-reject" data-i18n="reject">Rechazar</button>
@@ -251,8 +257,8 @@
         <div id="settings" style="display:none">
           <span class="set-label" data-i18n="language">Idioma</span>
           <div class="seg" id="lang-seg">
-            <button class="seg-btn" data-lang="es" data-i18n="spanish">EspaÃ±ol</button>
-            <button class="seg-btn" data-lang="en" data-i18n="english">InglÃ©s</button>
+            <button class="seg-btn" data-lang="es" data-i18n="spanish">Español</button>
+            <button class="seg-btn" data-lang="en" data-i18n="english">Inglés</button>
           </div>
         </div>
       </div>
@@ -271,15 +277,15 @@
 
       <div class="screen" id="screen-host">
         <div class="panel">
-          <div class="hint" data-i18n="hostHint">Comparte este cÃ³digo con quien quieras jugar.</div>
-          <div class="code" id="host-code">Â·Â·Â·Â·</div>
+          <div class="hint" data-i18n="hostHint">Comparte este código con quien quieras jugar.</div>
+          <div class="code" id="host-code">····</div>
         </div>
         <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
       </div>
 
       <div class="screen" id="screen-join">
         <div class="panel">
-          <div class="hint" data-i18n="joinHint">Escribe el cÃ³digo de la sala.</div>
+          <div class="hint" data-i18n="joinHint">Escribe el código de la sala.</div>
           <input id="join-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
           <button class="glass primary" id="btn-connect" data-i18n="connect">Conectar</button>
           <div class="status" id="join-status"></div>
