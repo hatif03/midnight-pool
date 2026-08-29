@@ -7,6 +7,21 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-29)
 
+- **Live at https://midnight-pool-one.vercel.app/** — user-confirmed working in solo play after
+  the Vercel/GCP deploy fixes above. First piece of real user feedback from the live deploy: the
+  table scaled down uncomfortably small in portrait on a phone. Fixed with a landscape-only lock —
+  see below.
+- **Landscape-only enforced.** Screen Orientation Lock isn't supported on iOS Safari at all (even
+  installed as a PWA), so a JS-only lock can't be relied on cross-platform. The actual fix is a
+  CSS-only `@media (orientation: portrait)` full-screen overlay (`#rotate-overlay` in `index.html`)
+  that blocks the entire app until the device is rotated back — works identically on every
+  platform since it needs no permission or API support. `vite.config.js`'s manifest
+  `orientation: 'any'` → `'landscape'` (helps installed-PWA behavior on Android) and a best-effort
+  `screen.orientation.lock('landscape')` call on first interaction (main.js) are added alongside it
+  as free wins on platforms that do support them, but the CSS overlay is what actually guarantees
+  the behavior everywhere. Verified with Playwright at both a portrait (390×844) and landscape
+  (844×390) viewport — confirmed the overlay fully covers the screen and blocks interaction in
+  portrait, and is absent in landscape.
 - **Real browser E2E verification done** for workstreams 1-4 (Playwright, headless Chromium,
   installed in an isolated scratch location — not a project dependency). This is meaningfully
   stronger than the build/unit-test checks noted below: it drove actual browser instances through

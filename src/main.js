@@ -103,7 +103,16 @@ async function main() {
   wireMenu();
   applyJoinLinkIfAny();
 
-  const kick = () => { audio.resume(); audio.startMusic(); window.removeEventListener('pointerdown', kick); };
+  const kick = () => {
+    audio.resume();
+    audio.startMusic();
+    // Best-effort only — the Screen Orientation Lock API isn't supported on iOS Safari at all
+    // (even installed as a PWA), and most browsers require fullscreen first. The CSS rotate
+    // overlay (index.html) is what actually enforces landscape everywhere; this just helps on the
+    // platforms (mainly Android/Chrome, standalone display mode) where it's available.
+    try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch {}
+    window.removeEventListener('pointerdown', kick);
+  };
   window.addEventListener('pointerdown', kick);
 }
 

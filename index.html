@@ -222,9 +222,32 @@
       .modal .box button:hover { background: var(--glass-bg-hover); }
       .modal .box button:active { transform: scale(.95); }
       .modal .box button.primary { background: rgba(78,232,146,.32); border-color: rgba(130,255,190,.6); }
+
+      /* This is a landscape-only game: the table is too small to be comfortable in portrait at
+         any screen size, not just on phones — so no width cutoff here, purely orientation-based.
+         CSS-only (not JS/orientation-lock) because the Screen Orientation Lock API isn't supported
+         on iOS Safari at all, even for an installed PWA — this works identically everywhere. */
+      #rotate-overlay {
+        display: none; position: fixed; inset: 0; z-index: 9999;
+        flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        background: #04080a; color: #eafff2; text-align: center; padding: 0 32px;
+      }
+      @media (orientation: portrait) {
+        #rotate-overlay { display: flex; }
+      }
+      #rotate-overlay .icon { font-size: 64px; animation: rotateHint 1.8s ease-in-out infinite; }
+      @keyframes rotateHint {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(90deg); }
+      }
+      #rotate-overlay p { margin: 0; font-size: 16px; line-height: 1.6; max-width: 320px; opacity: .85; }
     </style>
   </head>
   <body>
+    <div id="rotate-overlay">
+      <div class="icon">📱</div>
+      <p data-i18n="rotateDevice">Rotate your device to landscape to play.</p>
+    </div>
     <div id="app"></div>
 
     <div id="hud">

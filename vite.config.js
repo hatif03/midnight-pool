@@ -13,7 +13,7 @@ export default defineConfig({
         description: 'A 2D pool game with peer-to-peer 1v1 multiplayer.',
         start_url: '/',
         display: 'standalone',
-        orientation: 'any',
+        orientation: 'landscape',
         background_color: '#04080a',
         theme_color: '#04080a',
         icons: [

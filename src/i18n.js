@@ -33,6 +33,7 @@ const STR = {
     code4: 'Escribe el código de 4 letras.',
     quickMatch: 'Partida rápida', quickHint: 'Buscando un rival al azar…', cancel: 'Cancelar',
     searching: 'Buscando…', quickTimeout: 'No se ha encontrado rival. Inténtalo de nuevo.',
+    rotateDevice: 'Gira tu dispositivo en horizontal para jugar.',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -68,6 +69,7 @@ const STR = {
     code4: 'Enter the 4-letter code.',
     quickMatch: 'Quick match', quickHint: 'Looking for a random opponent…', cancel: 'Cancel',
     searching: 'Searching…', quickTimeout: 'No opponent found. Try again.',
+    rotateDevice: 'Rotate your device to landscape to play.',
   },
 };
 
