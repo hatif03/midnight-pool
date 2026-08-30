@@ -21,6 +21,7 @@ import * as mnHooks from './midnight/hooks.js';
 import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
 import * as mnAttest from './midnight/attest.js';
+import { replayShot, diffFinalState } from './midnight/physicsVerify.js';
 import { LEAGUES } from './leagues.js';
 
 const other = (p) => (p === 1 ? 2 : 1);
@@ -96,7 +97,7 @@ function wireSpinGrid() {
 
 const game = {
   mode: 'solo', myPlayer: 1, turn: 1, started: false, pendingBreakNegotiation: null,
-  stakeEligible: false, stakeAmount: 0, currentMatchId: null,
+  stakeEligible: false, stakeAmount: 0, currentMatchId: null, pendingReplay: null,
   balls: null, cue: null, sprites: null, byNumber: null,
   shots: 0, shooting: false, shotPotted: [], cueFoul: false,
   groups: { 1: null, 2: null }, openTable: true, gameOver: false, winner: null,
@@ -387,6 +388,17 @@ function placeCueAt(x, y) {
 }
 
 function doShoot(dx, dy, power, spin = { x: 0, y: 0 }) {
+  // Guest-side physics verification (docs/adr/0010): only the host runs step()/shoot(), so before
+  // mutating anything, snapshot the resting positions and broadcast them + the exact inputs. The
+  // guest replays the same deterministic loop locally and diffs it against the state this shot
+  // eventually settles into -- catching a host that fabricates a shot's outcome, the gap ADR-0008
+  // left open. Fire-and-forget: never gates or delays this shot either way.
+  if (game.mode === 'host' && game.net) {
+    game.net.send({
+      type: 'shotInput', dx, dy, power, spin,
+      pre: game.balls.map((b) => ({ number: b.number, x: b.x, y: b.y, potted: b.potted })),
+    });
+  }
   shoot(game.cue, dx, dy, power, spin);
   audio.cueStrike();
   game.shots++;
@@ -640,6 +652,20 @@ function applyState(m) {
     for (let i = 0; i < m.sfx.p; i++) audio.pocket();
   }
 
+  // The first settled snapshot after a pending replay is the host's authoritative final state for
+  // that shot (docs/adr/0010) -- diff it and clear, regardless of outcome, so a stalled/mismatched
+  // replay can never accumulate across shots.
+  if (game.pendingReplay && m.settled) {
+    const mismatches = diffFinalState(game.pendingReplay, m.balls);
+    mnAudit.record({
+      circuit: 'guestPhysicsVerification', mode: 'p2p',
+      disclosed: { matchId: game.currentMatchId, mismatchCount: mismatches.length },
+      ok: mismatches.length === 0,
+      ...(mismatches.length ? { note: JSON.stringify(mismatches) } : {}),
+    });
+    game.pendingReplay = null;
+  }
+
   refreshHud();
   ui.updateTurn(game.mode, game.turn === game.myPlayer);
 
@@ -773,6 +799,8 @@ function onMessage(m) {
     maybeAskNotifications().then(announceGroupAndTurn);
   } else if (m.type === 'state' && game.mode === 'guest') {
     applyState(m);
+  } else if (m.type === 'shotInput' && game.mode === 'guest') {
+    game.pendingReplay = replayShot(m.pre, { dx: m.dx, dy: m.dy, power: m.power, spin: m.spin });
   } else if (m.type === 'hello') {
     game.opponentName = m.name;
     game.opponentLevel = m.level || 1;
