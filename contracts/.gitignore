@@ -9,3 +9,12 @@
 managed/*/compiler/
 managed/*/keys/
 managed/*/zkir/
+
+# managed-devnet/ (npm run compile:devnet -- compiler 0.31.1, matched to midnight-js-contracts'
+# pinned compact-runtime@0.16.0 per the official compatibility matrix) is only ever used by
+# Node scripts that regenerate it on demand -- nothing in it is imported by the browser bundle,
+# so unlike managed/ above, the whole thing stays gitignored. Lives inside devnet-deploy/ (not
+# directly under contracts/) so Node's module resolution finds THAT package's isolated
+# compact-runtime@0.16.0 instead of the top-level 0.19.0 -- see docs/adr/0013.
+managed-devnet/
+devnet-deploy/midnight-level-db/

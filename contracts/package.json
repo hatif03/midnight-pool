@@ -8,11 +8,13 @@
   "scripts": {
     "compile": "compact compile +0.34.0 midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 stakes.compact managed/stakes",
     "compile:fast": "compact compile +0.34.0 --skip-zk midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 --skip-zk stakes.compact managed/stakes",
+    "compile:devnet": "compact compile +0.31.1 midnight-pool.compact devnet-deploy/managed-devnet/midnight-pool && compact compile +0.31.1 stakes.compact devnet-deploy/managed-devnet/stakes",
     "format": "compact format midnight-pool.compact && compact format stakes.compact",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/simulator.test.ts && tsx test/stakes.test.ts"
   },
   "dependencies": {
+    "@midnight-ntwrk/compact-js": "^2.5.1",
     "@midnight-ntwrk/compact-runtime": "0.19.0",
     "@midnight-ntwrk/ledger-v8": "^8.1.1",
     "@midnight-ntwrk/midnight-js-contracts": "^4.1.1",
