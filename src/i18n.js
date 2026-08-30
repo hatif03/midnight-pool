@@ -59,6 +59,9 @@ const STR = {
     leagueQualified: 'Cumples', leagueLocked: 'No cumples', leagueChecking: 'Comprobando…',
     leagueByLevel: 'nivel ≥ {threshold}', leagueByWins: 'victorias ≥ {threshold}',
     midnightVerified: 'Verificado con Midnight',
+    installHint: 'Instala Midnight Pool para jugar a pantalla completa y sin conexión.',
+    installHintIOS: 'Instala Midnight Pool: toca Compartir → Añadir a pantalla de inicio.',
+    installBtn: 'Instalar',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -120,6 +123,9 @@ const STR = {
     leagueQualified: 'Qualified', leagueLocked: 'Locked', leagueChecking: 'Checking…',
     leagueByLevel: 'level ≥ {threshold}', leagueByWins: 'wins ≥ {threshold}',
     midnightVerified: 'Midnight-verified',
+    installHint: 'Install Midnight Pool for full-screen, offline play.',
+    installHintIOS: 'Install Midnight Pool: tap Share → Add to Home Screen.',
+    installBtn: 'Install',
   },
 };
 

@@ -92,6 +92,14 @@
       .glass:hover::before { transform: translateX(120%); }
       .glass:active { transform: scale(.97); }
       .glass.small { width: 150px; font-size: clamp(13px, 2.6dvh, 15px); padding: clamp(6px, 1.6dvh, 12px) 0; }
+      #install-banner { display: flex; align-items: center; gap: 8px; max-width: 92dvw;
+        padding: 8px 10px; border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
+        font-size: clamp(11px, 2.2dvh, 13px); color: #f2ecff; }
+      #install-banner .install-text { flex: 1; text-align: left; }
+      #install-banner #btn-install { width: auto; padding: 6px 14px; font-size: inherit; }
+      .install-dismiss { background: none; border: none; color: #d8cfe9; font-size: 16px; line-height: 1;
+        cursor: pointer; padding: 4px; opacity: .7; }
+      .install-dismiss:hover { opacity: 1; }
       #wallet-bar { display: flex; gap: 8px; }
       .wallet-chip { padding: 4px 10px; border-radius: 10px; font-size: clamp(11px, 2.2dvh, 13px); font-weight: 700;
         background: var(--glass-bg); border: 1px solid var(--glass-border); }
@@ -520,6 +528,11 @@
         <div class="brand">
           <img src="/icons/icon-192.png" alt="" />
           <h1>Midnight Pool</h1>
+        </div>
+        <div id="install-banner" hidden>
+          <span class="install-text"></span>
+          <button class="glass small" id="btn-install" data-i18n="installBtn">Instalar</button>
+          <button class="install-dismiss" id="btn-install-dismiss" aria-label="Dismiss">✕</button>
         </div>
         <div id="wallet-bar">
           <span class="wallet-chip">🪙 <b id="wallet-coins">500</b></span>

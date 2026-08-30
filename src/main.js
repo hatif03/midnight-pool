@@ -21,6 +21,7 @@ import * as mnHooks from './midnight/hooks.js';
 import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
 import * as mnAttest from './midnight/attest.js';
+import { wireInstallPrompt } from './pwaInstall.js';
 import { replayShot, diffFinalState } from './midnight/physicsVerify.js';
 import { LEAGUES } from './leagues.js';
 
@@ -190,6 +191,7 @@ async function main() {
   wireSpinGrid();
   wireEconomyMenus();
   wireMidnightMenu();
+  wireInstallPrompt();
 
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
