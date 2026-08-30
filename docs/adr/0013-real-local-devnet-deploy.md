@@ -92,3 +92,26 @@ reference examples, likely added in a version newer than what those skills were 
 - The genesis seed (`0x000…001`) is a widely-known, intentionally-public local-devnet convention —
   explicitly commented in the script as never appropriate for anything but a local, throwaway
   network.
+
+## Update: no public block explorer exists for this — direct node/indexer queries stand in
+
+Asked directly, ahead of recording the hackathon demo video: can any of this be verified from a
+block explorer? No — neither side is a public network. The Midnight side is a local devnet only
+this machine can reach; the EVM side is a local `anvil` chain (id `31337`), never published
+anywhere. No Etherscan-equivalent or Midnight explorer has ever indexed either.
+
+What's real and worth showing instead: querying each side's own node directly, independent of the
+deploy script's own printed claims. Verified live, right after a real run:
+
+```bash
+# EVM: real bytecode really exists at the address the script printed
+cast code <evmAddress> --rpc-url http://127.0.0.1:8545
+
+# Midnight: the contract really exists on the devnet's indexer
+curl -s -X POST http://localhost:8088/api/v4/graphql -H "Content-Type: application/json" \
+  -d '{"query":"query { contractAction(address: \"<midnightContractAddress>\") { address } }"}'
+```
+
+Both returned real data confirming what the script claimed, from a source other than the script
+itself. This is the honest ceiling for "verifiable" on a local network — a real independent check,
+not a public block explorer link, and the demo video says so rather than implying otherwise.

@@ -5,6 +5,35 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-08-30, submission prep: README, hackathon copy, demo video)
+
+- **README rewritten from scratch as a complete, ground-up project description** — no longer
+  framed as "extending" a prior game; covers the full current feature set (gameplay, progression,
+  the whole Midnight privacy layer, cross-chain), an accurate project structure, and pointers to
+  `docs/adr/`, this log, and `hackathon.md`.
+- **`hackathon.md` (Devpost submission copy) revised for accuracy**, checked against a real prior-art
+  submission's structure ([Midnight Among Us](https://devpost.com/software/midnight-among-us)):
+  added the real local-devnet deploy + cross-chain join, rewrote the Preprod story from "we stopped"
+  to "we root-caused it and filed [midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370)",
+  added the Vercel misdiagnosis as an honest challenges story, and added the PWA install prompt.
+- **PWA install prompt shipped** (`src/pwaInstall.js`): a real install button via
+  `beforeinstallprompt` on Android/Chrome; a "tap Share → Add to Home Screen" instruction on iOS
+  (which has no install API at all); skipped on desktop and once already installed; dismissible,
+  persists via localStorage. Verified with Playwright across desktop/iOS/Android UAs, including the
+  dismiss flow surviving a reload.
+- **Demo video prep** (`demo-script.md`, `docs/adr/0013`'s new Update section): wrote a timed
+  ~2-minute voiceover script (hook → real gameplay → live Champion Badge proof in the deployed
+  browser app → multiplayer + audit trail → the real local cross-chain join in a terminal → close),
+  confirmed naming the hackathon is included per the submission rule. Answered "can this be verified
+  on a block explorer?" honestly: no, neither side is a public network yet (local Midnight devnet,
+  local `anvil` chain 31337) — but a direct `cast code`/indexer GraphQL query against each side's
+  own node, independent of the deploy script's own output, is a real, verified alternative and is
+  now the documented honest ceiling for "verifiable" here.
+- Re-confirmed the whole real cross-chain path one more time end-to-end right before recording:
+  fresh `anvil` restart, fresh deploy, `DEPLOYED`/`commitStats`/`proveThreshold` all genuine, EVM
+  mint at tier 1, consistent join — then independently re-verified both the EVM contract's bytecode
+  and the Midnight contract's indexed existence via direct queries (not the script's own claim).
+
 ## Current state (2026-08-30, real Vercel fix + resumed testnet work)
 
 - **The Vercel deploy failure is actually fixed now** (`docs/adr/0012`) — the earlier `"engines"`

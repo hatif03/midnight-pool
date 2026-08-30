@@ -150,3 +150,5 @@ in [ADR-0013](docs/adr/0013-real-local-devnet-deploy.md).
 - [`hackathon.md`](hackathon.md) — the full Devpost submission writeup: inspiration, architecture,
   challenges (including a real upstream SDK bug we root-caused and
   [filed](https://github.com/midnightntwrk/midnight-sdk/issues/370)), and what's next.
+- [`demo-script.md`](demo-script.md) — the timed ~2-minute voiceover script used for the hackathon
+  demo video.
