@@ -31,7 +31,7 @@ import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import type { WalletProvider, MidnightProvider } from '@midnight-ntwrk/midnight-js-types';
 
-import { Contract } from './managed-devnet/midnight-pool/contract/index.js';
+import { Contract, ledger as contractLedger } from './managed-devnet/midnight-pool/contract/index.js';
 import { createPrivateState, withStats, witnesses } from '../witnesses.js';
 
 setNetworkId('undeployed' as any);
@@ -148,10 +148,16 @@ export async function deployAndProveThreshold(level: bigint, wins: bigint, thres
       result: proveTx.private?.result,
     });
 
+    const contractAddress = (deployed as any).deployTxData.public.contractAddress;
+    const onChainState = await providers.publicDataProvider.queryContractState(contractAddress);
+    const [pk] = (contractLedger as any)(onChainState!.data).statsCommitment[Symbol.iterator]().next().value as [Uint8Array, Uint8Array];
+
     return {
-      contractAddress: (deployed as any).deployTxData.public.contractAddress,
+      contractAddress,
       commitTxId: commitTx.public.txId,
       proveTxId: proveTx.public.txId,
+      qualifies: proveTx.private?.result as boolean,
+      pk,
     };
   } finally {
     await facade.stop();

@@ -97,3 +97,17 @@ s = forgetMatch(s, matchId);
   public `matchId` could call `openStake`/`attestResult` claiming a role it isn't part of. Neither
   circuit gates real custody (the Coins transfer happens client-side) or real gameplay, so the
   consequence is a polluted audit record for one match, not a stolen stake — see ADR-0008.
+
+## Cross-chain join scripts
+
+Two versions, same join logic (`docs/adr/0007`, `docs/adr/0013`):
+
+- `cross-chain-join.ts` — fast, no local devnet needed. Midnight side runs through the
+  `compact-runtime` simulator; EVM side is a real `anvil` transaction.
+- `devnet-deploy/cross-chain-join-real.ts` — slower (~2-3 min), both sides fully real: a genuine
+  `deployContract`/`callTx` against a running local devnet (real ZK proof, real transaction, real
+  block confirmation), joined with the same real `anvil` EVM side. Needs the local devnet running
+  (`/midnight-tooling:devnet start`) and `anvil` listening on `127.0.0.1:8545`. Lives in its own npm
+  package (`devnet-deploy/`) because `midnight-js-contracts` needs `compact-runtime@0.16.0`, while
+  this package uses `0.19.0` for the browser bundle — see ADR-0013 for why that has to be a
+  separate package, not just a separate script.

@@ -16,8 +16,37 @@ reasoning behind any decision marked with an ADR link.
   `compiler/`/`keys/`/`zkir/` stay gitignored. Verified for real: a genuine fresh `git clone` built
   successfully in a Linux container, then a real `vercel --prod` deploy came back `READY` and the
   production alias (`https://midnight-pool-one.vercel.app`) serves 200.
-- Resuming the real-testnet-submission work (previously stopped at ADR-0011's time-box) now that
-  the user has no deadline pressure — see the next entry once that concludes.
+- Resumed the real-testnet-submission work (previously stopped at ADR-0011's time-box) now that
+  the user has no deadline pressure. Root-caused the `WalletFacade` OOM precisely (`docs/adr/0011`
+  Updates 1-2): a real `wallet-sdk-facade`/`wallet-sdk-shielded` sync-state memory leak, proportional
+  to processed ledger entries, confirmed independent of transaction-history storage (a no-op
+  replacement crashes identically) and independent of the reconnect-log noise (a local-devnet
+  control run logs the same line, then syncs fine). Quantified against Preprod's real chain height
+  (2,330,285 blocks): would need on the order of hundreds of GB of RAM to complete — not viable.
+  Filed upstream: [midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370).
+  User chose to stop pursuing public-testnet submission at that point.
+- **Real contract deploy + circuit calls on the local devnet — genuinely working** (`docs/adr/0013`),
+  prompted by the user asking whether the local devnet could demo cross-chain features once public
+  testnet proved non-viable. It can: the same wallet SDK construction syncs cleanly against a
+  near-empty local chain (confirmed via the plugin's own smoke test, ~188s), and the genesis seed
+  comes pre-funded. Built `contracts/devnet-deploy/` (an isolated npm package — `midnight-js-contracts`
+  needs `compact-runtime@0.16.0`, `contracts/` itself uses `0.19.0` for the browser bundle, and
+  Node resolves a compiled contract module's imports based on the *file's* location, not the
+  importing script's, so the compiled output has to live *inside* the isolated package to actually
+  resolve to the isolated dependency). Fixed a real, unnecessary `pragma language_version >= 0.26`
+  (the contract's actual syntax only ever needed `>= 0.23`, verified by compiling with the pragma
+  lowered before touching the real file) and two WASM class-identity conflicts (`ledger-v8`,
+  `onchain-runtime-v3` each had two differently-versioned nested copies) via npm `overrides`.
+  **Verified with real, confirmed on-chain results**: a real deploy (`contractAddress`, `txId`,
+  `blockHeight` all genuine), a real `commitStats` call, and a real `proveThreshold` call correctly
+  returning `true` for a committed level of 7 against a threshold of 5.
+- **Wired the real deploy into a real cross-chain join** (`contracts/devnet-deploy/cross-chain-join-real.ts`):
+  the Midnight side now does a genuine deploy + circuit call (reading the on-chain committed public
+  key back via the indexer) instead of the simulator, joined with the same real `anvil`/Foundry EVM
+  side already used by `contracts/cross-chain-join.ts` (kept as-is, as the faster no-devnet-needed
+  sibling). Verified both directions for real: level 10 (≥ threshold 5) → Midnight discloses `true`
+  → EVM mints tier 1; level 2 → discloses `false` → EVM tier stays 0. Both chains' state agrees in
+  both cases.
 
 ## Current state (2026-08-30, production-hardening pass)
 

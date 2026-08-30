@@ -19,6 +19,12 @@
  * `cross-chain/` compiled (`cd cross-chain && forge build`, already done once).
  *
  * Run: npx tsx cross-chain-join.ts
+ *
+ * A stronger sibling exists: `devnet-deploy/cross-chain-join-real.ts` (docs/adr/0013) does the
+ * same join but with a genuine deploy + circuit call on the local devnet instead of the simulator
+ * for the Midnight side -- real ZK proofs, real transactions, real block confirmations on both
+ * chains. Slower (needs the local devnet running, ~2-3 min for wallet sync + confirmations) but
+ * honestly stronger. This script stays as the fast, no-devnet-required version.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

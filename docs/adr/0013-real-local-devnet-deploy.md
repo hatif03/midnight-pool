@@ -68,11 +68,23 @@ reference examples, likely added in a version newer than what those skills were 
   `contractAddress`, `txId`, and `blockHeight` are genuine values returned by the local devnet for
   the deploy, `commitStats`, and `proveThreshold` calls; `proveThreshold(5n, false)` against a
   committed `level: 7n` correctly returned `true`.
-- This upgrades the Integrate Midnight / Cross-Chain story genuinely: the existing
-  `contracts/cross-chain-join.ts` (simulator-only Midnight side + real anvil/Foundry EVM side, per
-  `docs/adr/0007`) can now use this real local deploy instead of the simulator for its Midnight
-  side — still not a public testnet, but a real network with real proofs and real transactions, not
-  an in-memory execution.
+- **Wired into a real cross-chain join, both directions verified**:
+  `contracts/devnet-deploy/cross-chain-join-real.ts` reuses `deployAndProveThreshold` for the
+  Midnight side (now returning the on-chain committed public key, read back via
+  `publicDataProvider.queryContractState` + the compiled contract's own `ledger()` decoder, and the
+  circuit's disclosed boolean) and the same real anvil/Foundry `ChampionBadge.sol` flow from
+  `contracts/cross-chain-join.ts` for the EVM side. Two hand-off bugs fixed getting there: a naming
+  collision (the compiled contract's own `ledger` export shadowing the `ledger-v8` namespace import
+  — renamed to `contractLedger`), and reusing the *same two* WASM-identity dedup fixes from above
+  (this script re-exercises the identical dependency graph). Run twice, both outcomes confirmed
+  real and consistent: level `10` (≥ threshold `5`) → Midnight discloses `true` → EVM mints tier
+  `1`; level `2` → Midnight discloses `false` → EVM tier stays `0`. This upgrades the
+  Integrate-Midnight/Cross-Chain story genuinely — still not a public testnet, but real proofs, real
+  transactions, real block confirmations on both chains, not an in-memory simulator on one side.
+- The original `contracts/cross-chain-join.ts` (simulator-only Midnight side) is kept as-is,
+  unmodified — it's faster to run (no wallet sync, no local devnet needed) and still genuinely
+  demonstrates the same join logic; `cross-chain-join-real.ts` is the stronger, slower sibling for
+  when the extra honesty is worth the ~2-3 minutes of wallet sync + real block confirmations.
 - `devnet-deploy/`'s `package.json`/`package-lock.json` are committed (small, no secrets); its
   `node_modules/`, `managed-devnet/` (regenerable via `npm run compile:devnet`), and
   `midnight-pool-devnet-deploy/` (the LevelDB private-state directory, real seed-derived but
