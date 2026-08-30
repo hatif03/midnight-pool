@@ -5,6 +5,47 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-08-30, production-hardening pass)
+
+Triggered by a Vercel deploy failure plus a user-requested "make this more like a real gaming app"
+roadmap, with the hackathon deadline (11:45am EDT) only ~5 hours out by the time execution started
+(not the ~12 originally estimated) — every item below was scoped and time-boxed against that clock.
+
+- **Vercel deploy fix**: added `"engines": {"node": ">=20.19.0"}` to `package.json` — both `vite@8`
+  and `rolldown` require it, and the repo had no engines field or `.nvmrc` to pin Vercel's build
+  Node version. Verified via a clean local build; could not pull the actual Vercel build log (no
+  authenticated `vercel` CLI session in this environment) to confirm the exact prior root cause,
+  so this is the best-evidenced fix, not a confirmed-from-the-log one.
+- **Real backend: server-recorded match attestation + signed stat receipts** (`docs/adr/0009`).
+  Extended the existing Cloud Run relay (`server/`) with `node:sqlite` persistence and an
+  HMAC-signed stat receipt — a match is "confirmed" once ≥2 distinct sides attest and agree, and
+  either side can then fetch a server-signed `(pk, level, wins)` receipt to disclose alongside the
+  existing `commitStats` commitment. Verified for real: unit tests (`server/db.test.js`), a live
+  curl smoke test, and a real-Chromium Playwright run against the actual running relay, zero
+  console errors.
+- **Guest-side physics verification via deterministic replay** (`docs/adr/0010`). The guest
+  previously had no way to check a shot's outcome (only the host ever runs `step()`/`shoot()`); now
+  the host broadcasts the pre-shot snapshot + inputs (`shotInput`), and the guest replays the same
+  deterministic loop locally (`src/midnight/physicsVerify.js`) and diffs the result with a small
+  epsilon (absorbing `Math.hypot`'s non-guaranteed cross-browser rounding, not real divergence).
+  Verified with a real two-browser-context Playwright test (host + guest, real pointer events, a
+  real break shot) confirming a `guestPhysicsVerification: ok:true, mismatchCount:0` audit entry.
+- **Real testnet submission — attempted, stopped after a reproducible crash, not a timing issue**
+  (`docs/adr/0011`). Time-boxed to 60-75 minutes per the user's explicit call (accepting the risk
+  after being shown the local-devnet saga's evidence). Got genuinely far: a local proof server
+  running, Preprod's live indexer/node/faucet endpoints confirmed with real calls (not docs alone),
+  the full wallet-sdk/midnight-js package set installed clean. Then `WalletFacade` sync against the
+  real node crashed with a JS heap-out-of-memory error from a `subscribeRuntimeVersion()`
+  reconnect-loop memory leak — a real, reproducible bug in that SDK/network combination, confirmed
+  by direct execution. Stopped there (well inside the time-box) rather than keep debugging an
+  unresolved crash with the deadline closing in; the demo's Midnight story stays the already-working
+  local-devnet/mock-mode path. `contracts/testnet-wallet.ts` kept in the repo, clearly commented,
+  as a real starting point for whoever continues this.
+- **Clubs/leaderboards**: stays dropped (recommended-dropped twice already this project) — needs
+  backend infra beyond what a few remaining hours can responsibly add on top of everything above.
+- Full verification re-run at the end of this pass: root `npm test` + `npm run build`, `server`'s
+  `npm test`, and `contracts`' `npm test` all pass.
+
 ## Current state (2026-08-30, continued further)
 
 - **8-Ball-Pool-style reputation system, with the Midnight tie-in genuine, not padding.**
