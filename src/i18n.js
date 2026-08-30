@@ -48,6 +48,13 @@ const STR = {
     rankedToggle: 'Clasificada (probar nivel ≥ 5 en privado)', rankedNotQualified: 'No cumples el nivel mínimo para partidas clasificadas.',
     auditTitle: 'Actividad Midnight', auditEmpty: 'Todavía no hay actividad registrada.',
     stakeLabel: 'Apuesta (monedas, 0 = ninguna)', stakingToast: 'En juego: {amount} monedas.',
+    championBadge: 'Insignia Campeón (multi-cadena)', championTitle: 'Insignia Campeón (multi-cadena)',
+    championHint: 'Ejecuta el circuito proveThreshold real en tu navegador (sin servidor, sin envío a la cadena todavía).',
+    checkEligibility: 'Comprobar elegibilidad',
+    championCliNote: 'Para la versión completamente verificada de dos cadenas (con un contrato EVM real), ejecuta: npx tsx contracts/cross-chain-join.ts',
+    championQualified: 'Cumples el umbral de Campeón (nivel ≥ {threshold}) — probado con el circuito real, sin revelar tu nivel exacto.',
+    championNotQualified: 'Todavía no cumples el umbral de Campeón (nivel ≥ {threshold}).',
+    championError: 'No se pudo ejecutar el circuito en el navegador: {error}',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -98,6 +105,13 @@ const STR = {
     rankedToggle: 'Ranked (privately prove level ≥ 5)', rankedNotQualified: "You don't meet the minimum level for ranked matches.",
     auditTitle: 'Midnight Activity', auditEmpty: 'No activity recorded yet.',
     stakeLabel: 'Stake (coins, 0 = none)', stakingToast: 'Staking {amount} coins.',
+    championBadge: 'Cross-Chain Champion Badge', championTitle: 'Cross-Chain Champion Badge',
+    championHint: 'Runs the real proveThreshold circuit in your browser (no server, no chain submission yet).',
+    checkEligibility: 'Check Eligibility',
+    championCliNote: 'For the fully verified two-chain version (a real EVM contract too), run: npx tsx contracts/cross-chain-join.ts',
+    championQualified: 'You meet the Champion threshold (level ≥ {threshold}) — proved with the real circuit, without revealing your exact level.',
+    championNotQualified: "You don't meet the Champion threshold yet (level ≥ {threshold}).",
+    championError: 'Could not run the circuit in the browser: {error}',
   },
 };
 

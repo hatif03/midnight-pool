@@ -1079,6 +1079,32 @@ function wireMidnightMenu() {
   });
 
   click('btn-mn-audit', () => { renderAuditModal(); ui.el('audit-modal').classList.add('show'); });
+
+  click('btn-mn-champion', () => {
+    ui.el('champion-result').innerHTML = '';
+    ui.el('champion-modal').classList.add('show');
+  });
+
+  // Dynamically imported: pulls in @midnight-ntwrk/compact-runtime + the compiled contract's
+  // WASM dependency (see docs/adr/0006) only when this feature is actually used, not at app
+  // startup, and keeps a bundling problem in that dependency contained to this one button.
+  click('btn-champion-prove', async () => {
+    const btn = ui.el('btn-champion-prove');
+    const box = ui.el('champion-result');
+    btn.disabled = true;
+    box.innerHTML = `<div class="item-row"><div class="info"><span class="name">…</span></div></div>`;
+    try {
+      const { proveThresholdReal } = await import('./midnight/circuit.js');
+      const qualifies = await proveThresholdReal(profile.level, profile.wins || 0, RANKED_LEVEL_THRESHOLD, false);
+      const icon = qualifies ? '✅' : '🔒';
+      const msg = (qualifies ? t('championQualified') : t('championNotQualified')).replace('{threshold}', RANKED_LEVEL_THRESHOLD);
+      box.innerHTML = `<div class="item-row"><div class="info"><span class="name">${icon}</span><span class="sub">${msg}</span></div></div>`;
+    } catch (err) {
+      box.innerHTML = `<div class="item-row"><div class="info"><span class="name">⚠️</span><span class="sub">${t('championError').replace('{error}', String(err?.message || err))}</span></div></div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 function wireEconomyMenus() {

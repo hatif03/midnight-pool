@@ -470,9 +470,25 @@
           <button class="glass small" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
           <div class="status" id="mn-wallet-status"></div>
           <button class="glass small" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
+          <button class="glass small" id="btn-mn-champion" data-i18n="championBadge">Cross-Chain Champion Badge</button>
         </div>
         <div class="row">
           <button data-close="settings-modal" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="champion-modal" class="modal">
+      <div class="box">
+        <p data-i18n="championTitle">Cross-Chain Champion Badge</p>
+        <div class="status" id="champion-hint" data-i18n="championHint">Runs the real proveThreshold circuit in your browser (no server, no chain submission yet).</div>
+        <div id="champion-result" class="item-list"></div>
+        <div class="row">
+          <button class="glass primary small" id="btn-champion-prove" data-i18n="checkEligibility">Check Eligibility</button>
+        </div>
+        <div class="status" id="champion-cli-note" data-i18n="championCliNote">For the fully verified two-chain version (a real EVM contract too), run: npx tsx contracts/cross-chain-join.ts</div>
+        <div class="row">
+          <button data-close="champion-modal" data-i18n="close">Close</button>
         </div>
       </div>
     </div>

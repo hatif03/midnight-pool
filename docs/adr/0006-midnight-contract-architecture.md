@@ -78,3 +78,24 @@ gameplay. The real `commitBreakChoice`/`revealBreakChoice`/`resolveBreak` circui
 for the tamper-evident on-chain record — this call never gates `game.turn`. This keeps the
 "never blocks the game" property for the low-latency P2P path while the chain submission inherits
 whatever latency/availability the indexer has that day.
+
+**Implementation note added once the cross-chain UI wiring was built**: `src/midnight/hooks.js`'s
+mock mode re-implements each circuit's relation by hand in plain JS (e.g. `level >= threshold`
+directly, never touching the compiled contract) — deliberately kept as-is for the ranked-gate/
+cue-claim/stats-commit call sites, which fire during live gameplay and need to stay fast and
+synchronous. A new, separate module, `src/midnight/circuit.js`, adds a genuinely stronger
+capability alongside it: it runs the *actual compiled circuit* client-side via
+`@midnight-ntwrk/compact-runtime`'s simulator — the same engine `contracts/test/simulator.test.ts`
+and `contracts/cross-chain-join.ts` already use — dynamically imported only when used, so its
+~1.4 MB WASM dependency (`@midnightntwrk/onchain-runtime-v4`) never loads on the menu/game's
+critical path. It's used by one deliberately isolated feature, the "Cross-Chain Champion Badge"
+panel (settings → Midnight), specifically so the honesty upgrade (the browser runs the exact
+circuit, not a hand-rolled guess at it) doesn't introduce a WASM cold-start delay into any existing
+gameplay flow — the ranked gate and cue-claim modal still use the fast hand-rolled mock, unchanged.
+Bundling the WASM dependency required `vite-plugin-wasm` (Vite's built-in WASM handling only
+covers `?init`/`?url`-suffixed imports, not the raw ESM `.wasm` import wasm-bindgen emits) —
+verified by building *and* by running the real circuit in an actual Chromium browser via
+Playwright (both the qualifying and non-qualifying cases), not just by a successful `vite build`.
+Neither `circuit.js` nor the hand-rolled mocks touch `hookRecordBreakOrder`/`hookOpenStake`/
+`hookAttestResult` — those need real shared on-chain state across two independent browser
+sessions, which local simulation cannot provide regardless of how the mock is implemented.

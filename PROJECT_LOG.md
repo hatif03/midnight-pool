@@ -5,6 +5,35 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-08-30, continued)
+
+- **Disk-space crisis resolved.** C: drive hit 2.5 GB free mid-session (user-reported, verified).
+  Root cause, found by measuring candidates directly rather than guessing: `npm-cache` at 38.1 GB
+  and a leftover *native-Windows* `.bun` install at 3.76 GB (from the first, wrong-environment
+  `bun install` attempt for Effectstream, before discovering the Midnight binaries needed WSL —
+  see ADR-0007's Outcome section). WSL itself was not the cause (950 GB free internally, its one
+  6.39 GB vhdx mostly legitimate). Cleared `npm-cache` (`npm cache clean --force`, 38.1→3.2 GB),
+  deleted the native `.bun` dir outright, cleared Windows Temp — C: now has 43.6 GB free.
+- **Cross-chain join wired into the UI, with real client-side circuit execution — new capability,
+  not just a UI shell.** `src/midnight/circuit.js` runs `commitStats`/`proveThreshold` through
+  `@midnight-ntwrk/compact-runtime`'s simulator (the same engine `contracts/test/simulator.test.ts`
+  and `contracts/cross-chain-join.ts` use) directly in the browser — genuinely stronger than
+  `hooks.js`'s hand-rolled mock, which never touches the compiled contract. Needed
+  `vite-plugin-wasm` (Vite's built-in WASM handling doesn't cover the raw ESM `.wasm` import
+  wasm-bindgen emits) and `@midnight-ntwrk/compact-runtime` added as a root dependency; dynamically
+  imported so its ~1.4 MB WASM payload never loads on the menu/game's critical path. **Verified by
+  actually running it in a real Chromium browser via Playwright** (not just a successful build) —
+  both the qualifying (level 10 ≥ threshold 5 → ✅) and non-qualifying (level 1 → 🔒) cases,
+  zero console errors either way. New "Cross-Chain Champion Badge" panel in Settings → Midnight
+  (`#champion-modal`) surfaces this, with an honest note pointing at
+  `npx tsx contracts/cross-chain-join.ts` for the fully-verified two-chain version (a real EVM
+  contract too) rather than pretending the browser reproduces that side — it structurally can't
+  (no spawning `forge`/`anvil` from a page).
+  - **Deliberately not touched**: `hooks.js`'s existing mock implementations (ranked-gate,
+    cue-claim modal, stats-commit-on-match-end) — these stay the fast, synchronous hand-rolled
+    mocks, specifically so this honesty upgrade doesn't introduce a WASM cold-start delay into
+    live gameplay call sites. `circuit.js` is additive, not a replacement, for now.
+
 ## Current state (2026-08-30)
 
 - **Cross-chain workstream 3 — Effectstream dropped, lighter fallback built and verified.** The
