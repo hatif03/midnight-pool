@@ -270,6 +270,17 @@
       .item-row .info .sub { font-size: 11px; opacity: .7; }
       .item-row button { flex-shrink: 0; padding: 8px 14px; font-size: 12px; width: auto; }
 
+      /* Cue rarity as a status-symbol border (8 Ball Pool-style flex), standard convention:
+         gray/green/blue/purple for common/uncommon/rare/epic. */
+      .item-row.rarity-common { border-left: 3px solid #9ca3af; }
+      .item-row.rarity-uncommon { border-left: 3px solid #4ade80; }
+      .item-row.rarity-rare { border-left: 3px solid #60a5fa; }
+      .item-row.rarity-epic { border-left: 3px solid #c084fc; }
+      .midnight-badge { font-size: 10px; color: var(--accent); border: 1px solid var(--glass-border);
+        border-radius: 6px; padding: 1px 5px; margin-left: 6px; white-space: nowrap; }
+
+      .league-row .status-icon { font-size: 16px; margin-right: 4px; }
+
       /* This is a landscape-only game: the table is too small to be comfortable in portrait at
          any screen size, not just on phones — so no width cutoff here, purely orientation-based.
          CSS-only (not JS/orientation-lock) because the Screen Orientation Lock API isn't supported
@@ -401,6 +412,17 @@
       </div>
     </div>
 
+    <div id="leagues-modal" class="modal">
+      <div class="box">
+        <p data-i18n="leaguesTitle">Leagues</p>
+        <div class="status" id="leagues-hint" data-i18n="leaguesHint">Each check privately proves you meet that tier's threshold — your exact level/wins are never shown, only pass/fail.</div>
+        <div id="leagues-list" class="item-list"></div>
+        <div class="row">
+          <button data-close="leagues-modal" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="pass-modal" class="modal">
       <div class="box">
         <p data-i18n="passTitle">Pool Pass</p>
@@ -503,12 +525,14 @@
           <span class="wallet-chip">🪙 <b id="wallet-coins">500</b></span>
           <span class="wallet-chip">💵 <b id="wallet-cash">0</b></span>
           <span class="wallet-chip">Lv. <b id="wallet-level">1</b></span>
+          <span class="wallet-chip" id="wallet-record">—</span>
         </div>
         <button class="glass primary" id="btn-play" data-i18n="play">Jugar</button>
         <div id="menu-extras">
           <button class="glass small" id="btn-daily" title="Daily Reward">🎁</button>
           <button class="glass small" id="btn-cues" title="Cues">🎱</button>
           <button class="glass small" id="btn-pass" title="Pool Pass">📈</button>
+          <button class="glass small" id="btn-leagues" title="Leagues">🏆</button>
           <button class="glass small" id="btn-shop" title="Shop">🛒</button>
           <button class="glass small" id="btn-settings" title="Settings">⚙️</button>
           <button class="glass small" id="btn-quit" title="Quit">🚪</button>

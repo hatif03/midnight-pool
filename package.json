@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/physics.js && node src/rules.js && node src/economy.js && node src/cues.js && node src/dailyReward.js && node src/pass.js && node src/lootbox.js && node src/loyalty.js && node src/midnight/breakOrder.js",
+    "test": "node src/physics.js && node src/rules.js && node src/economy.js && node src/cues.js && node src/dailyReward.js && node src/pass.js && node src/lootbox.js && node src/loyalty.js && node src/leagues.js && node src/midnight/breakOrder.js",
     "gen-icons": "node scripts/gen-icons.mjs"
   },
   "devDependencies": {

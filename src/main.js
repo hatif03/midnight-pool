@@ -20,6 +20,7 @@ import * as breakOrder from './midnight/breakOrder.js';
 import * as mnHooks from './midnight/hooks.js';
 import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
+import { LEAGUES } from './leagues.js';
 
 const other = (p) => (p === 1 ? 2 : 1);
 const RANKED_LEVEL_THRESHOLD = 5;
@@ -33,6 +34,11 @@ function updateWallet() {
   ui.el('wallet-coins').textContent = profile.coins;
   ui.el('wallet-cash').textContent = profile.cash;
   ui.el('wallet-level').textContent = profile.level;
+  const wins = profile.wins || 0;
+  const losses = profile.losses || 0;
+  ui.el('wallet-record').textContent = (wins + losses) === 0
+    ? '—'
+    : `W${wins}-L${losses} · ${Math.round(economy.winRate(profile) * 100)}%`;
 }
 
 function persistProfile() {
@@ -937,11 +943,13 @@ function renderCuesModal() {
     const owned = profile.cues.owned.includes(cue.id);
     const equipped = profile.cues.equipped === cue.id;
     const row = document.createElement('div');
-    row.className = 'item-row';
+    row.className = `item-row rarity-${cue.rarity}`;
     const info = document.createElement('div');
     info.className = 'info';
     const spinTxt = cue.spinCap ? `${Math.round(cue.spinCap * 100)}%` : '—';
-    info.innerHTML = `<span class="name">${cue.name}</span><span class="sub">Power +${Math.round((cue.powerMult - 1) * 100)}% · Aim +${cue.aimBonus} · Spin ${spinTxt}</span>`;
+    const verifiedBadge = owned && mnHooks.isCueClaimed(cue.id)
+      ? `<span class="midnight-badge">${t('midnightVerified')}</span>` : '';
+    info.innerHTML = `<span class="name">${cue.name}${verifiedBadge}</span><span class="sub">Power +${Math.round((cue.powerMult - 1) * 100)}% · Aim +${cue.aimBonus} · Spin ${spinTxt}</span>`;
     row.appendChild(info);
     const btn = document.createElement('button');
     if (equipped) {
@@ -965,6 +973,25 @@ function renderCuesModal() {
     }
     row.appendChild(btn);
     list.appendChild(row);
+  }
+}
+
+// Each row starts unresolved, then calls the real hookProveThreshold check on demand -- exact
+// stats never render, only the resolved pass/fail per tier (docs/adr/0006).
+function renderLeaguesModal() {
+  const list = ui.el('leagues-list');
+  list.innerHTML = '';
+  for (const league of LEAGUES) {
+    const row = document.createElement('div');
+    row.className = 'item-row league-row';
+    const statLabel = league.checkWins ? t('leagueByWins') : t('leagueByLevel');
+    row.innerHTML = `<div class="info"><span class="name"><span class="status-icon">⏳</span>${league.name}</span><span class="sub">${statLabel.replace('{threshold}', league.threshold)}</span></div>`;
+    list.appendChild(row);
+    mnHooks.hookProveThreshold(profile, league.threshold, league.checkWins).then((qualifies) => {
+      const icon = row.querySelector('.status-icon');
+      icon.textContent = qualifies ? '✅' : '🔒';
+      row.querySelector('.sub').textContent = `${qualifies ? t('leagueQualified') : t('leagueLocked')} — ${statLabel.replace('{threshold}', league.threshold)}`;
+    });
   }
 }
 
@@ -1115,6 +1142,7 @@ function wireEconomyMenus() {
   click('btn-cues-quick', () => { renderCuesModal(); ui.el('cues-modal').classList.add('show'); });
   click('btn-pass', () => { renderPassModal(); ui.el('pass-modal').classList.add('show'); });
   click('btn-shop', () => { renderLoyaltyList(); ui.el('shop-modal').classList.add('show'); });
+  click('btn-leagues', () => { renderLeaguesModal(); ui.el('leagues-modal').classList.add('show'); });
 
   click('daily-claim', () => {
     const result = dailyReward.claim(profile.streak);

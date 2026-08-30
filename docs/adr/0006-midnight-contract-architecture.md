@@ -99,3 +99,13 @@ Playwright (both the qualifying and non-qualifying cases), not just by a success
 Neither `circuit.js` nor the hand-rolled mocks touch `hookRecordBreakOrder`/`hookOpenStake`/
 `hookAttestResult` — those need real shared on-chain state across two independent browser
 sessions, which local simulation cannot provide regardless of how the mock is implemented.
+
+**Implementation note added once 8-Ball-Pool-style leagues were built**: leagues (`src/leagues.js`,
+Brass through Diamond) reuse `proveThreshold` exactly as designed rather than adding a new circuit
+— a win-rate-gated tier was considered and rejected specifically because it would need `losses`
+added to the compiled `PlayerStats`/`commitStats` signature, breaking an already-verified contract
+for no demo value beyond what level/wins gating already shows. League badges are also deliberately
+**not** a soulbound claim (unlike cues): a soulbound claim can only be acquired, never revoked, but
+league standing must be able to regress on a losing streak — reusing `claimCue`'s pattern here
+would be a category error, not the simplification it might look like. Each league check is an
+ephemeral `proveThreshold` call re-run on demand, correctly reflecting current standing every time.

@@ -5,6 +5,41 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-08-30, continued further)
+
+- **8-Ball-Pool-style reputation system, with the Midnight tie-in genuine, not padding.**
+  Two Explore agents + a Plan agent first mapped exactly what already existed (dual currency,
+  level/XP, `wins`, cue rarity data — all pre-existing) vs completely absent (losses, win-rate,
+  lifetime-winnings, leagues, clubs, any leaderboard). Recommendation adopted as-is on the two
+  design calls that mattered most: leagues reuse the existing `proveThreshold` circuit rather than
+  adding a win-rate circuit (a ratio threshold would need `losses` added to the compiled
+  `PlayerStats`/`commitStats` signature, breaking an already-verified contract for no real demo
+  value this pass); league badges are an **ephemeral** re-checked proof, not a soulbound claim,
+  specifically because league standing must be able to regress on a losing streak — soulbound
+  claims are deliberately non-revocable, so reusing that pattern here would be a category error.
+  - `src/profile.js`/`src/economy.js`: added `losses`, `lifetimeWinnings` fields; `winRate(profile)`
+    pure function; `awardForMatch`'s loss branch now actually sets a `losses` key (previously had
+    neither a wins nor losses key on loss — the real gap); `applyStake` now also tracks
+    `lifetimeWinnings` (can go negative, unlike coins — an honest losing-streak record).
+  - `src/leagues.js`: Brass/Bronze/Silver/Gold/Diamond, level-or-wins gated
+    (thresholds 1/5/10/50/150). New `#leagues-modal` (🏆 in the menu-extras row) —
+    `renderLeaguesModal()` calls the real `hookProveThreshold` per tier and resolves each row
+    independently (⏳ → ✅/🔒), never showing the underlying stat.
+  - `src/cues.js`'s existing `rarity` field now gets a real UI treatment: a rarity-colored left
+    border on every cue row (`.rarity-common/uncommon/rare/epic`), plus a "Midnight-verified" badge
+    for tiers unlocked through the existing soulbound `claimCue` flow — added a small
+    `hooks.isCueClaimed(tierId)` export rather than reaching into `hooks.js`'s private localStorage
+    format from `main.js`.
+  - New `#wallet-record` chip (`W60-L20 · 75%`) next to the existing coins/cash/level chips.
+  - **Clubs/guilds: dropped**, per the Plan agent's clear recommendation — no backend/database
+    exists anywhere in this project, and a real club needs shared cross-player membership/
+    leaderboard aggregation, genuine new server infrastructure. A cosmetic-only field would be
+    decoration with no gameplay or privacy tie-in.
+  - All verified with real Playwright screenshots: the wallet-record chip renders correctly, all
+    five league tiers resolve and render pass/fail (tested with level 12 / wins 60 / losses 20 —
+    Brass through Gold qualify, Diamond does not), rarity colors show correctly (green=uncommon,
+    blue=rare confirmed visually), zero console errors throughout.
+
 ## Current state (2026-08-30, continued)
 
 - **Disk-space crisis resolved.** C: drive hit 2.5 GB free mid-session (user-reported, verified).

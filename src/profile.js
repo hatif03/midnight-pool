@@ -13,6 +13,8 @@ function defaultProfile() {
     xp: 0,
     level: 1,
     wins: 0,
+    losses: 0,
+    lifetimeWinnings: 0,
     loyaltyPoints: 0,
     streak: { day: 0, lastClaim: null },
     pass: { points: 0, premium: false, claimedTier: 0 },

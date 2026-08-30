@@ -55,6 +55,10 @@ const STR = {
     championQualified: 'Cumples el umbral de Campeón (nivel ≥ {threshold}) — probado con el circuito real, sin revelar tu nivel exacto.',
     championNotQualified: 'Todavía no cumples el umbral de Campeón (nivel ≥ {threshold}).',
     championError: 'No se pudo ejecutar el circuito en el navegador: {error}',
+    leaguesTitle: 'Ligas', leaguesHint: 'Cada comprobación prueba en privado que cumples el umbral de esa liga — tu nivel/victorias exactos nunca se muestran, solo si lo cumples o no.',
+    leagueQualified: 'Cumples', leagueLocked: 'No cumples', leagueChecking: 'Comprobando…',
+    leagueByLevel: 'nivel ≥ {threshold}', leagueByWins: 'victorias ≥ {threshold}',
+    midnightVerified: 'Verificado con Midnight',
   },
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
@@ -112,6 +116,10 @@ const STR = {
     championQualified: 'You meet the Champion threshold (level ≥ {threshold}) — proved with the real circuit, without revealing your exact level.',
     championNotQualified: "You don't meet the Champion threshold yet (level ≥ {threshold}).",
     championError: 'Could not run the circuit in the browser: {error}',
+    leaguesTitle: 'Leagues', leaguesHint: "Each check privately proves you meet that tier's threshold — your exact level/wins are never shown, only pass/fail.",
+    leagueQualified: 'Qualified', leagueLocked: 'Locked', leagueChecking: 'Checking…',
+    leagueByLevel: 'level ≥ {threshold}', leagueByWins: 'wins ≥ {threshold}',
+    midnightVerified: 'Midnight-verified',
   },
 };
 

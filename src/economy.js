@@ -9,7 +9,7 @@ export function awardForMatch({ mode, won }) {
   if (mode === 'solo') return { coins: 5, xp: 5, loyaltyPoints: 0 };
   return won
     ? { coins: 50, xp: 30, loyaltyPoints: 1, wins: 1 }
-    : { coins: 10, xp: 10, loyaltyPoints: 1 };
+    : { coins: 10, xp: 10, loyaltyPoints: 1, losses: 1 };
 }
 
 export function applyAward(profile, award) {
@@ -18,6 +18,7 @@ export function applyAward(profile, award) {
   p.cash = Math.max(0, p.cash + (award.cash || 0));
   p.loyaltyPoints = Math.max(0, p.loyaltyPoints + (award.loyaltyPoints || 0));
   p.wins = (p.wins || 0) + (award.wins || 0);
+  p.losses = (p.losses || 0) + (award.losses || 0);
   p.xp += award.xp || 0;
   while (p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);
@@ -26,11 +27,25 @@ export function applyAward(profile, award) {
   return p;
 }
 
+// Win rate as a [0,1] fraction; 0 with no games played yet rather than NaN/dividing by zero —
+// an untested player isn't "0% skilled," they just have no record, but 0 is the sane display
+// default and callers already treat 0 wins as "no badge/no record shown" elsewhere.
+export function winRate(profile) {
+  const total = (profile.wins || 0) + (profile.losses || 0);
+  return total === 0 ? 0 : profile.wins / total;
+}
+
 // Applies a match stake (docs/adr/0008): the winner gains `amount` coins, the loser loses it,
 // each side computing this independently from its own local result, same as awardForMatch/
-// applyAward above — there's no shared/server-authoritative economy here either.
+// applyAward above — there's no shared/server-authoritative economy here either. Also tracks
+// lifetime net stake winnings (can go negative — that's the honest record of a losing streak,
+// unlike coins/cash which are clamped at 0 since you can't hold negative currency).
 export function applyStake(profile, won, amount) {
-  return { ...profile, coins: Math.max(0, profile.coins + (won ? amount : -amount)) };
+  return {
+    ...profile,
+    coins: Math.max(0, profile.coins + (won ? amount : -amount)),
+    lifetimeWinnings: (profile.lifetimeWinnings || 0) + (won ? amount : -amount),
+  };
 }
 
 // Returns the profile with `amount` deducted from `currency`, or null if funds are insufficient —
@@ -46,18 +61,24 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
 
   assert(xpToNext(1) < xpToNext(2) && xpToNext(2) < xpToNext(3), 'xp requirement grows with level');
 
-  const base = { coins: 100, cash: 0, xp: 0, level: 1, loyaltyPoints: 0, wins: 0 };
+  const base = { coins: 100, cash: 0, xp: 0, level: 1, loyaltyPoints: 0, wins: 0, losses: 0 };
   let p = applyAward(base, awardForMatch({ mode: 'host', won: true }));
   assert(p.coins === 150, 'multiplayer win awards coins');
   assert(p.loyaltyPoints === 1, 'multiplayer win awards a loyalty point');
   assert(p.wins === 1, 'multiplayer win increments the win counter');
+  assert(p.losses === 0, 'multiplayer win does not increment the loss counter');
 
   p = applyAward(base, awardForMatch({ mode: 'host', won: false }));
   assert(p.wins === 0, 'multiplayer loss does not increment the win counter');
+  assert(p.losses === 1, 'multiplayer loss increments the loss counter');
 
   p = applyAward(base, awardForMatch({ mode: 'solo', won: true }));
   assert(p.coins === 105 && p.loyaltyPoints === 0, 'solo practice awards reduced coins, no loyalty points');
-  assert(p.wins === 0, 'solo practice does not count toward the win counter');
+  assert(p.wins === 0 && p.losses === 0, 'solo practice does not count toward the win/loss record');
+
+  assert(winRate({ wins: 0, losses: 0 }) === 0, 'win rate with no games played is 0, not NaN');
+  assert(winRate({ wins: 3, losses: 1 }) === 0.75, 'win rate is wins over total games');
+  assert(winRate({ wins: 0, losses: 5 }) === 0, 'an all-loss record is 0, not undefined');
 
   p = applyAward({ ...base, xp: xpToNext(1) - 5 }, { xp: 20 });
   assert(p.level === 2, 'crossing the xp threshold levels up');
@@ -72,6 +93,8 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   assert(applyStake({ ...base, coins: 100 }, true, 50).coins === 150, 'winning a stake adds the amount');
   assert(applyStake({ ...base, coins: 100 }, false, 50).coins === 50, 'losing a stake subtracts the amount');
   assert(applyStake({ ...base, coins: 20 }, false, 50).coins === 0, 'losing a stake never goes negative');
+  assert(applyStake({ ...base, lifetimeWinnings: 10 }, true, 50).lifetimeWinnings === 60, 'lifetime winnings accumulate on a stake win');
+  assert(applyStake({ ...base, lifetimeWinnings: 10 }, false, 50).lifetimeWinnings === -40, 'lifetime winnings can go negative, unlike coins');
 
   console.log('OK — economy self-test passed');
 }

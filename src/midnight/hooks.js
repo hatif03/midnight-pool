@@ -73,16 +73,25 @@ export async function hookProveThreshold(profile, threshold, checkWins) {
   return result;
 }
 
+const CLAIMED_CUES_KEY = 'mn-mock-claimed-cues';
+const cueNullifier = (tierId) => `${getOrCreateSecretKeyHex().slice(0, 8)}:${tierId}`;
+
 /** Mirrors `claimCue`: one-time, non-transferable claim per tier. */
 export function hookClaimCue(tierId) {
-  const nullifier = `${getOrCreateSecretKeyHex().slice(0, 8)}:${tierId}`; // stand-in nullifier; the real derivation lives in the contract
+  const nullifier = cueNullifier(tierId); // stand-in nullifier; the real derivation lives in the contract
   return run('claimCue', { nullifier }, async () => {
-    const KEY = 'mn-mock-claimed-cues';
-    const claimed = new Set(JSON.parse(localStorage.getItem(KEY) || '[]'));
+    const claimed = new Set(JSON.parse(localStorage.getItem(CLAIMED_CUES_KEY) || '[]'));
     if (claimed.has(nullifier)) throw new Error('cue tier already claimed');
     claimed.add(nullifier);
-    localStorage.setItem(KEY, JSON.stringify([...claimed]));
+    localStorage.setItem(CLAIMED_CUES_KEY, JSON.stringify([...claimed]));
   });
+}
+
+/** Whether this tier was unlocked through the soulbound claimCue flow (a status-symbol badge,
+ *  not an entitlement check -- claimCue has none, see docs/adr/0006). */
+export function isCueClaimed(tierId) {
+  const claimed = new Set(JSON.parse(localStorage.getItem(CLAIMED_CUES_KEY) || '[]'));
+  return claimed.has(cueNullifier(tierId));
 }
 
 /**
