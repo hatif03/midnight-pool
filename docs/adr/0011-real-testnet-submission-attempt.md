@@ -133,3 +133,14 @@ Lace's own sync implementation avoids this bug (plausible — real users run it 
 chain daily, so it must use a materially different, more efficient sync strategy than this SDK
 path) remains an open question, not a confirmed escape route, until someone actually builds and
 runs it.
+
+## Decision: stop here, report upstream, keep the mock-mode demo
+
+Given three options (get third-party API credentials to build Lace; reverse-engineer manual
+UTXO/transaction construction to bypass `WalletFacade` entirely; stop and report), the user chose
+to stop. Filed as
+[midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370) — a
+full writeup with exact versions, the instrumented reproduction, and both control experiments, so
+the finding isn't lost. Real on-chain testnet submission stays deferred, unchanged from
+`docs/adr/0006`'s original scoping; the local-devnet/mock-mode Midnight story remains this
+project's demo path.
