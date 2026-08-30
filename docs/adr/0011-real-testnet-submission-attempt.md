@@ -1,6 +1,9 @@
 # ADR-0011: Real testnet submission — attempted, time-boxed, stopped after a reproducible crash
 
-Status: Accepted (documents a stopped attempt, not a shipped feature)
+Status: Accepted (documents a stopped attempt, not a shipped feature) — **superseded in part by the
+"Update" section below**: once the deadline pressure was gone, the user asked to resume this
+investigation, which narrowed the root cause considerably. See that section before assuming the
+original "not further diagnosed" note still holds.
 
 ## Context
 
@@ -65,5 +68,46 @@ DApp Connector skill's own setup notes) was never tested.
   crashed, as a genuine starting point for whoever picks this up next — not deleted to hide an
   incomplete attempt, and not left uncommented to look like a working path it isn't.
 - The 60-75 minute time-box did its job: it caught a real, unresolved crash before it could consume
-  the remaining pre-deadline time, and the project moves to final verification and demo/submission
+  the remaining pre-deadline time, and the project moved to final verification and demo/submission
   prep with real time still available for it.
+
+## Update: root cause narrowed considerably, wallet-sdk-facade path ruled out
+
+Once the deadline was no longer a factor, the user asked to resume this investigation. Two
+controlled experiments (a local-devnet control run, then a targeted config change against real
+Preprod) isolated the bug precisely:
+
+- **A local-devnet control run of the identical code ruled out "any reconnect = bug"**: the
+  plugin's own `sdk-regression-check` smoke test, run against a freshly-started local devnet, logs
+  the *exact same* `subscribeRuntimeVersion()... Normal Closure` line — twice — then proceeds to
+  sync cleanly and report a real balance. So that log line is normal, benign reconnect chatter, not
+  inherently the bug. The real difference is what happens *after*: against the local devnet's
+  near-empty chain, sync finishes in ~3 minutes; against Preprod's populated real chain, it never
+  stabilizes.
+- **Instrumented `wallet.state()` subscription showed the real signature**: `heapUsedMB` climbs
+  linearly and continuously with `shielded.progress.appliedIndex` (the wallet's own count of
+  processed ledger entries) — 1038 MB at ~4,100 applied, 3,189 MB at ~18,900 applied, essentially no
+  reclaim across GC cycles — a textbook unbounded-memory-retention signature tied to entry count,
+  not a transient buffering spike that would plateau or a slow leak that would take much longer to
+  matter.
+- **Control experiment ruled out the one configurable suspect**: `InMemoryTransactionHistoryStorage`
+  (the SDK's documented, ready-made transaction-history store, retains every `upsert()`ed entry
+  forever by design) was the obvious candidate. Swapped in a discard-everything
+  `TransactionHistoryStorage` implementation and re-ran against real Preprod: **the crash pattern
+  was statistically indistinguishable** (heap hit ~3.2 GB at a comparable applied-index count and
+  elapsed time either way). This rules out transaction-history storage as the cause — the leak is
+  inside the wallet SDK's own internal shielded/dust sync-state tracking, not anything this script
+  configures.
+
+**Conclusion**: this is a real, reproducible bug in `wallet-sdk-facade@4.0.1` /
+`wallet-sdk-shielded@3.0.1` (matching versions confirmed via `sdk-regression-check`'s drift-check —
+no drift from the plugin's own June 2026 verified lock, so this isn't a stale-version problem
+either) when syncing the Node-side `WalletFacade` against a chain with substantial real transaction
+history. It is specific to *this* construction path — nothing here implicates the indexer, node, or
+proof server, all independently confirmed healthy and responsive throughout every run.
+
+**Next avenue, not yet attempted**: the browser/Lace DApp Connector path
+(`midnight-dapp-dev:dapp-connector`) is architecturally distinct — a real wallet extension manages
+its own sync state, not this Node script's `WalletFacade` construction — so it may not share this
+bug at all. This is the next thing to try, not a re-run of the same broken path with different
+parameters.

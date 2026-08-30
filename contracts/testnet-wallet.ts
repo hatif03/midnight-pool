@@ -6,13 +6,15 @@
 // with real system_chain/system_health calls outside this script), and the faucet page existing
 // (https://midnight-tmnight-preprod.nethermind.dev/).
 //
-// What did NOT work: running this script against the real node crashed with a JavaScript
-// heap-out-of-memory error after a repeated subscribeRuntimeVersion() disconnect/reconnect loop
-// against wss://rpc.preprod.midnight.network -- a real, reproducible bug in this exact
-// wallet-sdk-facade/ledger-v8 version combination against the live preprod node, not a timing
-// fluke. Root cause not further diagnosed -- see ADR-0011 for the time-boxed decision to stop here
-// and fall back to the existing, already-verified local-devnet/mock-mode Midnight story for the
-// demo. Left in the repo as a documented, real attempt and a starting point, not a working path.
+// What did NOT work, narrowed down (see ADR-0011's "Update" section): syncing this WalletFacade
+// against real Preprod leaks memory linearly with shielded.progress.appliedIndex until OOM --
+// confirmed NOT caused by InMemoryTransactionHistoryStorage (a no-op replacement crashes at the
+// same rate) and NOT a generic reconnect-loop issue (a local-devnet control run logs the same
+// "disconnected... Normal Closure" line then syncs fine on a near-empty chain). This is a real bug
+// in wallet-sdk-facade@4.0.1/wallet-sdk-shielded@3.0.1's own sync-state tracking when processing a
+// populated chain's real history -- not something this script's config can work around. Left in
+// the repo as a documented, real attempt and a starting point; the next avenue is the browser/Lace
+// DApp Connector path, which uses different sync machinery entirely.
 import WebSocket from 'ws';
 (globalThis as any).WebSocket = WebSocket;
 
@@ -22,9 +24,18 @@ import type { DefaultConfiguration } from '@midnight-ntwrk/wallet-sdk-facade';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 import { UnshieldedWallet, createKeystore, PublicKey } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
-import { InMemoryTransactionHistoryStorage } from '@midnight-ntwrk/wallet-sdk-abstractions';
 import * as ledger from '@midnight-ntwrk/ledger-v8';
 import fs from 'node:fs';
+
+// Diagnostic control (docs/adr/0011 follow-up): InMemoryTransactionHistoryStorage retains every
+// upserted entry forever. Swapping in a discard-everything implementation isolates whether the
+// observed memory growth lives in this layer or deeper in the wallet's own internal state.
+const NoopTransactionHistoryStorage = {
+  async upsert() {},
+  async getAll() { return []; },
+  async get() { return undefined; },
+  async serialize() { return { entries: [] } as any; },
+};
 
 const SEED_FILE = 'testnet-seed.hex';
 const seedHex = fs.existsSync(SEED_FILE)
@@ -61,7 +72,7 @@ const configuration: DefaultConfiguration = {
     indexerHttpUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
   },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema),
+  txHistoryStorage: NoopTransactionHistoryStorage as any,
 };
 
 const unshieldedKeystore = createKeystore(derivationResult.keys[Roles.NightExternal], configuration.networkId);
@@ -82,7 +93,27 @@ if (import.meta.url.endsWith('testnet-wallet.ts') && process.argv[1]?.endsWith('
     console.log('Seed file:', SEED_FILE, '(reused if present, so re-running keeps the same address)');
     const wallet = await getWallet();
     console.log('Wallet started, waiting for initial sync against the real preprod indexer...');
+    const fmt = (p?: { appliedIndex?: bigint; highestIndex?: bigint }) =>
+      p ? `${p.appliedIndex ?? '?'}/${p.highestIndex ?? '?'}` : 'n/a';
+    const sub = wallet.state().subscribe({
+      next: (s) => {
+        const mem = process.memoryUsage();
+        console.log(
+          'progress',
+          JSON.stringify({
+            shielded: fmt(s?.shielded?.progress),
+            unshielded: fmt(s?.unshielded?.progress),
+            dust: fmt(s?.dust?.progress),
+            isSynced: s?.isSynced,
+            rssMB: Math.round(mem.rss / 1e6),
+            heapUsedMB: Math.round(mem.heapUsed / 1e6),
+          }),
+        );
+      },
+      error: (e) => console.log('state() observable error (non-fatal, continuing):', String(e?.message || e)),
+    });
     const state = await wallet.waitForSyncedState();
+    sub.unsubscribe();
     console.log('SYNCED.');
     console.log('Unshielded address:', state.unshielded.address);
     console.log('Shielded address:', state.shielded.address);
