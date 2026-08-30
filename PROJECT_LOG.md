@@ -488,6 +488,12 @@ See `docs/adr/` for the full record:
 
 ## Next steps
 
+- **Clubs/leaderboards** — deliberately dropped three times now (twice during the reputation-
+  features pass, once again during the production-hardening pass) for the same reason each time:
+  they need real shared server infrastructure (persistent membership, cross-player leaderboard
+  aggregation), and only a thin match-attestation backend exists so far (`docs/adr/0009`). Natural
+  next increment once that backend has grown a bit further — a `clubs` table + a leaderboard query
+  endpoint on the existing relay (`server/`) is the smallest version, not a new service.
 - **A human should still play a real match** — every Playwright pass so far covers connection
   wiring, rules-engine correctness signals, UI layout, the economy/shop/spin UI, the new HUD, the
   timer, and the ball-in-hand drag, all scripted. None of it covers an actual win/loss (hard to
