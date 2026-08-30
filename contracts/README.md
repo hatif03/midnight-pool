@@ -25,6 +25,13 @@ npm test             # executes every circuit, incl. failure paths
 > `compact` on the Windows PATH is the unrelated NTFS compression tool. Run the
 > compile steps inside WSL. `npm test` and `npm run typecheck` run natively.
 
+> `managed/*/contract/` (the compiled circuit JS) is committed on purpose —
+> `src/midnight/circuit.js` imports it for the browser bundle, and Vercel builds
+> from a fresh clone with no compile step (see [ADR-0012](../docs/adr/0012-commit-compiled-contract-for-browser-build.md)).
+> **After recompiling, re-commit `managed/*/contract/`** or the browser bundle
+> goes stale against whatever circuit it's actually running. Everything else
+> under `managed/` (`compiler/`, `keys/`, `zkir/`) stays gitignored.
+
 ## Circuits — midnight-pool.compact
 
 | Circuit | Signature | Discloses |

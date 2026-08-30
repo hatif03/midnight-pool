@@ -1,3 +1,11 @@
-# Compiler output: generated TypeScript, ZKIR, and ~28MB of proving/verifying
-# keys. Reproduce with `npm run compile`.
-managed/
+# Compiler output. `contract/` (the compiled circuit JS, ~160K, no zkir/key
+# dependency -- confirmed by grep) is committed on purpose: src/midnight/circuit.js
+# imports it directly for the browser bundle, and Vercel builds from a fresh
+# clone with no compile step, so it must exist in git or the build breaks
+# (this is exactly what broke the Vercel deploy -- see docs/adr/0012).
+# `compiler/`, `keys/` (~28MB of ZK proving/verifying keys), and `zkir/` are
+# still generated-only, reproducible with `npm run compile`, not needed by
+# anything that imports from managed/ at the JS level.
+managed/*/compiler/
+managed/*/keys/
+managed/*/zkir/

@@ -21,3 +21,7 @@ dev-dist
 *.sw?
 .vercel
 .claude/settings.local.json
+.midnight-devnet/
+
+.vercel
+.env*
