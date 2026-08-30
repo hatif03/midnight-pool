@@ -1,54 +1,152 @@
 # Midnight Pool
-[![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://pool-arelkair.vercel.app/)
+
+[![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://midnight-pool-one.vercel.app/)
 
 ![Gameplay screenshot](docs/screenshot.png)
-A 2D pool game for the browser, with online 1v1 multiplayer. Being extended into a mobile-first PWA with Midnight Network privacy features — see [CLAUDE.md](CLAUDE.md) for the project direction.
-## How to play
-- **Singleplayer**: Free practice.
-- **Multiplayer**: create a game and share the 4-letter code, invite link, or QR code with a
-  friend — or use Quick Match to get paired with a random opponent. It runs peer-to-peer over the
-  internet (PeerJS), with no game server involved. Turns follow standard 8-ball rules, including
-  an open table until the first legal pot decides your group.
-To shoot, drag from the cue ball and release. The further you pull, the more power. Equipped cues
-can unlock a small spin/English control (3x3 grid near the power bar) once upgraded past the
-starting House Cue.
-Available in English and Spanish (Settings > Language).
 
-There's also a small progression layer: Coins/Cash earned per match, a daily login reward, a Pool
-Pass, cues collected from Silver/Gold/Diamond boxes (bought with Cash), and a Loyalty Shop —
-reachable from the icons under Play on the main menu. It's local-only (no accounts), and cue stats
-are earned through play, not purchasable — see `docs/adr/` for the reasoning.
-## Project Structure
+Midnight Pool is a mobile-first 8-ball pool PWA built from the ground up around one idea: a pool
+hall is a hangout, not a spreadsheet. You install it on your phone, play solo or against friends
+and strangers with real physics and real-time peer-to-peer multiplayer, and level up through a full
+progression system — while every privacy-sensitive part of that progression (your rank, your
+cosmetics, your match outcomes) runs on genuine Midnight Network zero-knowledge circuits instead of
+a public leaderboard. Nothing about your exact stats ever has to leave your device to prove you
+belong at the table.
+
+Built for the [Midnight Hackathon (MLH, Aug 2026)](https://midnight-hackathon-august-2026.devpost.com/)
+across all three tracks it targets — Mobile, Integrate Midnight, and Cross-Chain. See
+[`hackathon.md`](hackathon.md) for the full submission writeup.
+
+## Features
+
+**Play**
+- Solo practice, invite-a-friend (4-letter code / share link / QR), and Quick Match against a
+  random opponent — peer-to-peer over PeerJS, a lightweight WebSocket relay only for pairing.
+- Real physics (collisions, friction, spin/English, pockets) and standard 8-ball rules, including
+  an open table until the first legal pot decides groups.
+- English and Spanish, installable as an offline-capable app, locked to landscape, touch-first HUD.
+
+**Progression**
+- Coins/Cash economy, XP and levels, a daily login reward, a Pool Pass, cue collections unlocked
+  from loot boxes, and a Loyalty Shop.
+- Win/loss record, win-rate, and lifetime winnings tracked alongside the classic economy.
+- Five league divisions (Brass → Bronze → Silver → Gold → Diamond), gated on level or wins.
+
+**Midnight privacy layer**
+- **Private ranked credentials** — your level and win count live as an on-chain commitment;
+  entering ranked Quick Match or unlocking a league badge runs a real threshold-proof circuit that
+  discloses only *yes/no*, never the number.
+- **Soulbound cosmetics** — cue tiers are claimed through a nullifier-based circuit: claimable once,
+  untradeable, and nobody else learns which cue you unlocked.
+- **Provably fair break** — both players commit and reveal a nonce over the existing peer
+  connection (so the rack starts instantly) and the same flip is recorded on-chain for audit,
+  with a reveal deadline that closes the classic last-revealer bias.
+- **Match stakes** in practice Coins, resolved by a write-once on-chain attestation so a losing
+  host can't overwrite an honest result by going silent.
+- **Guest-side physics verification** — the guest independently replays the host's shot from the
+  same snapshot and inputs and flags any mismatch, closing the "host fabricates the outcome" gap.
+- **Server-signed stat receipts** — once both peers agree on a match result, either side can fetch
+  an HMAC-signed receipt to disclose alongside the on-chain commitment.
+- **Cross-chain Champion Badge** — a rank proven privately on Midnight can mint a badge on a real
+  EVM contract, with no bridge and no custody: both chains are read independently and joined by a
+  shared key in a script. Two versions exist — one runs the Midnight side through the compiler's
+  simulator (fast, no network needed), the other does a genuine `deployContract`/`callTx` against a
+  running local Midnight network (real ZK proof, real transaction, real block confirmation).
+- A local audit dashboard shows every one of the above as it happens, in-app, not just at demo time.
+
+Every Midnight feature is designed to never block gameplay: a missing or slow wallet falls back to
+a fast local mock instantly, so a shot never waits on a proof server.
+
+## How to play
+
+Drag from the cue ball and release to shoot — the further you pull, the more power. Equipped cues
+above the starting House Cue unlock a small spin/English control (the 3×3 grid near the power bar).
+Progression, cues, the daily reward, the Pool Pass, and the Loyalty Shop are reachable from the
+icons under Play on the main menu; leagues and the Midnight settings panel (wallet connect, audit
+log, Champion Badge) are alongside them.
+
+## Project structure
+
 ```
-src/config.js       constants (table, balls, physics, spin model)
-src/physics.js      custom billiards engine (collisions, friction, pockets, spin/English)
-src/rules.js        8-ball rule engine (fouls, group assignment, win/loss)
-src/scene.js        PixiJS rendering
-src/net.js          peer-to-peer multiplayer (PeerJS) + matchmaking relay client
-src/identity.js     local nickname, avatar, preferences
-src/profile.js      persistent progression state (coins, cash, xp, cues, streak, pass)
-src/economy.js      XP curve and per-match currency awards
-src/cues.js         cue collections/tiers and their stat effects
-src/dailyReward.js  daily login streak and rewards
-src/pass.js         Pool Pass tiers and free/premium rewards
-src/lootbox.js      Silver/Gold/Diamond box reward tables
-src/loyalty.js      Loyalty Shop catalog and redemption
-src/audio.js        sound effects
-src/ui.js           menu, HUD and dialogs
-src/i18n.js         translations
-src/main.js         game loop, input, turns, and menu wiring
-server/             standalone matchmaking relay for Quick Match (see docs/adr/0004-matchmaking-relay.md)
+src/                     game client
+  config.js                constants (table, balls, physics, spin model)
+  physics.js               custom billiards engine (collisions, friction, pockets, spin/English)
+  rules.js                 8-ball rule engine (fouls, group assignment, win/loss)
+  scene.js                 PixiJS rendering
+  net.js                   peer-to-peer multiplayer (PeerJS) + matchmaking relay client
+  identity.js              local nickname, avatar, preferences
+  profile.js               persistent progression state (coins, cash, xp, cues, record, pass)
+  economy.js               XP curve, per-match currency awards, win-rate/lifetime winnings
+  cues.js                  cue collections/tiers and their stat effects
+  leagues.js               league tier definitions (Brass -> Diamond)
+  dailyReward.js           daily login streak and rewards
+  pass.js                  Pool Pass tiers and free/premium rewards
+  lootbox.js               Silver/Gold/Diamond box reward tables
+  loyalty.js               Loyalty Shop catalog and redemption
+  audio.js                 sound effects
+  ui.js                    menu, HUD and dialogs
+  i18n.js                  translations
+  pwaInstall.js            install-on-your-phone prompt (Android beforeinstallprompt / iOS instructions)
+  main.js                  game loop, input, turns, and menu wiring
+  midnight/                Midnight integration (see below)
+    hooks.js                 fire-and-forget bridge into the compiled contract, mock-mode by default
+    wallet.js                window.midnight / DApp Connector wallet detection
+    circuit.js                real client-side circuit execution (compact-runtime WASM) for the browser
+    breakOrder.js             P2P commit-reveal for who breaks, mirrored on-chain
+    physicsVerify.js          guest-side deterministic shot replay + diff
+    attest.js                 client for the relay's match-attestation + signed-receipt endpoints
+    audit.js                 local append-only activity log
+
+contracts/               Compact smart contracts
+  midnight-pool.compact    stat commitment, threshold credentials, soulbound cues, fair break order
+  stakes.compact           match-stakes escrow / attestation record
+  witnesses.ts             TypeScript witnesses (private state) for midnight-pool.compact
+  test/                    simulator-executed circuit tests
+  cross-chain-join.ts      fast Midnight <-> EVM join (simulator + real anvil mint)
+  testnet-wallet.ts        a real Preprod wallet-sync attempt, kept as a documented starting point
+  devnet-deploy/           isolated package: real deployContract/callTx against a local Midnight
+                           network, plus a fully-real cross-chain-join-real.ts
+
+cross-chain/              standalone Foundry project (ChampionBadge.sol) for the EVM side
+
+server/                   matchmaking relay + match-result attestation backend (Cloud Run)
+  matchmaker.js              pairing logic for Quick Match
+  db.js / attest.js         SQLite attestation store + HMAC-signed stat receipts
+
+api/                      Vercel serverless functions (dynamic share previews)
+docs/adr/                 architecture decision records — the reasoning behind every design choice
 ```
+
 ## Development
-```
+
+```bash
 npm install
 npm run dev      # start the dev server
-npm test         # run all the pure-module self-tests (physics, rules, economy, cues, ...)
+npm test         # run all the pure-module self-tests (physics, rules, economy, leagues, ...)
 npm run build    # production build
 ```
-Quick Match needs the relay running locally too (separate process, separate `package.json`):
-```
+
+Quick Match and match attestation need the relay running locally too (separate process, separate
+`package.json`):
+
+```bash
 cd server
 npm install
 npm start        # listens on :8787 by default
+npm test
 ```
+
+The Compact contracts, their simulator tests, and the cross-chain scripts live under `contracts/`
+(see [`contracts/README.md`](contracts/README.md) for the circuit table and toolchain notes — the
+Compact CLI is Linux/macOS-only, so compiling on Windows means running it inside WSL). A fully real
+local deploy — genuine on-chain transactions against a local Midnight devnet — lives in
+`contracts/devnet-deploy/`, isolated into its own package for dependency-version reasons explained
+in [ADR-0013](docs/adr/0013-real-local-devnet-deploy.md).
+
+## Documentation
+
+- [`docs/adr/`](docs/adr/) — every architectural decision, written before the change, including the
+  honest limitations of each Midnight feature (what a proof does and doesn't guarantee).
+- [`PROJECT_LOG.md`](PROJECT_LOG.md) — living record of project state, updated each session.
+- [`hackathon.md`](hackathon.md) — the full Devpost submission writeup: inspiration, architecture,
+  challenges (including a real upstream SDK bug we root-caused and
+  [filed](https://github.com/midnightntwrk/midnight-sdk/issues/370)), and what's next.
