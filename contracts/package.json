@@ -6,8 +6,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile": "compact compile midnight-pool.compact managed/midnight-pool && compact compile stakes.compact managed/stakes",
-    "compile:fast": "compact compile --skip-zk midnight-pool.compact managed/midnight-pool && compact compile --skip-zk stakes.compact managed/stakes",
+    "compile": "compact compile +0.34.0 midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 stakes.compact managed/stakes",
+    "compile:fast": "compact compile +0.34.0 --skip-zk midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 --skip-zk stakes.compact managed/stakes",
     "format": "compact format midnight-pool.compact && compact format stakes.compact",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/simulator.test.ts && tsx test/stakes.test.ts"

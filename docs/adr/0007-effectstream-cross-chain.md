@@ -51,3 +51,56 @@ whole submission.
   oversight.
 - Bun and Foundry (`forge`) become new toolchain dependencies alongside the existing Node/npm and
   Compact CLI tooling.
+
+## Outcome: the fallback was invoked, not a hypothetical
+
+The full stack was actually attempted, not just estimated. Real, substantial progress was made —
+this genuinely came close to working, not a quick abandonment:
+
+- Docker turned out **not** to be required at all (a correction to this ADR's original
+  assumption) — the "full local Midnight devnet" is native npm-packaged binaries launched by Bun's
+  own orchestrator, plus PGLite (embedded Postgres), confirmed by reading the template's real
+  source rather than assuming.
+- The whole stack had to run inside WSL specifically, since the Midnight node/indexer/proof-server
+  binaries only ship for `linux-amd64`/`macos-arm64` — no Windows build, discovered by inspecting
+  the packages' own `supportedPlatforms` list.
+- Getting the stack to actually boot required finding and fixing **six distinct, real environment
+  bugs in sequence**, each confirmed by direct inspection (symlink targets, `ldd`, `file`, ELF
+  headers) rather than guessed: stale per-workspace `node_modules` symlinks left behind after
+  switching Bun's linker mode; several packages' declared dependencies never actually getting
+  per-workspace symlinks under Bun's hoisted linker (`forge`/`hardhat`/`.bin` shims, OpenZeppelin
+  imports); a proof-server binary built via Nix with a hardcoded `/nix/store/...` dynamic-linker
+  path absent on this non-Nix system (fixed by recreating that exact path as a symlink to the real
+  system linker — verified compatible via `ldd` first); a `graphql@17` package.json whose `"bun"`
+  export condition pointed a synchronous `require()` at an ESM-only file Bun cannot load that way;
+  a compiled-circuit-vs-installed-runtime version mismatch (`compact-runtime` pinned to
+  `0.18.0-rc.1` in the template's own `package.json` despite its own `CLAUDE.md` stating `0.16.0`
+  is correct for its pinned `0.31.0` compiler); and finally a WASM module-identity duplication bug
+  (`ContractMaintenanceAuthority` instantiated from two different nested copies of
+  `compact-runtime` — one at the workspace root, one privately nested inside
+  `@effectstream/midnight-contracts` — colliding at the exact final step, deploying the Midnight
+  contract to the live local devnet).
+- At that point — full EVM compile+deploy working, the full Midnight devnet (node producing and
+  finalizing real blocks, indexer, proof server all genuinely running) working, only the very last
+  integration step still broken — the user made the call: drop Effectstream. This is exactly the
+  contingency this ADR wrote down in advance, now actually exercised rather than theoretical.
+
+**Decision, corrected**: built the documented fallback instead — `cross-chain/` (a minimal Foundry
+project, no OpenZeppelin, no Hardhat) and `contracts/cross-chain-join.ts`, joining two genuinely
+real, independently-verified pieces with a plain Node script: `midnight-pool.compact`'s already-
+verified `proveThreshold` circuit (executed for real through
+`@midnight-ntwrk/compact-runtime`'s simulator — the same engine `contracts/test/simulator.test.ts`
+uses, not mocked) and a real `anvil` chain (deployed and minted via `forge`/`cast`, not mocked
+either). The join key is the Midnight-derived public key, truncated to 20 bytes and used as the
+EVM address — a demo convenience stated as such, not a real address-derivation standard. Verified
+both directions: a qualifying level actually mints (tier reads back as 1), a non-qualifying level
+mints nothing (tier reads back as 0), and the script asserts the two sides agree before exiting 0.
+
+**What this fallback demonstrates, and what it doesn't**: it's a genuine two-chain join with real
+execution on both sides — not a toy or a hardcoded example — but it is a one-shot script run on
+demand, not a persistent syncing service the way Effectstream's sync node is. No frontend renders
+it live today; that would be the natural next increment if this track gets more time.
+Bun and Foundry remain installed (Foundry is what the fallback actually uses); the Bun/WSL/Nix/
+graphql/version-pin fixes above live only in the now-deleted `effectstream/` working tree, not in
+this repo — recorded here as the evidence for *why* the fallback was the right call, not as
+something to reproduce.

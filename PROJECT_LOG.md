@@ -7,6 +7,39 @@ reasoning behind any decision marked with an ADR link.
 
 ## Current state (2026-08-30)
 
+- **Cross-chain workstream 3 — Effectstream dropped, lighter fallback built and verified.** The
+  full `evm-midnight-v2` stack (ADR-0007) was actually attempted end-to-end, not just estimated —
+  it got genuinely close: EVM contracts compiled and deployed to a real local Hardhat chain, and a
+  real local Midnight devnet (node producing/finalizing real blocks, indexer, proof server all
+  running) came up too. Getting there required finding and fixing six distinct, real environment
+  bugs in sequence (each confirmed by direct inspection — symlink targets, `ldd`, ELF headers —
+  not guessed): stale workspace symlinks after a Bun linker-mode switch; missing per-workspace
+  dependency symlinks under Bun's hoisted linking (`forge`/`hardhat` binaries, OpenZeppelin
+  imports); a proof-server binary built via Nix with a hardcoded `/nix/store/...` interpreter path
+  absent on this non-Nix system; a `graphql@17` package.json whose `"bun"` export condition broke a
+  synchronous `require()`; a compiled-circuit-vs-installed-runtime version mismatch contradicting
+  the template's own `CLAUDE.md`; and finally a WASM module-identity duplication bug
+  (`ContractMaintenanceAuthority` from two different nested `compact-runtime` copies) at the very
+  last step — deploying the Midnight contract to the live devnet. At that point the user called it:
+  drop Effectstream. Full story, including the specific fix for each bug, in ADR-0007's Outcome
+  section.
+  - **Built the documented fallback instead**: `cross-chain/` (a minimal Foundry project, no
+    OpenZeppelin/Hardhat — just `ChampionBadge.sol`, a deliberately-not-full-ERC-721 registry) plus
+    `contracts/cross-chain-join.ts`, a plain Node script joining two genuinely real,
+    independently-executed pieces — `midnight-pool.compact`'s already-verified `proveThreshold`
+    circuit (run for real through `@midnight-ntwrk/compact-runtime`'s simulator, the same engine
+    the contract's own test suite uses, not mocked) and a real `anvil` chain (deployed + minted via
+    `forge`/`cast`). Verified both directions live: `npx tsx cross-chain-join.ts 10` (level ≥
+    threshold) actually mints, tier reads back as 1; `npx tsx cross-chain-join.ts 2` (below
+    threshold) mints nothing, tier reads back as 0; the script itself asserts the two sides agree
+    before exiting 0.
+  - **What's genuinely NOT done**: this is a one-shot script run on demand, not a persistent
+    syncing service — no frontend renders the joined view today. That's the natural next increment
+    if this track gets more time, not something to assume is already wired up.
+  - The abandoned `effectstream/` working tree (the vendored template plus every fix above) was
+    deleted after extracting the lessons into ADR-0007 — it was never committed, so this isn't a
+    revert, just disk cleanup of a large (~1600-package) untracked experiment.
+
 - **UI/UX pass — fullscreen, new logo, non-scrolling responsive menu, HUD no longer overlaps the
   table.** Triggered by the user's screenshots comparing this app to 8 Ball Pool and a `logo/`
   folder of new pixel-art icon assets. Verified with real Playwright screenshots this time (Chromium
@@ -321,7 +354,10 @@ See `docs/adr/` for the full record:
   commitment, threshold credentials, soulbound cue claims, and fair break order; client-side
   proving as the deliberate departure from Shadow Protocol's server-side-proving gap.
 - [0007](docs/adr/0007-effectstream-cross-chain.md) — cross-chain via the full Effectstream
-  `evm-midnight-v2` stack, with a documented fallback to a lighter custom join.
+  `evm-midnight-v2` stack, with a documented fallback to a lighter custom join. **Outcome: the
+  fallback was invoked for real** — six real environment bugs fixed in sequence got the full stack
+  to the very last step before a WASM version-duplication bug ended it; `cross-chain/` +
+  `contracts/cross-chain-join.ts` built and verified instead. See the ADR's Outcome section.
 - [0008](docs/adr/0008-match-stakes-trust-model.md) — match stakes scoped to non-purchasable Coins,
   honest about what the corrected escrow design does and doesn't fix.
 
@@ -366,11 +402,16 @@ See `docs/adr/` for the full record:
   confirm it returns a real image, and paste an invite link into WhatsApp/iMessage.
 - Test PWA install on an actual phone (same-Wi-Fi `npm run dev -- --host` or `npm run preview
   -- --host`) — still not done from any session.
-- **Midnight workstream 3 (Effectstream cross-chain)** — not started. Per ADR-0007: Hardhat "Champion
-  Badge" ERC-721 + Midnight-side threshold-credential disclosure + Effectstream's sync node joining
-  both, OR the documented lighter fallback if the full local devnet stack proves too unstable to get
-  running in time. Toolchain (Bun 1.2.19, Foundry/forge+anvil 1.2.3-stable, Docker 29.5.2) already
-  confirmed present on this machine.
+- **Midnight workstream 3 (cross-chain) — done, via the documented fallback, not Effectstream.** See
+  the Current State entry above and ADR-0007's Outcome section for the full story: the full
+  Effectstream stack got genuinely close (real EVM deploy, real Midnight devnet with block
+  production, six real environment bugs found and fixed in turn) before a WASM module-identity
+  duplication bug at the final step led to dropping it per the user's call. `cross-chain/` +
+  `contracts/cross-chain-join.ts` built and verified instead — real circuit execution, real anvil
+  deploy, both directions (qualifying/non-qualifying) checked.
+- **A live frontend for the cross-chain join is still open** — today it's a script run on demand
+  (`npx tsx contracts/cross-chain-join.ts`), not wired into the main app's UI or run automatically.
+  Natural next increment if this track gets more attention, not something to assume is done.
 - **Midnight workstream 4 (match stakes) — contract + client wiring done** (see the entry above);
   still needs the Playwright scenarios described in the plan (happy path, disagreement — no longer
   meaningfully distinct from the exploit test now that resolution is write-once rather than
