@@ -4,9 +4,12 @@
   "description": "Standalone WebSocket relay that pairs two waiting players and hands off to PeerJS. See docs/adr/0004-matchmaking-relay.md.",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "start": "node index.js",
-    "test": "node index.test.js"
+    "test": "node index.test.js && node db.test.js"
   },
   "dependencies": {
     "ws": "^8.18.0"

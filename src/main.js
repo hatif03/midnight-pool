@@ -20,6 +20,7 @@ import * as breakOrder from './midnight/breakOrder.js';
 import * as mnHooks from './midnight/hooks.js';
 import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
+import * as mnAttest from './midnight/attest.js';
 import { LEAGUES } from './leagues.js';
 
 const other = (p) => (p === 1 ? 2 : 1);
@@ -471,6 +472,23 @@ function awardMatchResult(winner) {
   }
   persistProfile();
   mnHooks.hookCommitStats(profile);
+  reportMatchResultToRelay(winner);
+}
+
+// Both peers independently POST their own view of the result to the relay
+// (docs/adr/0009) -- once the server sees two sides agree, it'll sign this
+// player's (pk, level, wins) on request, disclosed alongside the existing
+// commitStats commitment as a real, checkable server attestation. Never
+// blocks or gates anything; a slow/unreachable relay just means no receipt.
+function reportMatchResultToRelay(winner) {
+  if (!game.currentMatchId) return;
+  const pk = mnHooks.getPublicKey();
+  mnAttest.attestMatchResult({
+    matchId: game.currentMatchId, pk, role: game.myPlayer, winner,
+    level: profile.level, wins: profile.wins || 0,
+  }).then(() => mnAttest.fetchStatsSignature(pk)).then((sig) => {
+    if (sig) mnAudit.record({ circuit: 'serverSignedStats', mode: 'server', disclosed: sig, ok: true });
+  });
 }
 
 function endGame(winner) {

@@ -48,7 +48,7 @@ export function join(code, handlers) {
   };
 }
 
-const RELAY_URL = import.meta.env.VITE_MATCH_RELAY_URL || 'ws://localhost:8787';
+export const RELAY_URL = import.meta.env.VITE_MATCH_RELAY_URL || 'ws://localhost:8787';
 
 // Pairs with a random waiting stranger via the matchmaking relay (server/, see
 // docs/adr/0004-matchmaking-relay.md), then falls through to the same host()/join() flow above —

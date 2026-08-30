@@ -34,6 +34,11 @@ function getOrCreateSecretKeyHex() {
 // never used for any check, only to label audit-log rows consistently.
 const localPk = (secretKeyHex) => secretKeyHex.slice(0, 16);
 
+/** This browser's stable pseudonymous id -- also used as the relay attestation's `pk` (attest.js). */
+export function getPublicKey() {
+  return localPk(getOrCreateSecretKeyHex());
+}
+
 async function run(circuit, disclosed, fn) {
   if (wallet.getMode() === 'real') {
     audit.record({ circuit, mode: 'real', disclosed, ok: false, note: 'real-mode submission not wired in this pass' });
