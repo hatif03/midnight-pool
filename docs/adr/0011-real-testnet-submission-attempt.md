@@ -111,3 +111,25 @@ proof server, all independently confirmed healthy and responsive throughout ever
 its own sync state, not this Node script's `WalletFacade` construction — so it may not share this
 bug at all. This is the next thing to try, not a re-run of the same broken path with different
 parameters.
+
+## Update 2: quantified — "wait longer" or "allocate more RAM" is not a viable workaround
+
+Queried the real chain directly rather than guessing at scale: Preprod is at **block 2,330,285**
+(`chain_getHeader` / the indexer's `block { height }`, both confirmed live). The instrumented run
+above reached `shielded.progress.appliedIndex` ≈ 19,000 before exhausting a 3 GB heap — two to three
+orders of magnitude short of the chain's actual size. If the leak's measured rate (~140 KB per
+processed entry, from the observed ~20 MB/s at ~140 entries/s) holds anywhere near linearly across
+the full chain, completing a sync would need on the order of **hundreds of gigabytes of RAM** — not
+a number "give it more time" or "run it on a bigger machine" meaningfully closes. This rules out
+patience or resource limits as the fix; the bug itself has to be resolved (or a different sync
+strategy used) before this path is viable.
+
+**Attempted the Lace browser path, blocked before it started**: Lace (`input-output-hk/lace` on
+GitHub) is open source but ships no pre-built extension artifacts on its release page — only source
+tags. Building it requires "your own API credentials (Blockfrost, Maestro, PostHog, Sentry, etc.)"
+per the project's own README, none of which exist in this environment, and creating third-party
+API accounts on the user's behalf without asking first is out of scope for this pass. Whether
+Lace's own sync implementation avoids this bug (plausible — real users run it against this exact
+chain daily, so it must use a materially different, more efficient sync strategy than this SDK
+path) remains an open question, not a confirmed escape route, until someone actually builds and
+runs it.
