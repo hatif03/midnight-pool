@@ -5,6 +5,20 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-08-30, real Vercel fix + resumed testnet work)
+
+- **The Vercel deploy failure is actually fixed now** (`docs/adr/0012`) — the earlier `"engines"`
+  pin was the wrong diagnosis. Once `vercel login` gave real CLI access, `vercel inspect --logs`
+  showed the true error: `src/midnight/circuit.js` imports
+  `contracts/managed/midnight-pool/contract/index.js`, which `contracts/.gitignore` excluded
+  entirely — Vercel builds from a fresh clone with no compile step, so that import always failed.
+  Fixed by un-ignoring just `managed/*/contract/` (160K, confirmed no `zkir`/`keys` dependency);
+  `compiler/`/`keys/`/`zkir/` stay gitignored. Verified for real: a genuine fresh `git clone` built
+  successfully in a Linux container, then a real `vercel --prod` deploy came back `READY` and the
+  production alias (`https://midnight-pool-one.vercel.app`) serves 200.
+- Resuming the real-testnet-submission work (previously stopped at ADR-0011's time-box) now that
+  the user has no deadline pressure — see the next entry once that concludes.
+
 ## Current state (2026-08-30, production-hardening pass)
 
 Triggered by a Vercel deploy failure plus a user-requested "make this more like a real gaming app"
