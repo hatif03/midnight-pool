@@ -15,8 +15,13 @@
  *   3. isolation + negative z-index on the pseudos keeps the label on top without a wrapper span.
  *
  * touch-action is explicit because body sets `touch-action: none` globally.
+ *
+ * `.modal .box button:not(.seg-btn)` rides along in every selector list below. The 12 modals are static markup
+ * whose buttons carry no class and are addressed positionally by main.js; aliasing them here
+ * restyles all of them at once without annotating 22 call sites or touching the JS that finds them.
  * =========================================================================== */
-.btn {
+.btn,
+.modal .box button:not(.seg-btn) {
   --t: var(--green-t);
   --b: var(--green-b);
   --e: var(--green-e);
@@ -43,7 +48,8 @@
   transition: transform .09s var(--ease), box-shadow .09s var(--ease), filter .15s;
 }
 
-.btn::before {
+.btn::before,
+.modal .box button:not(.seg-btn)::before {
   content: '';
   position: absolute;
   inset: 2px 2px 48% 2px;
@@ -55,7 +61,8 @@
 }
 
 /* Dark keyline so a bright button still reads against a bright sunburst. */
-.btn::after {
+.btn::after,
+.modal .box button:not(.seg-btn)::after {
   content: '';
   position: absolute;
   inset: -2px;
@@ -65,21 +72,25 @@
 }
 
 @media (hover: hover) {
-  .btn:hover { filter: brightness(1.07); }
+  .btn:hover,
+  .modal .box button:not(.seg-btn):hover { filter: brightness(1.07); }
 }
 
 .btn:active,
-.btn.is-pressed {
+.btn.is-pressed,
+.modal .box button:not(.seg-btn):active {
   transform: translateY(5px);
   box-shadow: var(--inset-lip), 0 1px 0 0 var(--e), 0 2px 4px rgba(20, 8, 0, .35);
 }
 
-.btn:disabled {
+.btn:disabled,
+.modal .box button:not(.seg-btn):disabled {
   filter: grayscale(.7) brightness(.85);
   cursor: not-allowed;
 }
 
-.btn:focus-visible {
+.btn:focus-visible,
+.modal .box button:not(.seg-btn):focus-visible {
   outline: 3px solid var(--gold-t);
   outline-offset: 3px;
 }
@@ -124,6 +135,25 @@
   width: 1.1em;
   height: 1.1em;
   fill: currentColor;
+}
+
+.btn--compact {
+  font-size: var(--fs-micro);
+  padding: .55em .9em;
+  border-radius: var(--r-s);
+  box-shadow: var(--inset-lip), 0 4px 0 0 var(--e), 0 6px 10px rgba(20, 8, 0, .34);
+}
+
+.btn--compact::before {
+  border-radius: calc(var(--r-s) - 2px) calc(var(--r-s) - 2px) 40% 40% /
+                 calc(var(--r-s) - 2px) calc(var(--r-s) - 2px) 100% 100%;
+}
+
+.btn--compact::after { border-radius: calc(var(--r-s) + 2px); }
+
+.btn--compact:active {
+  transform: translateY(3px);
+  box-shadow: var(--inset-lip), 0 1px 0 0 var(--e), 0 2px 4px rgba(20, 8, 0, .35);
 }
 
 .btn--block { width: 100%; }

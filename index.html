@@ -135,7 +135,7 @@
       <div class="box">
         <p data-i18n="notifQuestion">¿Deseas habilitar las notificaciones para saber cuando es tu turno si estás haciendo otras cosas?</p>
         <div class="row">
-          <button class="primary" id="notif-accept" data-i18n="accept">Aceptar</button>
+          <button class="btn btn--green" id="notif-accept" data-i18n="accept">Aceptar</button>
           <button id="notif-reject" data-i18n="reject">Rechazar</button>
         </div>
       </div>
@@ -145,7 +145,7 @@
       <div class="box">
         <p id="confirm-text">¿Estás seguro de que quieres reiniciar la partida?</p>
         <div class="row">
-          <button class="primary" id="confirm-accept" data-i18n="accept">Aceptar</button>
+          <button class="btn btn--green" id="confirm-accept" data-i18n="accept">Aceptar</button>
           <button id="confirm-reject" data-i18n="reject">Rechazar</button>
         </div>
       </div>
@@ -155,7 +155,7 @@
       <div class="box">
         <p id="gameover-text">You won.</p>
         <div class="row">
-          <button class="primary" id="gameover-rematch" data-i18n="rematch">Rematch</button>
+          <button class="btn btn--green" id="gameover-rematch" data-i18n="rematch">Rematch</button>
           <button id="gameover-menu" data-i18n="menu">Menu</button>
         </div>
       </div>
@@ -163,11 +163,11 @@
 
     <div id="daily-modal" class="modal">
       <div class="box">
-        <p data-i18n="dailyRewardTitle">Daily Reward</p>
+        <p class="box-title" data-i18n="dailyRewardTitle">Daily Reward</p>
         <div id="daily-days" class="pip-row"></div>
         <div class="status" id="daily-status"></div>
         <div class="row">
-          <button class="primary" id="daily-claim" data-i18n="claim">Claim</button>
+          <button class="btn btn--green" id="daily-claim" data-i18n="claim">Claim</button>
           <button data-close="daily-modal" data-i18n="close">Close</button>
         </div>
       </div>
@@ -175,7 +175,7 @@
 
     <div id="cues-modal" class="modal">
       <div class="box">
-        <p data-i18n="cuesTitle">Cues</p>
+        <p class="box-title" data-i18n="cuesTitle">Cues</p>
         <div id="cues-list" class="item-list"></div>
         <div class="row">
           <button data-close="cues-modal" data-i18n="close">Close</button>
@@ -185,7 +185,7 @@
 
     <div id="leagues-modal" class="modal">
       <div class="box">
-        <p data-i18n="leaguesTitle">Leagues</p>
+        <p class="box-title" data-i18n="leaguesTitle">Leagues</p>
         <div class="status" id="leagues-hint" data-i18n="leaguesHint">Each check privately proves you meet that tier's threshold — your exact level/wins are never shown, only pass/fail.</div>
         <div id="leagues-list" class="item-list"></div>
         <div class="row">
@@ -196,11 +196,11 @@
 
     <div id="pass-modal" class="modal">
       <div class="box">
-        <p data-i18n="passTitle">Pool Pass</p>
+        <p class="box-title" data-i18n="passTitle">Pool Pass</p>
         <div class="status" id="pass-status"></div>
         <div id="pass-tiers" class="item-list"></div>
         <div class="row">
-          <button class="primary" id="pass-claim" data-i18n="claim">Claim</button>
+          <button class="btn btn--green" id="pass-claim" data-i18n="claim">Claim</button>
           <button id="pass-unlock" data-i18n="unlockPremium">Unlock Premium</button>
         </div>
         <div class="row">
@@ -211,7 +211,7 @@
 
     <div id="shop-modal" class="modal">
       <div class="box">
-        <p data-i18n="shopTitle">Shop</p>
+        <p class="box-title" data-i18n="shopTitle">Shop</p>
         <div class="row">
           <button id="buy-silver">Silver — 10 💵</button>
           <button id="buy-gold">Gold — 25 💵</button>
@@ -229,14 +229,14 @@
       <div class="box">
         <p id="reveal-text">You got 100 coins!</p>
         <div class="row">
-          <button class="primary" data-close="reveal-modal" data-i18n="ok">OK</button>
+          <button class="btn btn--green" data-close="reveal-modal" data-i18n="ok">OK</button>
         </div>
       </div>
     </div>
 
     <div id="audit-modal" class="modal">
       <div class="box">
-        <p data-i18n="auditTitle">Midnight Activity</p>
+        <p class="box-title" data-i18n="auditTitle">Midnight Activity</p>
         <div id="audit-list" class="item-list"></div>
         <div class="row">
           <button data-close="audit-modal" data-i18n="close">Close</button>
@@ -246,7 +246,7 @@
 
     <div id="settings-modal" class="modal">
       <div class="box">
-        <p data-i18n="settings">Settings</p>
+        <p class="box-title" data-i18n="settings">Settings</p>
         <div id="settings">
           <span class="set-label" data-i18n="nickname">Nickname</span>
           <input id="nickname-input" maxlength="16" autocomplete="off" spellcheck="false" />
@@ -260,10 +260,10 @@
             <span data-i18n="vibrateOnTurn">Vibrate on your turn</span>
           </label>
           <span class="set-label" data-i18n="midnightSection">Midnight</span>
-          <button class="glass small" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
+          <button class="btn btn--blue btn--compact" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
           <div class="status" id="mn-wallet-status"></div>
-          <button class="glass small" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
-          <button class="glass small" id="btn-mn-champion" data-i18n="championBadge">Cross-Chain Champion Badge</button>
+          <button class="btn btn--blue btn--compact" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
+          <button class="btn btn--blue btn--compact" id="btn-mn-champion" data-i18n="championBadge">Cross-Chain Champion Badge</button>
         </div>
         <div class="row">
           <button data-close="settings-modal" data-i18n="close">Close</button>
@@ -273,11 +273,11 @@
 
     <div id="champion-modal" class="modal">
       <div class="box">
-        <p data-i18n="championTitle">Cross-Chain Champion Badge</p>
+        <p class="box-title" data-i18n="championTitle">Cross-Chain Champion Badge</p>
         <div class="status" id="champion-hint" data-i18n="championHint">Runs the real proveThreshold circuit in your browser (no server, no chain submission yet).</div>
         <div id="champion-result" class="item-list"></div>
         <div class="row">
-          <button class="glass primary small" id="btn-champion-prove" data-i18n="checkEligibility">Check Eligibility</button>
+          <button class="btn btn--green btn--compact" id="btn-champion-prove" data-i18n="checkEligibility">Check Eligibility</button>
         </div>
         <div class="status" id="champion-cli-note" data-i18n="championCliNote">For the fully verified two-chain version (a real EVM contract too), run: npx tsx contracts/cross-chain-join.ts</div>
         <div class="row">
@@ -294,7 +294,7 @@
         </div>
         <div id="install-banner" hidden>
           <span class="install-text"></span>
-          <button class="glass small" id="btn-install" data-i18n="installBtn">Instalar</button>
+          <button class="btn btn--blue btn--compact" id="btn-install" data-i18n="installBtn">Instalar</button>
           <button class="install-dismiss" id="btn-install-dismiss" aria-label="Dismiss">✕</button>
         </div>
         <div id="wallet-bar">
@@ -303,33 +303,33 @@
           <span class="wallet-chip">Lv. <b id="wallet-level">1</b></span>
           <span class="wallet-chip" id="wallet-record">—</span>
         </div>
-        <button class="glass primary" id="btn-play" data-i18n="play">Jugar</button>
+        <button class="btn btn--green" id="btn-play" data-i18n="play">Jugar</button>
         <div id="menu-extras">
-          <button class="glass small" id="btn-daily" title="Daily Reward">🎁</button>
-          <button class="glass small" id="btn-cues" title="Cues">🎱</button>
-          <button class="glass small" id="btn-pass" title="Pool Pass">📈</button>
-          <button class="glass small" id="btn-leagues" title="Leagues">🏆</button>
-          <button class="glass small" id="btn-shop" title="Shop">🛒</button>
-          <button class="glass small" id="btn-settings" title="Settings">⚙️</button>
-          <button class="glass small" id="btn-quit" title="Quit">🚪</button>
+          <button class="btn btn--blue btn--compact" id="btn-daily" title="Daily Reward">🎁</button>
+          <button class="btn btn--blue btn--compact" id="btn-cues" title="Cues">🎱</button>
+          <button class="btn btn--blue btn--compact" id="btn-pass" title="Pool Pass">📈</button>
+          <button class="btn btn--blue btn--compact" id="btn-leagues" title="Leagues">🏆</button>
+          <button class="btn btn--blue btn--compact" id="btn-shop" title="Shop">🛒</button>
+          <button class="btn btn--blue btn--compact" id="btn-settings" title="Settings">⚙️</button>
+          <button class="btn btn--blue btn--compact" id="btn-quit" title="Quit">🚪</button>
         </div>
       </div>
 
       <div class="screen" id="screen-mode">
-        <button class="glass primary" id="btn-solo" data-i18n="solo">Solo</button>
-        <button class="glass" id="btn-multi" data-i18n="multiplayer">Multijugador</button>
-        <button class="glass small" data-back="screen-main" data-i18n="back">Volver</button>
+        <button class="btn btn--green" id="btn-solo" data-i18n="solo">Solo</button>
+        <button class="btn btn--blue" id="btn-multi" data-i18n="multiplayer">Multijugador</button>
+        <button class="btn btn--blue btn--compact" data-back="screen-main" data-i18n="back">Volver</button>
       </div>
 
       <div class="screen" id="screen-mp">
-        <button class="glass primary" id="btn-create" data-i18n="create">Crear partida</button>
-        <button class="glass" id="btn-join" data-i18n="join">Unirse a partida</button>
+        <button class="btn btn--green" id="btn-create" data-i18n="create">Crear partida</button>
+        <button class="btn btn--blue" id="btn-join" data-i18n="join">Unirse a partida</button>
         <label class="check-row">
           <input type="checkbox" id="ranked-toggle" />
           <span data-i18n="rankedToggle">Ranked (privately prove level ≥ 5)</span>
         </label>
-        <button class="glass" id="btn-quick" data-i18n="quickMatch">Partida rápida</button>
-        <button class="glass small" data-back="screen-mode" data-i18n="back">Volver</button>
+        <button class="btn btn--blue" id="btn-quick" data-i18n="quickMatch">Partida rápida</button>
+        <button class="btn btn--blue btn--compact" data-back="screen-mode" data-i18n="back">Volver</button>
       </div>
 
       <div class="screen" id="screen-quick">
@@ -337,7 +337,7 @@
           <div class="hint" data-i18n="quickHint">Buscando un rival al azar…</div>
           <div class="status" id="quick-status"></div>
         </div>
-        <button class="glass small" id="btn-quick-cancel" data-i18n="cancel">Cancelar</button>
+        <button class="btn btn--blue btn--compact" id="btn-quick-cancel" data-i18n="cancel">Cancelar</button>
       </div>
 
       <div class="screen" id="screen-host">
@@ -347,19 +347,19 @@
           <input id="stake-amount" type="number" min="0" step="10" value="0" />
           <div class="code" id="host-code">····</div>
           <canvas id="host-qr"></canvas>
-          <button class="glass primary small" id="btn-share" data-i18n="share">Compartir</button>
+          <button class="btn btn--green btn--compact" id="btn-share" data-i18n="share">Compartir</button>
         </div>
-        <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
+        <button class="btn btn--blue btn--compact" data-back="screen-mp" data-i18n="back">Volver</button>
       </div>
 
       <div class="screen" id="screen-join">
         <div class="panel">
           <div class="hint" data-i18n="joinHint">Escribe el código de la sala.</div>
           <input id="join-code" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" />
-          <button class="glass primary" id="btn-connect" data-i18n="connect">Conectar</button>
+          <button class="btn btn--green" id="btn-connect" data-i18n="connect">Conectar</button>
           <div class="status" id="join-status"></div>
         </div>
-        <button class="glass small" data-back="screen-mp" data-i18n="back">Volver</button>
+        <button class="btn btn--blue btn--compact" data-back="screen-mp" data-i18n="back">Volver</button>
       </div>
     </div>
 

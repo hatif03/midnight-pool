@@ -1,12 +1,26 @@
+/* What's left of the original inline stylesheet (docs/adr/0014).
+ *
+ * Everything here is waiting for its phase of the overhaul. It must reach zero lines before the
+ * overhaul is done -- a non-empty legacy.css at the end means a surface was missed.
+ *
+ * Migrated out so far:
+ *   phase 2  modals, panels, settings, list rows, rotate gate  -> modals.css
+ *   phase 2  .glass buttons                                    -> components.css (.btn)
+ *
+ * Still here:
+ *   phase 3  #menu background, .brand, .screen, install banner, wallet chips, #menu-extras
+ *   phase 5  #hud and everything in it, #hint, #toast, #banner
+ *   phase 7  #spin-widget
+ */
+
 :root {
+  /* Only the not-yet-migrated surfaces still read these. Deleted with the last of them. */
   --glass-bg: rgba(255,255,255,.08);
   --glass-bg-hover: rgba(255,255,255,.16);
   --glass-border: rgba(255,255,255,.22);
   --glass-blur: blur(18px);
   --glass-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.22);
   --accent: #a366ff;
-  --accent-soft: rgba(163,102,255,.35);
-  --ease: cubic-bezier(.22,1,.36,1);
 }
 html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; overscroll-behavior: none;
   font-family: system-ui, 'Segoe UI', sans-serif; color: #fff; touch-action: none; }
@@ -21,7 +35,9 @@ html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; ove
   max-width: 100%; max-height: 100%; touch-action: none; }
 #app canvas:active { cursor: grabbing; }
 
-.glass, .panel, #hud .pill, #hud button, #toast, .modal .box, .panel input {
+/* Narrowed from the original composite rule: .glass, .panel, .modal .box and .panel input have all
+   moved to opaque paint, leaving only the HUD and toast still on glass until phase 5. */
+#hud .pill, #hud button, #toast {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
@@ -55,29 +71,11 @@ html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; ove
   text-shadow: 0 8px 36px rgba(0,0,0,.5);
   filter: drop-shadow(0 0 36px rgba(163,102,255,.35));
 }
-.brand .sub { margin-top: clamp(2px, .8dvh, 8px); font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: #c9a8ff; opacity: .8; }
 
 .screen { display: none; flex-direction: column; align-items: center; gap: clamp(6px, 1.6dvh, 14px); }
 .screen.active { display: flex; animation: screenIn .35s var(--ease) both; }
 @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-.glass {
-  position: relative; overflow: hidden;
-  width: min(300px, 70dvw); padding: clamp(8px, 2dvh, 16px) 0; font-size: clamp(14px, 3.4dvh, 18px);
-  font-weight: 600; color: #fff; text-align: center;
-  border-radius: 14px; cursor: pointer;
-  transition: background .18s var(--ease), transform .12s var(--ease), box-shadow .18s var(--ease), border-color .18s;
-}
-.glass::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.22) 50%, transparent 60%);
-  transform: translateX(-120%); transition: transform .55s var(--ease);
-}
-.glass:hover { background: var(--glass-bg-hover); transform: translateY(-2px); border-color: rgba(255,255,255,.4);
-  box-shadow: 0 16px 34px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3), 0 0 0 1px rgba(255,255,255,.06); }
-.glass:hover::before { transform: translateX(120%); }
-.glass:active { transform: scale(.97); }
-.glass.small { width: 150px; font-size: clamp(13px, 2.6dvh, 15px); padding: clamp(6px, 1.6dvh, 12px) 0; }
 #install-banner { display: flex; align-items: center; gap: 8px; max-width: 92dvw;
   padding: 8px 10px; border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
   font-size: clamp(11px, 2.2dvh, 13px); color: #f2ecff; }
@@ -91,53 +89,6 @@ html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; ove
   background: var(--glass-bg); border: 1px solid var(--glass-border); }
 .wallet-chip b { color: var(--accent); }
 #menu-extras { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 90dvw; }
-#menu-extras .glass.small { width: clamp(38px, 8dvh, 52px); font-size: clamp(15px, 3dvh, 20px);
-  padding: clamp(6px, 1.4dvh, 10px) 0; }
-.glass.primary { background: linear-gradient(135deg, rgba(163,102,255,.32), rgba(106,47,217,.22)); border-color: rgba(201,168,255,.55); }
-.glass.primary:hover { background: linear-gradient(135deg, rgba(163,102,255,.44), rgba(106,47,217,.32)); }
-
-/* Lives inside #settings-modal's .box now (a real modal, not an inline panel that used to
-   compete with the main menu for vertical space) — just the internal layout, no second
-   glass background on top of the modal box's own. */
-#settings { display: flex; flex-direction: column; align-items: stretch; gap: 14px;
-  color: #f2ecff; margin-top: 14px; text-align: left; }
-#settings .set-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: .75; text-align: center; }
-.seg { display: flex; gap: 6px; padding: 5px; border-radius: 13px; background: rgba(0,0,0,.3); }
-.seg-btn { flex: 1; padding: 11px 0; border: none; border-radius: 9px; cursor: pointer;
-  font-family: inherit; font-size: 15px; color: #d8cfe9; background: transparent;
-  transition: background .15s var(--ease), color .15s, transform .08s; }
-.seg-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
-.seg-btn:active { transform: scale(.96); }
-.seg-btn.active { background: linear-gradient(135deg, rgba(163,102,255,.45), rgba(106,47,217,.32));
-  color: #fff; font-weight: 700; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 0 14px rgba(163,102,255,.25); }
-@keyframes settleIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
-#nickname-input {
-  font-family: inherit; font-size: 15px; text-align: center; color: #fff; outline: none;
-  width: 100%; padding: 10px 0; border-radius: 10px; box-sizing: border-box;
-  background: rgba(0,0,0,.25); border: 1px solid var(--glass-border);
-  transition: border-color .15s, box-shadow .15s;
-}
-#nickname-input:focus { border-color: rgba(201,168,255,.7); box-shadow: 0 0 0 3px rgba(163,102,255,.18); }
-.check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #d8cfe9;
-  cursor: pointer; justify-content: center; }
-.check-row input { accent-color: #a366ff; }
-
-.panel { display: flex; flex-direction: column; gap: clamp(6px, 1.6dvh, 14px); align-items: center;
-  width: 340px; max-width: calc(100vw - 32px); padding: clamp(12px, 3dvh, 28px); border-radius: 18px; box-sizing: border-box; }
-.panel .hint { font-size: clamp(12px, 2.6dvh, 15px); opacity: .85; text-align: center; }
-.code { font-size: clamp(30px, 8dvh, 54px); font-weight: 800; letter-spacing: 12px; color: var(--accent);
-  font-family: ui-monospace, monospace; padding: 4px 0 4px 12px;
-  text-shadow: 0 0 24px rgba(163,102,255,.5); }
-#host-qr { width: clamp(96px, 22dvh, 160px) !important; height: clamp(96px, 22dvh, 160px) !important; }
-.panel input {
-  font-family: ui-monospace, monospace; font-size: clamp(18px, 5dvh, 28px); letter-spacing: 10px; text-align: center; text-transform: uppercase;
-  width: 100%; padding: clamp(6px, 1.6dvh, 12px) 0; border-radius: 12px; color: #fff; outline: none; box-sizing: border-box;
-  transition: border-color .15s, box-shadow .15s;
-}
-.panel input:focus { border-color: rgba(201,168,255,.7); box-shadow: 0 0 0 3px rgba(163,102,255,.18); }
-.status { font-size: 13px; min-height: 18px; color: #d2bff5; text-align: center; }
-.status.error { color: #ff9b9b; }
-#host-qr { border-radius: 12px; background: #fff; padding: 8px; box-sizing: border-box; }
 
 #hud {
   position: fixed; top: 0; left: 0; right: 0; z-index: 5;
@@ -225,74 +176,6 @@ html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; ove
   78% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.1); }
 }
-
-.modal { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-.modal.show { display: flex; animation: modalIn .2s var(--ease); }
-@keyframes modalIn { from { opacity: 0; } to { opacity: 1; } }
-.modal .box { width: 380px; max-width: 86vw; max-height: 90dvh; overflow-y: auto;
-  padding: 26px; border-radius: 18px; text-align: center;
-  animation: settleIn .25s var(--ease); }
-.modal .box p { margin: 0 0 22px; font-size: 16px; line-height: 1.6; }
-.modal .box .row { display: flex; gap: 12px; justify-content: center; }
-.modal .box button {
-  flex: 1; font-family: inherit; font-size: 15px; font-weight: 600; color: #fff; padding: 12px 0; cursor: pointer;
-  border-radius: 12px; background: rgba(255,255,255,.1); border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  transition: background .15s var(--ease), transform .08s;
-}
-.modal .box button:hover { background: var(--glass-bg-hover); }
-.modal .box button:active { transform: scale(.95); }
-.modal .box button.primary { background: rgba(163,102,255,.32); border-color: rgba(201,168,255,.6); }
-.modal .box button:disabled { opacity: .4; cursor: not-allowed; }
-.modal .box .set-label { display: block; margin: 14px 0 8px; }
-
-.pip-row { display: flex; gap: 6px; justify-content: center; margin: 14px 0; }
-.pip-row .pip { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center;
-  justify-content: center; font-size: 12px; font-weight: 700; background: rgba(0,0,0,.3);
-  border: 1px solid var(--glass-border); }
-.pip-row .pip.done { background: rgba(163,102,255,.35); border-color: rgba(201,168,255,.6); }
-.pip-row .pip.today { border-color: var(--accent); box-shadow: 0 0 10px rgba(163,102,255,.4); }
-
-.item-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
-  margin-bottom: 16px; }
-.item-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.05);
-  border: 1px solid var(--glass-border); text-align: left; }
-.item-row .info { display: flex; flex-direction: column; gap: 2px; }
-.item-row .info .name { font-weight: 700; font-size: 14px; }
-.item-row .info .sub { font-size: 11px; opacity: .7; }
-.item-row button { flex-shrink: 0; padding: 8px 14px; font-size: 12px; width: auto; }
-
-/* Cue rarity as a status-symbol border (8 Ball Pool-style flex), standard convention:
-   gray/green/blue/purple for common/uncommon/rare/epic. */
-.item-row.rarity-common { border-left: 3px solid #9ca3af; }
-.item-row.rarity-uncommon { border-left: 3px solid #4ade80; }
-.item-row.rarity-rare { border-left: 3px solid #60a5fa; }
-.item-row.rarity-epic { border-left: 3px solid #c084fc; }
-.midnight-badge { font-size: 10px; color: var(--accent); border: 1px solid var(--glass-border);
-  border-radius: 6px; padding: 1px 5px; margin-left: 6px; white-space: nowrap; }
-
-.league-row .status-icon { font-size: 16px; margin-right: 4px; }
-
-/* This is a landscape-only game: the table is too small to be comfortable in portrait at
-   any screen size, not just on phones — so no width cutoff here, purely orientation-based.
-   CSS-only (not JS/orientation-lock) because the Screen Orientation Lock API isn't supported
-   on iOS Safari at all, even for an installed PWA — this works identically everywhere. */
-#rotate-overlay {
-  display: none; position: fixed; inset: 0; z-index: 9999;
-  flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background: #0a0714; color: #f2ecff; text-align: center; padding: 0 32px;
-}
-@media (orientation: portrait) {
-  #rotate-overlay { display: flex; }
-}
-#rotate-overlay .icon { font-size: 64px; animation: rotateHint 1.8s ease-in-out infinite; }
-@keyframes rotateHint {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(90deg); }
-}
-#rotate-overlay p { margin: 0; font-size: 16px; line-height: 1.6; max-width: 320px; opacity: .85; }
 
 /* Continuous touch-point spin control — a cue-ball-face proxy you drag on directly, rather
    than picking from fixed presets. Offset from center = spin direction/strength, clamped to

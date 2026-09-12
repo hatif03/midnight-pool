@@ -1,0 +1,352 @@
+/* Modals, panels and the shared chrome they sit on (docs/adr/0014).
+ *
+ * Supersedes the glassmorphism block that styled `.glass, .panel, #hud .pill, #hud button, #toast,
+ * .modal .box, .panel input` from one rule. That rule put backdrop-filter: blur(18px) on twelve
+ * modal surfaces plus every HUD pill; the replacement is opaque paint, which is both the target look
+ * and materially cheaper to composite on a phone.
+ *
+ * The only blur kept anywhere is 3px on the modal scrim: one element, shown briefly.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Modal shell
+ * ------------------------------------------------------------------------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.modal.show { display: flex; animation: modalIn .2s var(--ease); }
+@keyframes modalIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal .box {
+  width: 380px;
+  max-width: 86vw;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: clamp(14px, 3.4dvh, 26px);
+  border-radius: var(--r-l);
+  text-align: center;
+  box-sizing: border-box;
+  color: var(--paper);
+  background:
+    radial-gradient(130% 60% at 50% 0%, rgba(255, 255, 255, .16), transparent 60%),
+    linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border: 2px solid var(--panel-line);
+  box-shadow: var(--e-3), inset 0 2px 0 rgba(255, 255, 255, .2);
+  animation: settleIn .25s var(--ease);
+}
+
+@keyframes settleIn {
+  from { opacity: 0; transform: translateY(-6px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.modal .box h2,
+.modal .box .box-title {
+  margin: 0 0 .5em;
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  text-transform: uppercase;
+  color: var(--gold-t);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .4);
+}
+
+.modal .box p {
+  margin: 0 0 18px;
+  font-size: var(--fs-label);
+  line-height: 1.6;
+  color: var(--paper);
+}
+
+.modal .box .row { display: flex; gap: 10px; justify-content: center; }
+.modal .box .row button { flex: 1; }
+.modal .box .set-label { display: block; margin: 14px 0 8px; }
+
+/* ---------------------------------------------------------------------------
+ * .panel — the create/join/quick-match cards inside #menu
+ * ------------------------------------------------------------------------- */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.6dvh, 14px);
+  align-items: center;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: clamp(12px, 3dvh, 28px);
+  border-radius: var(--r-l);
+  box-sizing: border-box;
+  color: var(--paper);
+  background:
+    radial-gradient(130% 60% at 50% 0%, rgba(255, 255, 255, .16), transparent 60%),
+    linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border: 2px solid var(--panel-line);
+  box-shadow: var(--e-3), inset 0 2px 0 rgba(255, 255, 255, .2);
+}
+
+.panel .hint { font-size: var(--fs-label); opacity: .85; text-align: center; }
+
+/* The room code is the thing people read aloud over a call — it gets the display face and the
+   widest tracking that still fits a 340px card. */
+.code {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 8dvh, 54px);
+  letter-spacing: 10px;
+  padding: 4px 0 4px 10px;
+  color: var(--gold-t);
+  text-shadow: 0 3px 0 var(--gold-e), 0 0 24px rgba(255, 201, 77, .45);
+}
+
+.panel input {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 5dvh, 28px);
+  letter-spacing: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  width: 100%;
+  padding: clamp(6px, 1.6dvh, 12px) 0;
+  border-radius: var(--r-m);
+  color: var(--paper);
+  outline: none;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, .38);
+  border: 2px solid var(--panel-line);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .5);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.panel input:focus {
+  border-color: var(--gold-t);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .5), 0 0 0 3px rgba(255, 201, 77, .25);
+}
+
+.status { font-size: var(--fs-label); min-height: 18px; color: var(--paper-dim); text-align: center; }
+.status.error { color: #ff9b9b; }
+
+#host-qr {
+  width: clamp(96px, 22dvh, 160px) !important;
+  height: clamp(96px, 22dvh, 160px) !important;
+  border-radius: var(--r-s);
+  background: #fff;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------------------------
+ * Settings internals
+ * ------------------------------------------------------------------------- */
+#settings {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  color: var(--paper);
+  margin-top: 14px;
+  text-align: left;
+}
+
+#settings .set-label,
+.set-label {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold-t);
+  opacity: .9;
+  text-align: center;
+}
+
+.seg {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--r-m);
+  background: rgba(0, 0, 0, .38);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .5);
+}
+
+.seg-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  color: var(--paper-dim);
+  background: transparent;
+  transition: background .15s var(--ease), color .15s, transform .08s;
+}
+
+.seg-btn:hover { background: rgba(255, 255, 255, .1); color: var(--paper); }
+.seg-btn:active { transform: scale(.96); }
+
+.seg-btn.active {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: var(--inset-lip), 0 2px 0 var(--gold-e);
+}
+
+#nickname-input {
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  text-align: center;
+  color: var(--paper);
+  outline: none;
+  width: 100%;
+  padding: 10px 0;
+  border-radius: var(--r-s);
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, .38);
+  border: 2px solid var(--panel-line);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+#nickname-input:focus {
+  border-color: var(--gold-t);
+  box-shadow: 0 0 0 3px rgba(255, 201, 77, .25);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-label);
+  color: var(--paper-dim);
+  cursor: pointer;
+  justify-content: center;
+}
+
+.check-row input { accent-color: var(--gold-b); }
+
+/* ---------------------------------------------------------------------------
+ * List rows — daily pips, cue rack, leagues, pass tiers, loyalty shop, audit log
+ * ------------------------------------------------------------------------- */
+.pip-row { display: flex; gap: 6px; justify-content: center; margin: 14px 0; }
+
+.pip-row .pip {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--paper-dim);
+  background: rgba(0, 0, 0, .38);
+  border: 1px solid var(--panel-line);
+}
+
+.pip-row .pip.done {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  border-color: var(--gold-e);
+}
+
+.pip-row .pip.today {
+  border-color: var(--gold-t);
+  box-shadow: 0 0 10px rgba(255, 201, 77, .5);
+}
+
+.item-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-s);
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid var(--panel-line);
+  text-align: left;
+}
+
+.item-row .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.item-row .info .name { font-family: var(--font-display); font-size: var(--fs-label); color: var(--paper); }
+.item-row .info .sub { font-size: var(--fs-micro); color: var(--paper-dim); }
+.item-row button { flex-shrink: 0; width: auto; }
+
+/* Cue rarity as a status-symbol border, standard convention:
+   grey/green/blue/purple for common/uncommon/rare/epic. */
+.item-row.rarity-common { border-left: 3px solid #9ca3af; }
+.item-row.rarity-uncommon { border-left: 3px solid #4ade80; }
+.item-row.rarity-rare { border-left: 3px solid #60a5fa; }
+.item-row.rarity-epic { border-left: 3px solid #c084fc; }
+
+.midnight-badge {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--purple-t), var(--purple-b));
+  border-radius: var(--r-pill);
+  padding: 1px 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.league-row .status-icon { font-size: 16px; margin-right: 4px; }
+
+/* ---------------------------------------------------------------------------
+ * Rotate gate
+ *
+ * Landscape-only: the table is too small to be comfortable in portrait at any screen size, so this
+ * is orientation-based with no width cutoff. CSS rather than the Screen Orientation Lock API
+ * because iOS Safari does not support that API at all, even for an installed PWA.
+ * ------------------------------------------------------------------------- */
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 0 32px;
+  color: var(--paper);
+  background: radial-gradient(circle at 50% 40%, var(--sun-mid), var(--sun-edge) 75%, #6d2103 100%);
+}
+
+@media (orientation: portrait) {
+  #rotate-overlay { display: flex; }
+}
+
+#rotate-overlay .icon { font-size: 64px; animation: rotateHint 1.8s ease-in-out infinite; }
+
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+
+#rotate-overlay p {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  line-height: 1.5;
+  max-width: 320px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #rotate-overlay .icon { animation: none; }
+}

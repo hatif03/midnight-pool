@@ -1000,6 +1000,7 @@ function renderCuesModal() {
     info.innerHTML = `<span class="name">${cue.name}${verifiedBadge}</span><span class="sub">Power +${Math.round((cue.powerMult - 1) * 100)}% · Aim +${cue.aimBonus} · Spin ${spinTxt}</span>`;
     row.appendChild(info);
     const btn = document.createElement('button');
+    btn.className = 'btn btn--compact';
     if (equipped) {
       btn.textContent = t('equipped');
       btn.disabled = true;
@@ -1076,6 +1077,7 @@ function renderLoyaltyList() {
     row.className = 'item-row';
     row.innerHTML = `<div class="info"><span class="name">${item.name}</span><span class="sub">${item.cost} pts</span></div>`;
     const btn = document.createElement('button');
+    btn.className = 'btn btn--compact btn--gold';
     btn.textContent = t('redeem');
     btn.disabled = !loyalty.canRedeem(profile.loyaltyPoints, item);
     btn.onclick = () => {
@@ -1295,7 +1297,12 @@ function wireMenu() {
   ui.el('gameover-rematch').onclick = () => { ui.hideGameOver(); ui.el('btn-restart').click(); };
   ui.el('gameover-menu').onclick = () => { ui.hideGameOver(); ui.el('btn-menu').click(); };
 
-  document.querySelectorAll('.glass').forEach((b) => b.addEventListener('pointerenter', () => audio.uiHover()));
+  // Delegated rather than bound per-element at startup (docs/adr/0014): the old querySelectorAll
+  // ran once over the static markup, so every row main.js builds later -- cue rack, league list,
+  // pass tiers, loyalty shop -- never made a hover sound. pointerover bubbles, pointerenter does not.
+  document.addEventListener('pointerover', (e) => {
+    if (e.target.closest('.btn, .tile, .seg-btn')) audio.uiHover();
+  });
 }
 
 main();
