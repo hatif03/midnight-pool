@@ -139,7 +139,7 @@ runs it.
 Given three options (get third-party API credentials to build Lace; reverse-engineer manual
 UTXO/transaction construction to bypass `WalletFacade` entirely; stop and report), the user chose
 to stop. Filed as
-[midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370) — a
+[midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704) — a
 full writeup with exact versions, the instrumented reproduction, and both control experiments, so
 the finding isn't lost. Real on-chain testnet submission stays deferred, unchanged from
 `docs/adr/0006`'s original scoping; the local-devnet/mock-mode Midnight story remains this

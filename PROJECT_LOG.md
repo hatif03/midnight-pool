@@ -14,7 +14,7 @@ reasoning behind any decision marked with an ADR link.
 - **`hackathon.md` (Devpost submission copy) revised for accuracy**, checked against a real prior-art
   submission's structure ([Midnight Among Us](https://devpost.com/software/midnight-among-us)):
   added the real local-devnet deploy + cross-chain join, rewrote the Preprod story from "we stopped"
-  to "we root-caused it and filed [midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370)",
+  to "we root-caused it and filed [midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704)",
   added the Vercel misdiagnosis as an honest challenges story, and added the PWA install prompt.
 - **PWA install prompt shipped** (`src/pwaInstall.js`): a real install button via
   `beforeinstallprompt` on Android/Chrome; a "tap Share → Add to Home Screen" instruction on iOS
@@ -52,7 +52,7 @@ reasoning behind any decision marked with an ADR link.
   replacement crashes identically) and independent of the reconnect-log noise (a local-devnet
   control run logs the same line, then syncs fine). Quantified against Preprod's real chain height
   (2,330,285 blocks): would need on the order of hundreds of GB of RAM to complete — not viable.
-  Filed upstream: [midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370).
+  Filed upstream: [midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704).
   User chose to stop pursuing public-testnet submission at that point.
 - **Real contract deploy + circuit calls on the local devnet — genuinely working** (`docs/adr/0013`),
   prompted by the user asking whether the local devnet could demo cross-chain features once public

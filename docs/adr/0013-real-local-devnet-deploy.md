@@ -6,7 +6,7 @@ Status: Accepted
 
 ADR-0011 concluded real on-chain submission wasn't viable against the public Preprod testnet — a
 genuine `wallet-sdk-facade` sync bug (filed as
-[midnightntwrk/midnight-sdk#370](https://github.com/midnightntwrk/midnight-sdk/issues/370)) leaks
+[midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704)) leaks
 memory linearly with the number of processed ledger entries, and Preprod's real 2.33M-block history
 is far beyond what any reasonable amount of RAM could get through. The user then asked whether the
 **local devnet** could demonstrate real cross-chain/Midnight functionality instead. It can, for a
