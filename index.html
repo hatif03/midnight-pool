@@ -134,6 +134,11 @@
     </div>
 
     <div id="hint" data-i18n="aimHint">Arrastra desde la bola blanca y suelta para tirar. Cuanto más estiras, más fuerza.</div>
+    <!-- Power readout as a cue stick in a rail, mirroring the reference. In DOM rather than Pixi for
+         the same reasons #spin-widget is: it needs env(safe-area-inset-*), a touch target
+         independent of the canvas's CSS scale factor, and it must not be clipped by the fixed
+         1060x560 backing store's letterbox. Driven by one --pw write per pointermove. -->
+    <div id="power-slider"><i class="fill"></i><span class="stick"></span></div>
     <div id="spin-widget"><div id="spin-dot"></div></div>
     <div id="toast"></div>
     <div id="banner"><div class="txt"></div></div>

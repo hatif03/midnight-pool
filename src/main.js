@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE, HEAD_STRING_X } from './config.js';
 import { rack, step, allStopped, shoot, placeCue } from './physics.js';
 import { groupOf, resolveShot } from './rules.js';
-import { drawTable, buildBallVisual, drawAim, drawPower, initBallTextures } from './scene.js';
+import { drawTable, buildBallVisual, drawAim, initBallTextures, makeCueSprite, placeCueStick } from './scene.js';
 import { host, join, findMatch } from './net.js';
 import * as ui from './ui.js';
 import * as audio from './audio.js';
@@ -135,6 +135,13 @@ function wireSpinGrid() {
   window.addEventListener('pointerup', () => { dragging = false; });
 }
 
+// Power readout. `show` false hides the rail entirely rather than leaving an empty one on screen.
+function setPower(frac, show = true) {
+  const el = document.getElementById('power-slider');
+  el.classList.toggle('show', show);
+  el.style.setProperty('--pw', show ? frac : 0);
+}
+
 const game = {
   mode: 'solo', myPlayer: 1, turn: 1, started: false, pendingBreakNegotiation: null,
   stakeEligible: false, stakeAmount: 0, currentMatchId: null, pendingReplay: null,
@@ -157,7 +164,9 @@ function vibrateTurn() {
   if (identity.getVibrateOnTurn() && navigator.vibrate) navigator.vibrate(200);
 }
 
-let app, ballLayer, aimLine, powerBar, powerLabel, frame = 0;
+let app, ballLayer, fxLayer, aimLine, cueStick, frame = 0;
+// { t, power, dx, dy } while the strike animation is playing, else null.
+let strike = null;
 let bannerQ = [], bannerBusy = false;
 let lastPhysics = 0;
 let shareUrl = '';
@@ -187,18 +196,17 @@ async function main() {
   document.getElementById('app').appendChild(app.canvas);
 
   app.stage.addChild(drawTable());
+  // fxLayer sits BELOW ballLayer so the cue stick passes behind the balls, which is what the
+  // reference does and what makes the stick read as lying on the cloth rather than on top of it.
+  fxLayer = new Container();
   ballLayer = new Container();
-  app.stage.addChild(ballLayer);
+  app.stage.addChild(fxLayer, ballLayer);
   aimLine = new Graphics();
-  powerBar = new Graphics();
-  // Was a hardcoded Spanish literal, so it read 'POTENCIA' in the English UI. Pixi Text is not
-  // covered by applyStatic(), so the language switch has to set it explicitly (see below).
-  powerLabel = new Text({ text: t('power').toUpperCase(), style: { fontFamily: 'Lilita One, system-ui, sans-serif', fontSize: 13, fill: 0xffffff } });
-  powerLabel.position.set(24, CANVAS_H - 40);
-  powerLabel.visible = false;
-  app.stage.addChild(aimLine, powerBar, powerLabel);
+  app.stage.addChild(aimLine);
 
   initBallTextures(app.renderer);
+  cueStick = makeCueSprite();
+  fxLayer.addChild(cueStick);
   applyStatic();
 
   const markLang = () => document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
@@ -208,7 +216,6 @@ async function main() {
     ui.el('btn-leagues').title = t('leaguesTitle');
     ui.el('btn-cues').title = t('cuesTitle');
     ui.el('btn-shop').title = t('shopTitle');
-    if (powerLabel) powerLabel.text = t('power').toUpperCase();
   };
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
     b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
@@ -350,6 +357,15 @@ function renderFrame() {
     }
     spr.position.set(ball.x, ball.y);
   }
+  // Cue strike: 75ms of forward thrust from the pulled-back position, then the stick is gone.
+  // Rides this ticker rather than adding a second loop or a tween library.
+  if (strike) {
+    strike.t += 1 / 60;
+    const k = Math.min(1, strike.t / 0.075);
+    placeCueStick(cueStick, game.cue, strike.dx, strike.dy, strike.power * (1 - k) - k * 0.04);
+    if (strike.t > 0.13) { strike = null; cueStick.visible = false; }
+  }
+
   // The ring needs the turn's full duration to render a fraction, and that duration depends on
   // whose turn it is -- each side's equipped cue carries its own timeBonus.
   const turnBase = 60 + (game.turn === game.myPlayer ? equippedCue().timeBonus : game.opponentTimeBonus);
@@ -770,8 +786,10 @@ function setupInput() {
     const p = pos(e);
     const frac = Math.min(Math.hypot(game.cue.x - p.x, game.cue.y - p.y), MAX_DRAG) / MAX_DRAG;
     const power = Math.pow(frac, POWER_CURVE);
-    drawAim(aimLine, game.cue, p.x, p.y, power, equippedCue().aimBonus);
-    drawPower(powerBar, powerLabel, power);
+    const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
+    drawAim(aimLine, game.balls, game.cue, dx, dy, equippedCue().aimBonus);
+    placeCueStick(cueStick, game.cue, dx, dy, power);
+    setPower(power);
   });
 
   window.addEventListener('pointerup', (e) => {
@@ -796,13 +814,14 @@ function setupInput() {
       const cue = equippedCue();
       const power = Math.pow(Math.min(dist, MAX_DRAG) / MAX_DRAG, POWER_CURVE) * cue.powerMult;
       const spin = { x: currentSpin.x * cue.spinCap, y: currentSpin.y * cue.spinCap };
+      strike = { t: 0, power, dx, dy };
       if (game.mode === 'guest') game.net.send({ type: 'shoot', dx, dy, power, spin });
       else doShoot(dx, dy, power, spin);
     }
     dragStart = null;
     aimLine.clear();
-    powerBar.clear();
-    powerLabel.visible = false;
+    setPower(0, false);
+    if (!strike) cueStick.visible = false;
   });
 }
 

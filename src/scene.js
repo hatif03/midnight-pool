@@ -1,6 +1,6 @@
 import { Container, Graphics, Text, Sprite, Rectangle, FillGradient } from 'pixi.js';
 import { CANVAS_W, CANVAS_H, CUSHION, TABLE_W, TABLE_H, BALL_R, POCKET_R, BALL_COLORS, HEAD_STRING_X } from './config.js';
-import { pocketPositions } from './physics.js';
+import { pocketPositions, predictShot } from './physics.js';
 
 // Table palette, mirroring the CSS tokens in src/styles/tokens.css (docs/adr/0014).
 const RAIL = [0xc96a3d, 0x9a3f22, 0x5e2313];
@@ -168,7 +168,56 @@ export function initBallTextures(renderer) {
     faces,
     overlay: bake(overlayGraphics(), R),
     shadow: bake(shadow, BALL_R + 4),
+    // Baked once like the balls, rather than rebuilt as a Graphics on every pointermove.
+    cue: renderer.generateTexture({ target: cueGraphics(), resolution: 2, antialias: true }),
+    spark: renderer.generateTexture({
+      target: new Graphics().circle(0, 0, 4).fill(0xffffff),
+      resolution: 2, antialias: true,
+    }),
   };
+}
+
+// A tapered cue, tip at x=0 so the sprite's anchor sits on the tip and pull-back is a single
+// scalar with no trigonometry at the butt end.
+const CUE_LEN = 340;
+function cueGraphics() {
+  const c = new Container();
+  const g = new Graphics();
+  const L = CUE_LEN;
+  g.poly([0, -2.6, L, -6.5, L, 6.5, 0, 2.6]).fill(0xd9a441);
+  g.poly([0, 0, L, 0, L, 6.5, 0, 2.6]).fill({ color: 0x000000, alpha: 0.22 });
+  g.poly([0, -2.6, L, -6.5, L, -3.6, 0, -1.2]).fill({ color: 0xffffff, alpha: 0.30 });
+  g.poly([L * 0.655, -5.8, L, -6.5, L, 6.5, L * 0.655, 5.8]).fill(0x5a2a12);
+  g.rect(L * 0.60, -5.6, L * 0.055, 11.2).fill(0x1c1c1c);
+  g.rect(0, -2.6, 5, 5.2).fill(0xf2ead8);
+  g.circle(2, 0, 2.4).fill(0x2f6fa8);
+  c.addChild(g);
+  return c;
+}
+
+export function makeCueSprite() {
+  const s = new Sprite(TEX.cue);
+  s.anchor.set(0, 0.5);
+  s.visible = false;
+  return s;
+}
+
+export function makeSpark() {
+  const s = new Sprite(TEX.spark);
+  s.anchor.set(0.5);
+  s.visible = false;
+  return s;
+}
+
+// Positions the stick behind the cue ball along the shot direction. `power` (0..1) sets pull-back;
+// `recoil` is used by the strike animation to drive it forward through the ball.
+export function placeCueStick(sprite, cue, dirX, dirY, power, recoil = 0) {
+  const len = Math.hypot(dirX, dirY) || 1;
+  const ux = dirX / len, uy = dirY / len;
+  const gap = BALL_R + 6 + power * 52 - recoil;
+  sprite.rotation = Math.atan2(-uy, -ux);
+  sprite.position.set(cue.x - ux * gap, cue.y - uy * gap);
+  sprite.visible = true;
 }
 
 export function buildBallVisual(ball) {
@@ -185,41 +234,42 @@ export function buildBallVisual(ball) {
   return c;
 }
 
-export function drawAim(g, cue, mx, my, power = 1, aimBonus = 0) {
+// Ghost-ball aim guide (docs/adr/0017).
+//
+// Replaces the old three-bounce rail prediction, which passed straight through other balls and so
+// lied about the most common shot in the game. What's drawn now is what actually happens: the line
+// to first contact, the ghost ball at the contact point, the object ball's departure, and the cue
+// ball's tangent deflection.
+//
+// `aimBonus` (a cue stat) extends the projected lines. That is the reference's model -- a long
+// guideline is what a better cue buys you -- and it gives the stat real competitive meaning
+// instead of "a longer bounce prediction", which is what it used to control.
+export function drawAim(g, balls, cue, dirX, dirY, aimBonus = 0) {
   g.clear();
-  g.moveTo(cue.x, cue.y).lineTo(mx, my).stroke({ width: 1, color: 0xffffff, alpha: 0.25 });
+  const p = predictShot(balls, cue, dirX, dirY);
 
-  const len = Math.hypot(cue.x - mx, cue.y - my) || 1;
-  let dx = (cue.x - mx) / len, dy = (cue.y - my) / len;
-  let x = cue.x, y = cue.y, remaining = 50 + power * 260 + aimBonus;
-  const minX = CUSHION + BALL_R, maxX = CUSHION + TABLE_W - BALL_R;
-  const minY = CUSHION + BALL_R, maxY = CUSHION + TABLE_H - BALL_R;
+  // Line from the cue ball to first contact.
+  g.moveTo(cue.x, cue.y).lineTo(p.x, p.y).stroke({ width: 2, color: 0xffffff, alpha: 0.55 });
 
-  g.moveTo(x, y);
-  for (let bounces = 0; bounces < 3 && remaining > 0; bounces++) {
-    let t = Infinity;
-    if (dx > 0) t = Math.min(t, (maxX - x) / dx);
-    else if (dx < 0) t = Math.min(t, (minX - x) / dx);
-    if (dy > 0) t = Math.min(t, (maxY - y) / dy);
-    else if (dy < 0) t = Math.min(t, (minY - y) / dy);
-    t = Math.min(t, remaining);
-    if (!isFinite(t) || t <= 0) break;
+  // The ghost: where the cue ball will be at the moment of contact.
+  g.circle(p.x, p.y, BALL_R).fill({ color: 0xffffff, alpha: 0.10 });
+  g.circle(p.x, p.y, BALL_R).stroke({ width: 1.5, color: 0xffffff, alpha: 0.85 });
 
-    const nx = x + dx * t, ny = y + dy * t;
-    g.lineTo(nx, ny);
-    remaining -= t;
-    if (Math.abs(nx - minX) < 0.6 || Math.abs(nx - maxX) < 0.6) dx = -dx;
-    if (Math.abs(ny - minY) < 0.6 || Math.abs(ny - maxY) < 0.6) dy = -dy;
-    x = nx; y = ny;
-  }
-  g.stroke({ width: 1, color: 0xff5050, alpha: 0.3 });
-}
+  if (p.kind !== 'ball') return;
 
-export function drawPower(g, label, frac) {
-  const x = 24, y = CANVAS_H - 22, w = 200, h = 12;
-  const r = Math.round(255 * frac), gr = Math.round(255 * (1 - frac));
-  g.clear();
-  g.rect(x, y, w, h).fill({ color: 0x000000, alpha: 0.5 }).stroke({ width: 1, color: 0xffffff, alpha: 0.6 });
-  g.rect(x + 1, y + 1, (w - 2) * frac, h - 2).fill((r << 16) | (gr << 8));
-  label.visible = true;
+  // Target ring on the ball being hit.
+  g.circle(p.ball.x, p.ball.y, BALL_R + 3.5).stroke({ width: 2, color: 0xffe07a, alpha: 0.8 });
+
+  // Where the object ball goes.
+  const objLen = 54 + aimBonus * 4;
+  g.moveTo(p.ball.x, p.ball.y)
+    .lineTo(p.ball.x + p.ox * objLen, p.ball.y + p.oy * objLen)
+    .stroke({ width: 2, color: 0xffe07a, alpha: 0.7 });
+
+  // Where the cue ball goes: along the tangent, on whichever side it is actually travelling.
+  const side = (p.ux * p.tx + p.uy * p.ty) >= 0 ? 1 : -1;
+  const cueLen = 34 + aimBonus * 2;
+  g.moveTo(p.x, p.y)
+    .lineTo(p.x + p.tx * side * cueLen, p.y + p.ty * side * cueLen)
+    .stroke({ width: 1.5, color: 0x9fd8ff, alpha: 0.45 });
 }

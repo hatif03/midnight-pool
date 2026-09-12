@@ -233,6 +233,62 @@ export function placeCue(cue, balls, x, y, maxX = MAX_X) {
   cue.potted = false;
 }
 
+// Where the cue ball first makes contact along a given direction, and what happens next.
+//
+// This lives here rather than in scene.js for three reasons: it mirrors the MIN/MAX bounds and the
+// ball radius that already live in this module, it is pure, and this file already has a self-test
+// block to assert it in. scene.js stays a pure draw layer.
+//
+// The old aim guide bounced off rails but passed straight THROUGH balls, so it actively lied about
+// the most common shot in the game. This reports the real first contact.
+//
+// Returns either:
+//   { kind: 'rail',  x, y, ux, uy }                      -- nothing in the way; x,y is on a cushion
+//   { kind: 'ball',  x, y, ux, uy, ball, ox, oy, tx, ty } -- x,y is the GHOST CENTRE (where the cue
+//     ball sits at contact), ox/oy the object ball's departure direction, tx/ty the tangent along
+//     which the cue ball deflects.
+export function predictShot(balls, cue, dirX, dirY) {
+  const len = Math.hypot(dirX, dirY) || 1;
+  const ux = dirX / len, uy = dirY / len;
+
+  let best = null;
+  const contactDist = BALL_R * 2;
+  const R2 = contactDist * contactDist;
+  for (const b of balls) {
+    if (b === cue || b.potted) continue;
+    const ex = b.x - cue.x, ey = b.y - cue.y;
+    const proj = ex * ux + ey * uy;
+    if (proj <= 0) continue;                       // behind the cue ball
+    const perp2 = ex * ex + ey * ey - proj * proj;
+    if (perp2 > R2) continue;                      // the ray passes wide
+    const d = proj - Math.sqrt(Math.max(0, R2 - perp2));
+    if (d >= 0 && (!best || d < best.d)) best = { d, ball: b };
+  }
+
+  // Distance to the first cushion along this direction.
+  let railD = Infinity;
+  if (ux > 0) railD = Math.min(railD, (MAX_X - cue.x) / ux);
+  else if (ux < 0) railD = Math.min(railD, (MIN_X - cue.x) / ux);
+  if (uy > 0) railD = Math.min(railD, (MAX_Y - cue.y) / uy);
+  else if (uy < 0) railD = Math.min(railD, (MIN_Y - cue.y) / uy);
+  if (!isFinite(railD) || railD < 0) railD = 0;
+
+  if (!best || railD < best.d) {
+    return { kind: 'rail', x: cue.x + ux * railD, y: cue.y + uy * railD, ux, uy };
+  }
+
+  const gx = cue.x + ux * best.d, gy = cue.y + uy * best.d;
+  // The object ball leaves along the line of centres at the moment of contact.
+  const ox = best.ball.x - gx, oy = best.ball.y - gy;
+  const oLen = Math.hypot(ox, oy) || 1;
+  const nx = ox / oLen, ny = oy / oLen;
+  return {
+    kind: 'ball', x: gx, y: gy, ux, uy, ball: best.ball,
+    ox: nx, oy: ny,
+    tx: -ny, ty: nx,
+  };
+}
+
 if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWith('physics.js') && process.argv[1].endsWith('physics.js')) {
   const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } };
 
@@ -330,6 +386,63 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   const deflectAB = struckAB.vy - struckNone.vy;
   const deflectBA = struckBA.vy - struckNone.vy;
   assert(Math.sign(deflectAB) === Math.sign(deflectBA), 'throw deflection direction is consistent regardless of array order (a/b slot)');
+
+  // --- predictShot -------------------------------------------------------
+  // A head-on shot: the ghost centre must sit exactly one ball-diameter short of the target,
+  // because that is where the cue ball is when the two surfaces touch.
+  {
+    const cueBall = { x: 200, y: 300, number: 0, potted: false };
+    const target = { x: 400, y: 300, number: 1, potted: false };
+    const p = predictShot([cueBall, target], cueBall, 1, 0);
+    assert(p.kind === 'ball', 'a ball directly ahead is reported as a ball contact');
+    assert(p.ball === target, 'the contacted ball is the one in the way');
+    assert(Math.abs(p.x - (400 - BALL_R * 2)) < 1e-6, 'ghost centre sits one ball-diameter short of the target');
+    assert(Math.abs(p.y - 300) < 1e-6, 'a head-on shot keeps the ghost on the same line');
+    assert(Math.abs(p.ox - 1) < 1e-6 && Math.abs(p.oy) < 1e-6, 'a head-on hit sends the object ball straight on');
+    assert(Math.abs(p.ox * p.tx + p.oy * p.ty) < 1e-9, 'the tangent is perpendicular to the object direction');
+  }
+
+  // Empty space: the guide must terminate on a cushion, not report a phantom ball.
+  {
+    const cueBall = { x: 200, y: 300, number: 0, potted: false };
+    const p = predictShot([cueBall], cueBall, -1, 0);
+    assert(p.kind === 'rail', 'a clear line returns a rail contact');
+    assert(Math.abs(p.x - MIN_X) < 1e-6, 'the rail contact lands on the cushion line');
+  }
+
+  // A ball behind the cue ball must be ignored -- this is the sign error that would make the
+  // guide point at something you are shooting away from.
+  {
+    const cueBall = { x: 400, y: 300, number: 0, potted: false };
+    const behind = { x: 200, y: 300, number: 1, potted: false };
+    assert(predictShot([cueBall, behind], cueBall, 1, 0).kind === 'rail', 'a ball behind the cue ball is not a contact');
+  }
+
+  // Nearest wins, and a potted ball is not on the table any more.
+  {
+    const cueBall = { x: 100, y: 300, number: 0, potted: false };
+    const near = { x: 300, y: 300, number: 1, potted: false };
+    const far = { x: 500, y: 300, number: 2, potted: false };
+    assert(predictShot([cueBall, far, near], cueBall, 1, 0).ball === near, 'the nearest ball on the line wins regardless of array order');
+    assert(predictShot([cueBall, { ...near, potted: true }, far], cueBall, 1, 0).ball.number === 2, 'a potted ball is skipped');
+  }
+
+  // A cut shot: the object ball leaves along the line of centres, not along the cue ball's path.
+  {
+    const cueBall = { x: 200, y: 300, number: 0, potted: false };
+    const target = { x: 400, y: 300 + BALL_R, number: 1, potted: false };
+    const p = predictShot([cueBall, target], cueBall, 1, 0);
+    assert(p.kind === 'ball', 'a half-ball cut still registers as contact');
+    assert(p.oy > 0, 'cutting the underside of a ball sends it downward, not straight on');
+    assert(p.ox > 0, 'a cut object ball still travels forward');
+  }
+
+  // A ray that passes wider than a ball diameter is a genuine miss.
+  {
+    const cueBall = { x: 200, y: 300, number: 0, potted: false };
+    const wide = { x: 400, y: 300 + BALL_R * 2 + 2, number: 1, potted: false };
+    assert(predictShot([cueBall, wide], cueBall, 1, 0).kind === 'rail', 'a ray passing wider than a ball diameter misses');
+  }
 
   // Kitchen-restricted placement: placeCue's maxX clamp keeps the cue ball at or left of it.
   const kitchenBalls = [{ x: 0, y: 0, number: 0, potted: false }];
