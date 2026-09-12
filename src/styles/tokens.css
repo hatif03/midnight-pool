@@ -1,0 +1,78 @@
+/* Design tokens — the whole palette and type scale, in one place (docs/adr/0014).
+ *
+ * Target look: Miniclip's 8 Ball Pool. Warm sunburst lobby, blue felt, red-brown rails, gold
+ * everywhere, glossy candy buttons. Bright, not the dark glassmorphism this replaces.
+ *
+ * Self-hosted rather than the Google Fonts CDN: vite-plugin-pwa precaches by glob over the BUILD
+ * OUTPUT, and a CDN URL never appears there -- an offline launch would fall back to system-ui and
+ * undo the overhaul. Fontsource emits woff2 into dist/assets/, so `woff2` in workbox.globPatterns
+ * precaches it exactly like the .ogg files. The `latin` subset is U+0000-00FF, which covers the
+ * Spanish locale's accents and inverted punctuation.
+ */
+@import '@fontsource/lilita-one/latin-400.css';
+
+:root {
+  /* ---- type ---- */
+  --font-display: 'Lilita One', system-ui, sans-serif;
+  --font-ui: system-ui, 'Segoe UI', sans-serif;
+
+  /* Landscape-only game: real phone heights run as low as ~340px, so every size is dvh-aware and
+     shrinks together rather than letting one row overflow a viewport that cannot scroll. */
+  --fs-hero: clamp(26px, 7dvh, 52px);
+  --fs-title: clamp(16px, 4dvh, 26px);
+  --fs-label: clamp(11px, 2.4dvh, 15px);
+  --fs-micro: clamp(9px, 1.8dvh, 11px);
+
+  /* ---- lobby: warm sunburst ---- */
+  --sun-core: #ffd98a;
+  --sun-mid: #ff9e2c;
+  --sun-deep: #ef6c07;
+  --sun-edge: #a83704;
+  --ray: rgba(255, 255, 255, .10);
+
+  /* ---- table ---- */
+  --felt-hi: #46b0f2;
+  --felt-mid: #1f7fd0;
+  --felt-lo: #114f88;
+  --rail-hi: #c96a3d;
+  --rail-mid: #9a3f22;
+  --rail-lo: #5e2313;
+  --pocket-rim: #ffc94d;
+
+  /* ---- panels ---- */
+  --panel: #123a5c;
+  --panel-hi: #1c5480;
+  --panel-line: rgba(255, 214, 122, .45);
+  --scrim: rgba(10, 26, 42, .72);
+
+  /* ---- candy ramps: top / bottom / 3D edge ----
+     Every button, tile and pill picks one of these by setting --t/--b/--e. */
+  --green-t: #9ceb57;  --green-b: #4fb016;  --green-e: #2c6c0c;
+  --blue-t: #7ad6ff;   --blue-b: #1d8ede;   --blue-e: #0f5486;
+  --red-t: #ff9a7a;    --red-b: #e8452a;    --red-e: #9c2010;
+  --gold-t: #ffe9a3;   --gold-b: #f5a623;   --gold-e: #a9610a;
+  --purple-t: #cfa6ff; --purple-b: #8b46e0; --purple-e: #57229c;
+  --grey-t: #d8dee6;   --grey-b: #9aa6b4;   --grey-e: #5f6b79;
+
+  /* ---- ink ---- */
+  --ink: #3a1e07;
+  --paper: #fffaf0;
+  --paper-dim: #d9c6a8;
+
+  /* ---- elevation ----
+     No backdrop-filter anywhere: the target look is opaque painted panels, and blurring a
+     full-screen menu is among the most expensive things a mid-range phone GPU can be asked to do. */
+  --e-1: 0 2px 6px rgba(20, 8, 0, .25);
+  --e-2: 0 6px 16px rgba(20, 8, 0, .35);
+  --e-3: 0 14px 34px rgba(20, 8, 0, .45);
+  --inset-lip: inset 0 2px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(0, 0, 0, .20);
+
+  /* ---- radii ---- */
+  --r-s: 8px;
+  --r-m: 14px;
+  --r-l: 22px;
+  --r-pill: 999px;
+
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-pop: cubic-bezier(.34, 1.56, .64, 1);
+}

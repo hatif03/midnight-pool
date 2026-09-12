@@ -9,6 +9,10 @@
  * define the classes the three surface files compose.
  *
  * legacy.css is the original inline <style> block from index.html, moved here verbatim (docs/adr/0014).
- * It shrinks as each surface is restyled and is deleted at the end of the overhaul.
+ * It shrinks as each surface is restyled and is deleted at the end of the overhaul. It sits early in
+ * the order on purpose: anything new wins a specificity tie against it, so migrating a surface is
+ * "write the new rule, delete the old one" rather than a fight with the cascade.
  */
+@import './tokens.css';
 @import './legacy.css';
+@import './components.css';

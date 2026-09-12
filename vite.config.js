@@ -31,7 +31,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ogg}'],
+        // woff2 is here because the display face is self-hosted via @fontsource and emitted into
+        // dist/assets/ (docs/adr/0014) -- without it an offline launch silently falls back to
+        // system-ui, which is exactly the look the overhaul replaced.
+        //
+        // Deliberately NOT here: the compiled circuits' `.prover`/`.verifier`/`.bzkir` keys. Those
+        // are multi-MB per circuit and only a fraction of players ever exercise a given circuit;
+        // precaching them would make every install pay for all of them. They are fetched on demand
+        // and left to the HTTP cache.
+        globPatterns: ['**/*.{js,css,html,svg,png,ogg,woff2}'],
       },
     }),
   ],

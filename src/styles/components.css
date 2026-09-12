@@ -1,0 +1,389 @@
+/* Reusable components (docs/adr/0014). Pure CSS, no images, no dependencies.
+ *
+ * Every component picks a candy ramp by setting --t (top), --b (bottom) and --e (3D edge) from the
+ * token set, so a variant is three custom properties rather than a new rule block.
+ */
+
+/* ===========================================================================
+ * .btn — the signature element
+ *
+ * Three things make it read as a physical arcade button rather than a web gradient:
+ *   1. the 3D edge is a spread-less `0 6px 0 0 var(--e)` box-shadow, not a border-bottom, so the
+ *      press state is translateY + a shrunk shadow -- the entire feel in two animated properties;
+ *   2. the gloss is a ::before with ELLIPTICAL bottom corners, and that curve is what separates
+ *      "candy" from "linear-gradient";
+ *   3. isolation + negative z-index on the pseudos keeps the label on top without a wrapper span.
+ *
+ * touch-action is explicit because body sets `touch-action: none` globally.
+ * =========================================================================== */
+.btn {
+  --t: var(--green-t);
+  --b: var(--green-b);
+  --e: var(--green-e);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4em;
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+  padding: .7em 1.4em;
+  border: 0;
+  border-radius: var(--r-m);
+  background: linear-gradient(180deg, var(--t) 0%, var(--b) 52%, var(--b) 100%);
+  box-shadow: var(--inset-lip), 0 6px 0 0 var(--e), 0 9px 14px rgba(20, 8, 0, .38);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform .09s var(--ease), box-shadow .09s var(--ease), filter .15s;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 48% 2px;
+  z-index: -1;
+  border-radius: calc(var(--r-m) - 2px) calc(var(--r-m) - 2px) 40% 40% /
+                 calc(var(--r-m) - 2px) calc(var(--r-m) - 2px) 100% 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .06));
+  pointer-events: none;
+}
+
+/* Dark keyline so a bright button still reads against a bright sunburst. */
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -2;
+  border-radius: calc(var(--r-m) + 2px);
+  background: rgba(26, 10, 0, .35);
+}
+
+@media (hover: hover) {
+  .btn:hover { filter: brightness(1.07); }
+}
+
+.btn:active,
+.btn.is-pressed {
+  transform: translateY(5px);
+  box-shadow: var(--inset-lip), 0 1px 0 0 var(--e), 0 2px 4px rgba(20, 8, 0, .35);
+}
+
+.btn:disabled {
+  filter: grayscale(.7) brightness(.85);
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--gold-t);
+  outline-offset: 3px;
+}
+
+.btn--green  { --t: var(--green-t);  --b: var(--green-b);  --e: var(--green-e); }
+.btn--blue   { --t: var(--blue-t);   --b: var(--blue-b);   --e: var(--blue-e); }
+.btn--red    { --t: var(--red-t);    --b: var(--red-b);    --e: var(--red-e); }
+.btn--purple { --t: var(--purple-t); --b: var(--purple-b); --e: var(--purple-e); }
+
+/* Gold and grey are light enough that white text on them fails contrast — flip to dark ink. */
+.btn--gold {
+  --t: var(--gold-t);
+  --b: var(--gold-b);
+  --e: var(--gold-e);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .4);
+}
+
+.btn--grey {
+  --t: var(--grey-t);
+  --b: var(--grey-b);
+  --e: var(--grey-e);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .4);
+}
+
+.btn--lg {
+  font-size: var(--fs-title);
+  padding: .85em 1.8em;
+  border-radius: var(--r-l);
+}
+
+.btn--icon {
+  padding: 0;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 50%;
+  font-size: var(--fs-title);
+}
+
+.btn--icon svg {
+  width: 1.1em;
+  height: 1.1em;
+  fill: currentColor;
+}
+
+.btn--block { width: 100%; }
+
+/* ===========================================================================
+ * .tile — the big lobby cards
+ * =========================================================================== */
+.tile {
+  --t: var(--blue-t);
+  --b: var(--blue-b);
+  --e: var(--blue-e);
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .2em;
+  padding: 0 .4em .8em;
+  border: 0;
+  border-radius: var(--r-l);
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, .35), transparent 60%),
+    linear-gradient(180deg, var(--t), var(--b) 60%, var(--b));
+  box-shadow: var(--inset-lip), 0 8px 0 var(--e), var(--e-3);
+  transition: transform .1s var(--ease), box-shadow .1s var(--ease);
+}
+
+.tile:active {
+  transform: translateY(6px);
+  box-shadow: var(--inset-lip), 0 2px 0 var(--e), var(--e-1);
+}
+
+.tile:focus-visible {
+  outline: 3px solid var(--gold-t);
+  outline-offset: 3px;
+}
+
+.tile .art {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.tile .art svg {
+  width: min(72%, 90px);
+  height: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 4px 8px rgba(20, 8, 0, .45));
+}
+
+.tile .label {
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  line-height: 1.1;
+  text-align: center;
+  color: var(--paper);
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+}
+
+.tile .entry {
+  display: inline-flex;
+  align-items: center;
+  gap: .25em;
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--gold-t);
+}
+
+.tile .entry svg { width: 1.1em; height: 1.1em; fill: currentColor; }
+
+.tile--green  { --t: var(--green-t);  --b: var(--green-b);  --e: var(--green-e); }
+.tile--purple { --t: var(--purple-t); --b: var(--purple-b); --e: var(--purple-e); }
+.tile--gold   { --t: var(--gold-t);   --b: var(--gold-b);   --e: var(--gold-e); }
+.tile--gold .label { color: var(--ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .4); }
+.tile--red    { --t: var(--red-t);    --b: var(--red-b);    --e: var(--red-e); }
+
+/* ===========================================================================
+ * .chip — currency readout, optionally with a + button
+ * =========================================================================== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: 3px 3px 3px 9px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, #0d2e4a, #08202f);
+  border: 1px solid var(--panel-line);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  color: var(--paper);
+  box-shadow: var(--e-1), inset 0 1px 0 rgba(255, 255, 255, .12);
+  white-space: nowrap;
+}
+
+.chip > svg { width: 1.25em; height: 1.25em; fill: currentColor; flex: none; }
+.chip.no-plus { padding-right: 9px; }
+
+.chip .plus {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, var(--green-t), var(--green-b));
+  box-shadow: 0 2px 0 var(--green-e);
+  color: #fff;
+  font-size: .9em;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chip .plus:active { transform: translateY(2px); box-shadow: 0 0 0 var(--green-e); }
+
+/* ===========================================================================
+ * .bar — progress fill driven by --p (0..1). Used for XP, Pool Pass, streaks.
+ * =========================================================================== */
+.bar {
+  height: .75em;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .45);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .5);
+  overflow: hidden;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6);
+  transition: width .6s var(--ease);
+}
+
+/* ===========================================================================
+ * .ribbon / .stars — victory furniture
+ * =========================================================================== */
+.ribbon {
+  position: relative;
+  padding: .35em 1.6em .7em;
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  color: var(--ink);
+  text-transform: uppercase;
+  text-align: center;
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: var(--inset-lip), var(--e-2);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+}
+
+.ribbon--grey { background: linear-gradient(180deg, var(--grey-t), var(--grey-b)); }
+
+.stars { display: flex; gap: .2em; font-size: var(--fs-title); color: #3d2a10; }
+.stars i { font-style: normal; }
+.stars i.on {
+  color: var(--gold-b);
+  text-shadow: 0 0 10px rgba(255, 190, 60, .9), 0 2px 0 var(--gold-e);
+}
+
+/* ===========================================================================
+ * .avatar — frame, level badge, and the turn-timer ring
+ *
+ * The ring is a conic-gradient masked to an annulus, driven by --t (1 -> 0 as time runs out), so
+ * the timer is one custom-property write per frame with no extra element and no JS layout.
+ * =========================================================================== */
+.avatar {
+  position: relative;
+  width: var(--sz, 2.6em);
+  height: var(--sz, 2.6em);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  color: var(--ink);
+  background: var(--av-color, #4ee892);
+  box-shadow: 0 0 0 3px #0c2438, 0 0 0 5px var(--gold-b), var(--e-2);
+  flex: none;
+}
+
+.avatar.timed::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(var(--gold-b) calc(var(--t, 1) * 360deg), rgba(0, 0, 0, .45) 0);
+  -webkit-mask: radial-gradient(closest-side, transparent 78%, #000 79%);
+          mask: radial-gradient(closest-side, transparent 78%, #000 79%);
+}
+
+.avatar.timed.low::before {
+  background: conic-gradient(#ff5a5a calc(var(--t, 1) * 360deg), rgba(0, 0, 0, .45) 0);
+}
+
+.avatar .lvl {
+  position: absolute;
+  bottom: -.25em;
+  right: -.35em;
+  font-size: var(--fs-micro);
+  line-height: 1.4;
+  padding: 0 .35em;
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: 0 2px 0 var(--gold-e);
+}
+
+/* ===========================================================================
+ * .countdown — timer pill that turns into a call to action when ready
+ * =========================================================================== */
+.countdown {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--paper-dim);
+  padding: .15em .6em;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .45);
+  white-space: nowrap;
+}
+
+.countdown.ready {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--green-t), var(--green-b));
+  animation: readyPulse 1.4s var(--ease) infinite;
+}
+
+@keyframes readyPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown.ready { animation: none; }
+}
+
+/* ===========================================================================
+ * .panel-card — generic opaque surface, replaces the old .glass/.panel look
+ * =========================================================================== */
+.panel-card {
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border: 1px solid var(--panel-line);
+  border-radius: var(--r-m);
+  box-shadow: var(--e-2), inset 0 1px 0 rgba(255, 255, 255, .14);
+  color: var(--paper);
+}
+
+/* Shared sizing for the inline <symbol> sprite.
+ * Named .svg-icon, not .icon: `#rotate-overlay .icon` already exists in legacy.css for the 📱 glyph,
+ * and a generic `.icon { width: 1em }` would shrink it to nothing the moment legacy.css is deleted. */
+.svg-icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+  flex: none;
+}
