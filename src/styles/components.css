@@ -179,6 +179,9 @@
   overflow: hidden;
   cursor: pointer;
   touch-action: manipulation;
+  /* A <button> does not inherit body's color -- it takes the UA's `buttontext`, which is black.
+     The sprite's shapes are fill="currentColor", so without this every tile icon renders black. */
+  color: var(--paper);
   background:
     radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, .35), transparent 60%),
     linear-gradient(180deg, var(--t), var(--b) 60%, var(--b));
@@ -205,11 +208,21 @@
 }
 
 .tile .art svg {
-  width: min(72%, 90px);
-  height: 100%;
-  max-height: 100%;
+  width: min(58%, 76px);
+  height: min(58%, 76px);
+  /* fill, not just color: the sprite's shapes carry fill="currentColor", so `color` is what
+     actually drives them -- but setting fill too keeps any plain shape from falling back to black. */
+  fill: currentColor;
+  opacity: .92;
   filter: drop-shadow(0 4px 8px rgba(20, 8, 0, .45));
 }
+
+/* Gold tiles use dark ink for their label, and their art should match rather than glare white. */
+.tile--gold { color: var(--ink); }
+
+/* A .bar inside a tile (Pool Pass progress) has no intrinsic width -- without this it collapses
+   and the tile looks like it forgot to render its progress. */
+.tile .bar { width: 74%; height: .55em; }
 
 .tile .label {
   font-family: var(--font-display);

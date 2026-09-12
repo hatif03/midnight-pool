@@ -260,6 +260,13 @@
             <span data-i18n="vibrateOnTurn">Vibrate on your turn</span>
           </label>
           <span class="set-label" data-i18n="midnightSection">Midnight</span>
+          <!-- Moved here from screen-mp (docs/adr/0014): Quick Match is now a lobby tile, so the
+               toggle was no longer on the path to it. It is a standing preference, not a per-match
+               choice, so settings is where it belongs. main.js still reads #ranked-toggle.checked. -->
+          <label class="check-row">
+            <input type="checkbox" id="ranked-toggle" />
+            <span data-i18n="rankedToggle">Ranked (privately prove level ≥ 5)</span>
+          </label>
           <button class="btn btn--blue btn--compact" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
           <div class="status" id="mn-wallet-status"></div>
           <button class="btn btn--blue btn--compact" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
@@ -287,49 +294,82 @@
     </div>
 
     <div id="menu">
+      <!-- Lobby (docs/adr/0014). Three rows in a flex column: topbar / tiles / strip. Every button
+           keeps the id its handler in main.js already binds, so this is markup-only.
+           Note for anyone adding a tile: applyStatic() in i18n.js sets textContent on every
+           [data-i18n] element, which destroys child nodes -- so data-i18n goes on the inner
+           <span class="label">, never on a button that also contains an icon. -->
       <div class="screen active" id="screen-main">
-        <div class="brand">
-          <img src="/icons/icon-192.png" alt="" />
-          <h1>Midnight Pool</h1>
-        </div>
-        <div id="install-banner" hidden>
-          <span class="install-text"></span>
-          <button class="btn btn--blue btn--compact" id="btn-install" data-i18n="installBtn">Instalar</button>
-          <button class="install-dismiss" id="btn-install-dismiss" aria-label="Dismiss">✕</button>
-        </div>
-        <div id="wallet-bar">
-          <span class="wallet-chip">🪙 <b id="wallet-coins">500</b></span>
-          <span class="wallet-chip">💵 <b id="wallet-cash">0</b></span>
-          <span class="wallet-chip">Lv. <b id="wallet-level">1</b></span>
-          <span class="wallet-chip" id="wallet-record">—</span>
-        </div>
-        <button class="btn btn--green" id="btn-play" data-i18n="play">Jugar</button>
-        <div id="menu-extras">
-          <button class="btn btn--blue btn--compact" id="btn-daily" title="Daily Reward">🎁</button>
-          <button class="btn btn--blue btn--compact" id="btn-cues" title="Cues">🎱</button>
-          <button class="btn btn--blue btn--compact" id="btn-pass" title="Pool Pass">📈</button>
-          <button class="btn btn--blue btn--compact" id="btn-leagues" title="Leagues">🏆</button>
-          <button class="btn btn--blue btn--compact" id="btn-shop" title="Shop">🛒</button>
-          <button class="btn btn--blue btn--compact" id="btn-settings" title="Settings">⚙️</button>
-          <button class="btn btn--blue btn--compact" id="btn-quit" title="Quit">🚪</button>
-        </div>
-      </div>
+        <div class="lobby">
+          <header class="topbar">
+            <button class="profile-card" id="btn-profile">
+              <span class="avatar" id="lobby-avatar"><span class="lvl" id="wallet-level">1</span></span>
+              <span class="who">
+                <b class="pname" id="lobby-name">Player</b>
+                <span class="bar"><i id="lobby-xp"></i></span>
+              </span>
+            </button>
+            <div class="chip-row">
+              <span class="chip"><svg class="svg-icon"><use href="#i-coin"/></svg><b id="wallet-coins">500</b>
+                <span class="plus" data-open="shop-modal">+</span></span>
+              <span class="chip"><svg class="svg-icon"><use href="#i-cash"/></svg><b id="wallet-cash">0</b>
+                <span class="plus" data-open="shop-modal">+</span></span>
+              <span class="chip no-plus" id="wallet-record">—</span>
+            </div>
+            <div class="topbar-actions">
+              <button class="btn btn--icon btn--gold" id="btn-leagues" title="Leagues"><svg><use href="#i-trophy"/></svg></button>
+              <button class="btn btn--icon btn--blue" id="btn-cues" title="Cues"><svg><use href="#i-cue"/></svg></button>
+              <button class="btn btn--icon btn--grey" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
+            </div>
+          </header>
 
-      <div class="screen" id="screen-mode">
-        <button class="btn btn--green" id="btn-solo" data-i18n="solo">Solo</button>
-        <button class="btn btn--blue" id="btn-multi" data-i18n="multiplayer">Multijugador</button>
-        <button class="btn btn--blue btn--compact" data-back="screen-main" data-i18n="back">Volver</button>
+          <main class="tile-row">
+            <button class="tile tile--green" id="btn-quick">
+              <span class="art"><svg viewBox="0 0 24 24"><use href="#i-bolt"/></svg></span>
+              <span class="label" data-i18n="quickMatch">Partida rápida</span>
+              <span class="entry"><svg><use href="#i-coin"/></svg> 50</span>
+            </button>
+            <button class="tile" id="btn-multi">
+              <span class="art"><svg viewBox="0 0 24 24"><use href="#i-friends"/></svg></span>
+              <span class="label" data-i18n="playFriend">Con un amigo</span>
+            </button>
+            <button class="tile tile--purple" id="btn-solo">
+              <span class="art"><svg viewBox="0 0 24 24"><use href="#i-target"/></svg></span>
+              <span class="label" data-i18n="practice">Practicar</span>
+            </button>
+            <button class="tile tile--gold" id="btn-pass">
+              <span class="art"><svg viewBox="0 0 24 24"><use href="#i-star"/></svg></span>
+              <span class="label" data-i18n="passTitle">Pool Pass</span>
+              <span class="bar"><i id="pass-bar"></i></span>
+            </button>
+          </main>
+
+          <footer class="strip">
+            <button class="chest" id="btn-daily">
+              <svg class="chest-art" viewBox="0 0 24 24"><use href="#i-chest"/></svg>
+              <span class="chest-meta">
+                <span class="label" data-i18n="dailyRewardTitle">Recompensa diaria</span>
+                <span class="countdown" id="daily-countdown">—</span>
+              </span>
+            </button>
+            <div class="streak">
+              <span class="streak-label" data-i18n="winStreak">Racha</span>
+              <span class="pips" id="streak-pips"></span>
+            </div>
+            <div id="install-banner" hidden>
+              <span class="install-text"></span>
+              <button class="btn btn--green btn--compact" id="btn-install" data-i18n="installBtn">Instalar</button>
+              <button class="install-dismiss" id="btn-install-dismiss" aria-label="Dismiss">✕</button>
+            </div>
+            <button class="btn btn--icon btn--red" id="btn-shop" title="Shop"><svg><use href="#i-cash"/></svg></button>
+          </footer>
+        </div>
       </div>
 
       <div class="screen" id="screen-mp">
         <button class="btn btn--green" id="btn-create" data-i18n="create">Crear partida</button>
         <button class="btn btn--blue" id="btn-join" data-i18n="join">Unirse a partida</button>
-        <label class="check-row">
-          <input type="checkbox" id="ranked-toggle" />
-          <span data-i18n="rankedToggle">Ranked (privately prove level ≥ 5)</span>
-        </label>
-        <button class="btn btn--blue" id="btn-quick" data-i18n="quickMatch">Partida rápida</button>
-        <button class="btn btn--blue btn--compact" data-back="screen-mode" data-i18n="back">Volver</button>
+        <button class="btn btn--blue btn--compact" data-back="screen-main" data-i18n="back">Volver</button>
       </div>
 
       <div class="screen" id="screen-quick">

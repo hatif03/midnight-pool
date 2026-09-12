@@ -42,6 +42,45 @@ function updateWallet() {
   ui.el('wallet-record').textContent = (wins + losses) === 0
     ? '—'
     : `W${wins}-L${losses} · ${Math.round(economy.winRate(profile) * 100)}%`;
+
+  // Lobby widgets (docs/adr/0014). All of these read state that already existed -- nothing here
+  // invents a number, which is why the bars can be trusted to mean something.
+  const nick = identity.getNickname();
+  ui.el('lobby-name').textContent = nick;
+  ui.el('lobby-avatar').style.setProperty('--av-color', identity.avatarFor(nick).color);
+
+  const need = economy.xpToNext(profile.level);
+  ui.el('lobby-xp').parentElement.style.setProperty('--p', need ? Math.min(1, profile.xp / need) : 0);
+  ui.el('pass-bar').parentElement.style.setProperty('--p', passSys.tierForPoints(profile.pass.points) / 20);
+
+  renderStreakPips();
+  tickDailyChest();
+}
+
+// Five pips, the fifth marked as the reward. profile.winStreak is maintained in economy.applyAward.
+function renderStreakPips() {
+  const box = ui.el('streak-pips');
+  const streak = Math.min(profile.winStreak || 0, 5);
+  box.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const pip = document.createElement('i');
+    pip.className = `pip${i < streak ? ' on' : ''}${i === 4 ? ' goal' : ''}`;
+    box.appendChild(pip);
+  }
+}
+
+// Live countdown on the daily chest. dailyReward.js already owns the rules; this only formats the
+// remaining time. Guarded to the lobby being visible so it does no work during a match.
+const DAY_MS = 864e5;
+function tickDailyChest() {
+  const el = ui.el('daily-countdown');
+  if (!el) return;
+  const ready = dailyReward.canClaim(profile.streak);
+  el.classList.toggle('ready', ready);
+  if (ready) { el.textContent = t('chestReady'); return; }
+  const ms = Math.max(0, (profile.streak.lastClaim || 0) + DAY_MS - Date.now());
+  const p2 = (n) => String(n).padStart(2, '0');
+  el.textContent = `${p2(ms / 36e5 | 0)}:${p2((ms / 6e4 | 0) % 60)}:${p2((ms / 1e3 | 0) % 60)}`;
 }
 
 function persistProfile() {
@@ -164,7 +203,9 @@ async function main() {
   // Icon-only buttons (no data-i18n text) still get a localized tooltip.
   const refreshIconTitles = () => {
     ui.el('btn-settings').title = t('settings');
-    ui.el('btn-quit').title = t('quit');
+    ui.el('btn-leagues').title = t('leaguesTitle');
+    ui.el('btn-cues').title = t('cuesTitle');
+    ui.el('btn-shop').title = t('shopTitle');
   };
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
     b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
@@ -196,6 +237,12 @@ async function main() {
   lastPhysics = performance.now();
   setInterval(physicsLoop, 1000 / 60);
   app.ticker.add(renderFrame);
+
+  // One timer for one countdown, and it does nothing while a match is on screen. Not a generic
+  // scheduler -- the chest is the only thing in the app that counts down in real time.
+  setInterval(() => {
+    if (!ui.el('menu').classList.contains('hidden')) tickDailyChest();
+  }, 1000);
 
   wireMenu();
   applyJoinLinkIfAny();
@@ -1236,10 +1283,17 @@ function wireEconomyMenus() {
 function wireMenu() {
   const click = (id, fn) => { ui.el(id).onclick = () => { audio.resume(); audio.uiClick(); fn(); }; };
 
-  click('btn-play', () => ui.showScreen('screen-mode'));
+  // btn-play and screen-mode are gone (docs/adr/0014): Practice, Play-a-Friend and Quick Match are
+  // lobby tiles now, so Play -> mode -> create/join lost a step. btn-quit went with them --
+  // window.close() is a no-op in an installed PWA and in any tab the script didn't open.
   click('btn-settings', () => ui.el('settings-modal').classList.add('show'));
-  click('btn-quit', () => window.close());
+  click('btn-profile', () => ui.el('settings-modal').classList.add('show'));
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
+  // The currency chips' + buttons are not <button>s (they sit inside a .chip span), so they are
+  // wired by data-open rather than by id.
+  document.querySelectorAll('[data-open]').forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); audio.uiClick(); ui.el(b.dataset.open).classList.add('show'); };
+  });
 
   click('btn-solo', () => { closeNet(); game.mode = 'solo'; game.timedMode = false; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
   click('btn-multi', () => ui.showScreen('screen-mp'));
@@ -1255,7 +1309,9 @@ function wireMenu() {
     ui.showScreen('screen-quick');
     startQuickMatch();
   });
-  click('btn-quick-cancel', () => { closeNet(); ui.showScreen('screen-mp'); });
+  // Back to the lobby, not screen-mp: Quick Match launches from a lobby tile now, so screen-mp is
+  // no longer the screen the player came from.
+  click('btn-quick-cancel', () => { closeNet(); ui.showScreen('screen-main'); });
 
   ui.el('btn-mute').onclick = () => { audio.resume(); audio.setMuted(!audio.isMuted()); ui.setMuteIcon(audio.isMuted()); audio.uiClick(); };
 

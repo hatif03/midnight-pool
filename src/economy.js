@@ -19,6 +19,10 @@ export function applyAward(profile, award) {
   p.loyaltyPoints = Math.max(0, p.loyaltyPoints + (award.loyaltyPoints || 0));
   p.wins = (p.wins || 0) + (award.wins || 0);
   p.losses = (p.losses || 0) + (award.losses || 0);
+  // Win streak drives the lobby's streak pips. Keyed off award.wins/losses rather than a `won`
+  // flag so solo practice — which awards neither — can't build or break a streak.
+  if (award.wins) p.winStreak = (p.winStreak || 0) + 1;
+  else if (award.losses) p.winStreak = 0;
   p.xp += award.xp || 0;
   while (p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);
@@ -85,6 +89,14 @@ if (typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWit
   assert(p.xp === 15, 'leftover xp carries over into the new level');
 
   assert(applyAward(base, { coins: -99999 }).coins === 0, 'a currency mutation never goes negative');
+
+  const win = awardForMatch({ mode: 'host', won: true });
+  const loss = awardForMatch({ mode: 'host', won: false });
+  p = applyAward(applyAward(base, win), win);
+  assert(p.winStreak === 2, 'consecutive wins build the streak');
+  assert(applyAward(p, loss).winStreak === 0, 'a loss resets the streak to zero');
+  assert(applyAward({ ...base, winStreak: 3 }, awardForMatch({ mode: 'solo', won: true })).winStreak === 3,
+    'solo practice neither builds nor breaks the streak');
 
   let s = spend({ ...base, coins: 50 }, 'coins', 30);
   assert(s.coins === 20, 'spend deducts the amount');

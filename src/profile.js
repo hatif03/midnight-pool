@@ -14,6 +14,7 @@ function defaultProfile() {
     level: 1,
     wins: 0,
     losses: 0,
+    winStreak: 0,
     lifetimeWinnings: 0,
     loyaltyPoints: 0,
     streak: { day: 0, lastClaim: null },

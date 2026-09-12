@@ -8,7 +8,6 @@
  *   phase 2  .glass buttons                                    -> components.css (.btn)
  *
  * Still here:
- *   phase 3  #menu background, .brand, .screen, install banner, wallet chips, #menu-extras
  *   phase 5  #hud and everything in it, #hint, #toast, #banner
  *   phase 7  #spin-widget
  */
@@ -44,51 +43,19 @@ html, body { margin: 0; height: 100%; background: #0a0714; overflow: hidden; ove
   box-shadow: var(--glass-shadow);
 }
 
-#menu {
-  position: fixed; inset: 0; z-index: 10;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background:
-    radial-gradient(ellipse 40% 22% at 50% 6%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 50% 14%, rgba(163,102,255,.24), transparent 60%),
-    radial-gradient(ellipse 50% 35% at 85% 85%, rgba(120,70,230,.14), transparent 60%),
-    radial-gradient(circle at 50% 40%, #3a1f6b 0%, #1a1030 55%, #0a0518 100%);
-}
-#menu.hidden { display: none; }
-/* Every menu screen must fit inside one viewport with no scrolling (this is a landscape-only
-   game, so realistic phone heights run as low as ~340-380px) — sized with dvh-aware clamp()s
-   throughout rather than fixed px, so it shrinks together on a short screen instead of
-   letting any one row overflow. Modeled on the 8 Ball Pool reference's compact density. */
-.brand { display: flex; flex-direction: column; align-items: center;
-  animation: brandIn .6s var(--ease) both; }
-@keyframes brandIn { from { opacity: 0; transform: translateY(-14px) scale(.96); } to { opacity: 1; transform: none; } }
-.brand img { width: clamp(28px, 8dvh, 48px); height: clamp(28px, 8dvh, 48px); image-rendering: pixelated;
-  margin-bottom: clamp(4px, 1dvh, 10px);
-  filter: drop-shadow(0 8px 22px rgba(0,0,0,.55)) drop-shadow(0 0 22px rgba(163,102,255,.35)); }
-#menu h1 {
-  margin: 0; font-size: clamp(22px, 6dvh, 44px); font-weight: 800; letter-spacing: 1px; line-height: 1;
-  background: linear-gradient(180deg, #ffffff 0%, #e0d4ff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  text-shadow: 0 8px 36px rgba(0,0,0,.5);
-  filter: drop-shadow(0 0 36px rgba(163,102,255,.35));
-}
-
+/* .screen is still the show/hide mechanism for create/join/quick; #menu's own background and the
+   whole of #screen-main moved to lobby.css. */
 .screen { display: none; flex-direction: column; align-items: center; gap: clamp(6px, 1.6dvh, 14px); }
 .screen.active { display: flex; animation: screenIn .35s var(--ease) both; }
 @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-#install-banner { display: flex; align-items: center; gap: 8px; max-width: 92dvw;
-  padding: 8px 10px; border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
-  font-size: clamp(11px, 2.2dvh, 13px); color: #f2ecff; }
-#install-banner .install-text { flex: 1; text-align: left; }
-#install-banner #btn-install { width: auto; padding: 6px 14px; font-size: inherit; }
-.install-dismiss { background: none; border: none; color: #d8cfe9; font-size: 16px; line-height: 1;
+#install-banner { display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,.35); border: 1px solid var(--panel-line);
+  font-size: var(--fs-micro); color: var(--paper); }
+#install-banner .install-text { flex: 1; text-align: left; min-width: 0; }
+.install-dismiss { background: none; border: none; color: var(--paper-dim); font-size: 16px; line-height: 1;
   cursor: pointer; padding: 4px; opacity: .7; }
 .install-dismiss:hover { opacity: 1; }
-#wallet-bar { display: flex; gap: 8px; }
-.wallet-chip { padding: 4px 10px; border-radius: 10px; font-size: clamp(11px, 2.2dvh, 13px); font-weight: 700;
-  background: var(--glass-bg); border: 1px solid var(--glass-border); }
-.wallet-chip b { color: var(--accent); }
-#menu-extras { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 90dvw; }
 
 #hud {
   position: fixed; top: 0; left: 0; right: 0; z-index: 5;

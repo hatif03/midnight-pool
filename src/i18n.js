@@ -2,6 +2,9 @@ const STR = {
   es: {
     play: 'Jugar', settings: 'Ajustes', quit: 'Salir',
     solo: 'Solo', multiplayer: 'Multijugador', back: 'Volver',
+    playFriend: 'Con un amigo', practice: 'Practicar',
+    winStreak: 'Racha', chestReady: '¡Listo!', pot: 'Bote',
+    rankedMode: 'Partida clasificatoria',
     create: 'Crear partida', join: 'Unirse a partida', connect: 'Conectar',
     restart: 'Reiniciar', menu: 'Menú',
     language: 'Idioma', spanish: 'Español', english: 'Inglés',
@@ -66,6 +69,9 @@ const STR = {
   en: {
     play: 'Play', settings: 'Settings', quit: 'Quit',
     solo: 'Singleplayer', multiplayer: 'Multiplayer', back: 'Back',
+    playFriend: 'Play a Friend', practice: 'Practice',
+    winStreak: 'Streak', chestReady: 'Ready!', pot: 'Pot',
+    rankedMode: 'Ranked match',
     create: 'Create game', join: 'Join game', connect: 'Connect',
     restart: 'Restart', menu: 'Menu',
     language: 'Language', spanish: 'Spanish', english: 'English',
