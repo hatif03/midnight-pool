@@ -611,6 +611,20 @@ function announceTurn() {
   maybeNotifyTurn();
 }
 
+// Pot shown on the VS screen is the real number: the actual stake pot, or the actual win reward.
+// Never a decorative figure.
+function vsData() {
+  return {
+    meName: identity.getNickname(),
+    meLevel: profile.level,
+    oppName: game.opponentName || t('rival'),
+    oppLevel: game.opponentLevel,
+    pot: game.stakeAmount > 0
+      ? game.stakeAmount * 2
+      : economy.awardForMatch({ mode: game.mode, won: true }).coins,
+  };
+}
+
 function announceGroupAndTurn() {
   const mg = game.groups[game.myPlayer];
   queueBanner(game.openTable ? t('tableOpen') : mg === 'stripes' ? t('mustStripes') : t('mustSolids'));
@@ -945,7 +959,7 @@ function onMessage(m) {
     updatePlayersDisplay();
     ui.enterGame();
     syncSpinGrid();
-    maybeAskNotifications().then(announceGroupAndTurn);
+    maybeAskNotifications().then(() => ui.vsIntro(vsData())).then(announceGroupAndTurn);
   } else if (m.type === 'state' && game.mode === 'guest') {
     applyState(m);
   } else if (m.type === 'shotInput' && game.mode === 'guest') {
@@ -955,6 +969,10 @@ function onMessage(m) {
     game.opponentLevel = m.level || 1;
     game.opponentTimeBonus = m.timeBonus || 0;
     updatePlayersDisplay();
+    // The host shows the VS screen before knowing who joined -- waiting on `hello` would hang match
+    // start if a peer never sent one. The name pops in mid-animation instead, which reads as
+    // intentional rather than as a stall.
+    ui.vsUpdateOpponent(game.opponentName, game.opponentLevel);
   } else if (m.type === 'reaction') {
     ui.toast(m.emoji);
   } else if (m.type === 'shoot' && game.mode === 'host' && game.turn === 2 && !game.gameOver) {
@@ -1043,7 +1061,7 @@ async function hostJoinedHandler() {
   syncSpinGrid();
   game.net.send({ type: 'start', groups: game.groups, openTable: game.openTable, turn: game.turn, matchId: game.currentMatchId, stake: game.stakeAmount, hostName: identity.getNickname(), hostLevel: profile.level, hostTimeBonus: equippedCue().timeBonus, timedMode: game.timedMode });
   sendState();
-  maybeAskNotifications().then(announceGroupAndTurn);
+  maybeAskNotifications().then(() => ui.vsIntro(vsData())).then(announceGroupAndTurn);
 }
 
 async function restartHostRack() {

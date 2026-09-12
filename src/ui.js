@@ -135,6 +135,61 @@ export function setPot(amount) {
   if (amount) el('hud-pot-value').textContent = amount;
 }
 
+// Star rating derived from level, not invented: five stars across levels 1..25.
+const starsFor = (level) => Math.max(1, Math.min(5, Math.ceil(level / 5)));
+
+function setVsSide(prefix, name, level) {
+  const { initial, color } = avatarFor(name);
+  const av = el(`${prefix}-avatar`);
+  av.firstChild?.nodeType === Node.TEXT_NODE
+    ? (av.firstChild.nodeValue = initial)
+    : av.prepend(document.createTextNode(initial));
+  av.style.setProperty('--av-color', color);
+  el(`${prefix}-name`).textContent = name;
+  el(`${prefix}-level`).textContent = level;
+  const box = el(`${prefix}-stars`);
+  const n = starsFor(level);
+  box.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('i');
+    s.className = i < n ? 'on' : '';
+    s.textContent = '★';
+    box.appendChild(s);
+  }
+}
+
+// Resolves when the intro is done, so callers can chain the turn announcement behind it. Never
+// blocks on network state: the opponent's name can arrive mid-animation via vsUpdateOpponent.
+export function vsIntro({ meName, meLevel, oppName, oppLevel, pot }) {
+  const node = el('vs-intro');
+  setVsSide('vs-me', meName, meLevel);
+  setVsSide('vs-opp', oppName, oppLevel);
+  el('vs-pot').textContent = pot;
+  el('vs-pot-wrap').hidden = !pot;
+  node.classList.add('show');
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      node.removeEventListener('pointerdown', finish);
+      node.classList.remove('show');
+      resolve();
+    };
+    const timer = setTimeout(finish, 2300);
+    node.addEventListener('pointerdown', finish);
+  });
+}
+
+// The host does not know who joined until the guest's `hello` arrives, which may be after the intro
+// is already on screen. Rather than delaying match start on a message that might never come, the
+// name is patched in mid-animation.
+export function vsUpdateOpponent(name, level) {
+  if (!el('vs-intro').classList.contains('show')) return;
+  setVsSide('vs-opp', name, level);
+}
+
 export function setStatus(id, text, error = false) {
   const s = el(id);
   s.textContent = text;

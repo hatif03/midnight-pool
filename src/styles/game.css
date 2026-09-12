@@ -324,3 +324,112 @@
   background: #1c1c1c;
   border-radius: 2px;
 }
+
+/* --------------------------------------------------------------------------- VS intro
+ * All CSS keyframes, no JS tweening. The six coins get their start offsets from an nth-child table
+ * rather than inline styles written by script. */
+#vs-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  display: none;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2dvw;
+  padding: 0 4dvw;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 60, 95, .9), rgba(4, 12, 22, .97));
+}
+
+#vs-intro.show { display: flex; animation: vsOut .4s var(--ease) 1.9s forwards; }
+
+.vs-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .4em;
+  min-width: 0;
+}
+
+.vs-side .avatar { --sz: clamp(54px, 22dvh, 104px); font-size: var(--fs-title); }
+
+.vs-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  color: var(--paper);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .5);
+  max-width: 26dvw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vs-mid { display: flex; flex-direction: column; align-items: center; gap: .5em; flex: none; }
+
+.vs-glyph {
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  line-height: 1;
+  color: var(--gold-t);
+  text-shadow: 0 5px 0 var(--gold-e), 0 0 30px rgba(255, 201, 77, .7);
+}
+
+.vs-pot {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .25em .9em;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: var(--inset-lip), 0 3px 0 var(--gold-e);
+}
+
+.vs-pot[hidden] { display: none; }
+
+#vs-intro.show .vs-left { animation: vsSlide .5s var(--ease-pop) both; --dir: -1; }
+#vs-intro.show .vs-right { animation: vsSlide .5s var(--ease-pop) .08s both; --dir: 1; }
+#vs-intro.show .vs-glyph { animation: vsPop .45s var(--ease-pop) .3s both; }
+
+@keyframes vsSlide { from { opacity: 0; transform: translateX(calc(var(--dir) * 55dvw)); } }
+@keyframes vsPop {
+  0% { opacity: 0; transform: scale(2.4) rotate(-12deg); }
+  70% { transform: scale(.92); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes vsOut { to { opacity: 0; visibility: hidden; } }
+
+.vs-coin {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--gold-t), var(--gold-b) 65%, var(--gold-e));
+  opacity: 0;
+  pointer-events: none;
+}
+
+#vs-intro.show .vs-coin { animation: vsCoin .55s var(--ease) calc(.55s + var(--i) * .07s) both; }
+.vs-coin:nth-of-type(1) { --sx: -34dvw; --sy: -8dvh; }
+.vs-coin:nth-of-type(2) { --sx: -26dvw; --sy: 10dvh; }
+.vs-coin:nth-of-type(3) { --sx: -18dvw; --sy: -14dvh; }
+.vs-coin:nth-of-type(4) { --sx: 18dvw; --sy: -14dvh; }
+.vs-coin:nth-of-type(5) { --sx: 26dvw; --sy: 10dvh; }
+.vs-coin:nth-of-type(6) { --sx: 34dvw; --sy: -8dvh; }
+
+@keyframes vsCoin {
+  from { transform: translate(var(--sx), var(--sy)) scale(.4); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #vs-intro.show,
+  #vs-intro.show .vs-left,
+  #vs-intro.show .vs-right,
+  #vs-intro.show .vs-glyph,
+  #vs-intro.show .vs-coin { animation-duration: .01s; }
+}

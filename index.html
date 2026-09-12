@@ -143,6 +143,28 @@
     <div id="toast"></div>
     <div id="banner"><div class="txt"></div></div>
 
+    <!-- VS intro (docs/adr/0014). A fixed overlay like #banner, NOT a .screen: it returns a promise
+         and slots into the existing match-start chains, so nothing about game.started, the 60Hz
+         physics loop, the turn timer or sendState ordering changes. Tap to skip. -->
+    <div id="vs-intro">
+      <div class="vs-side vs-left">
+        <span class="avatar" id="vs-me-avatar"><span class="lvl" id="vs-me-level">1</span></span>
+        <b class="vs-name" id="vs-me-name">You</b>
+        <span class="stars" id="vs-me-stars"></span>
+      </div>
+      <div class="vs-mid">
+        <div class="vs-glyph">VS</div>
+        <div class="vs-pot" id="vs-pot-wrap"><svg class="svg-icon"><use href="#i-coin"/></svg><b id="vs-pot">0</b></div>
+      </div>
+      <div class="vs-side vs-right">
+        <span class="avatar" id="vs-opp-avatar"><span class="lvl" id="vs-opp-level">1</span></span>
+        <b class="vs-name" id="vs-opp-name">Opponent</b>
+        <span class="stars" id="vs-opp-stars"></span>
+      </div>
+      <i class="vs-coin" style="--i:0"></i><i class="vs-coin" style="--i:1"></i><i class="vs-coin" style="--i:2"></i>
+      <i class="vs-coin" style="--i:3"></i><i class="vs-coin" style="--i:4"></i><i class="vs-coin" style="--i:5"></i>
+    </div>
+
     <div id="notif-modal" class="modal">
       <div class="box">
         <p data-i18n="notifQuestion">¿Deseas habilitar las notificaciones para saber cuando es tu turno si estás haciendo otras cosas?</p>
