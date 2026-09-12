@@ -1,9 +1,9 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import QRCode from 'qrcode';
-import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE, HEAD_STRING_X } from './config.js';
+import { CANVAS_W, CANVAS_H, MAX_DRAG, MIN_DRAG, POWER_CURVE, HEAD_STRING_X, BALL_COLORS } from './config.js';
 import { rack, step, allStopped, shoot, placeCue } from './physics.js';
 import { groupOf, resolveShot } from './rules.js';
-import { drawTable, buildBallVisual, drawAim, initBallTextures, makeCueSprite, placeCueStick } from './scene.js';
+import { drawTable, buildBallVisual, drawAim, initBallTextures, makeCueSprite, placeCueStick, makeSpark } from './scene.js';
 import { host, join, findMatch } from './net.js';
 import * as ui from './ui.js';
 import * as audio from './audio.js';
@@ -153,7 +153,7 @@ const game = {
   firstContactBall: null, anyContact: false, anyRailAfterContact: false, shotRailBalls: new Set(),
   net: null, settled: true, cuePotted: false, ballInHand: false, kitchenOnly: false,
   opponentName: null, opponentLevel: 1, opponentTimeBonus: 0,
-  timedMode: false, turnTimeLeft: 0, aimDir: null,
+  timedMode: false, turnTimeLeft: 0, aimDir: null, myFouls: 0,
   sfxBall: 0, sfxRail: 0, sfxPocket: 0,
 };
 
@@ -209,6 +209,11 @@ async function main() {
   initBallTextures(app.renderer);
   cueStick = makeCueSprite();
   fxLayer.addChild(cueStick);
+  // Sparks go ABOVE the balls (the cue stick goes below), so a pot burst reads as coming out of
+  // the pocket rather than from under the felt.
+  const sparkLayerC = new Container();
+  app.stage.addChild(sparkLayerC);
+  initSparks(sparkLayerC);
   applyStatic();
 
   const markLang = () => document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
@@ -294,6 +299,121 @@ function physicsLoop() {
   for (let i = 0; i < n; i++) physicsFrame();
 }
 
+
+// ---------------------------------------------------------------------------
+// Juice (docs/adr/0014). No animation dependency: GSAP is ~25KB gzipped to run a handful of tweens
+// and canvas-confetti is 6KB for twenty lines of CSS. Everything here runs inside the existing
+// renderFrame ticker -- no second loop, no requestAnimationFrame of its own.
+// ---------------------------------------------------------------------------
+
+// Fixed pool of spark sprites, recycled. Allocating during a break would be the one moment in the
+// game where a GC pause is most visible.
+const SPARKS = [];
+const SPARK_COUNT = 28;
+let sparkLayer = null;
+
+function initSparks(layer) {
+  sparkLayer = layer;
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    const s = makeSpark();
+    s.life = 0;
+    layer.addChild(s);
+    SPARKS.push(s);
+  }
+}
+
+// Burst at a pocket, tinted to the ball that just went down.
+function burst(x, y, colour) {
+  let used = 0;
+  for (const s of SPARKS) {
+    if (s.life > 0) continue;
+    const a = Math.random() * Math.PI * 2;
+    const sp = 1.4 + Math.random() * 2.6;
+    s.vx = Math.cos(a) * sp;
+    s.vy = Math.sin(a) * sp;
+    s.life = 1;
+    s.tint = colour;
+    s.position.set(x, y);
+    s.scale.set(0.5 + Math.random() * 0.5);
+    s.alpha = 1;
+    s.visible = true;
+    if (++used >= 9) break;
+  }
+}
+
+function stepSparks() {
+  for (const s of SPARKS) {
+    if (s.life <= 0) continue;
+    s.life -= 0.055;
+    if (s.life <= 0) { s.visible = false; continue; }
+    s.x += s.vx;
+    s.y += s.vy;
+    s.vx *= 0.92;
+    s.vy *= 0.92;
+    s.alpha = s.life;
+    s.scale.set(s.life * 0.9);
+  }
+}
+
+// Balls used to vanish the instant they were potted. Shrinking them into the pocket over a few
+// frames is the cheapest feel-per-line change in the whole overhaul.
+const SINKING = new Map();
+function sinkBall(spr) { SINKING.set(spr, 1); }
+
+function stepSinking() {
+  for (const [spr, life] of SINKING) {
+    const next = life - 0.13;
+    if (next <= 0) { spr.visible = false; spr.scale.set(1); spr.alpha = 1; SINKING.delete(spr); continue; }
+    SINKING.set(spr, next);
+    spr.visible = true;
+    spr.scale.set(next);
+    spr.alpha = next;
+  }
+}
+
+// Screen shake on the break. A CSS keyframe on the canvas element rather than moving the Pixi
+// stage: compositor-only, and safe because canShoot() is false while the balls are moving, so no
+// pointer maths reads the shifted bounding box mid-shake.
+function shakeCanvas() {
+  const c = app.canvas;
+  c.classList.remove('shake');
+  void c.offsetWidth;
+  c.classList.add('shake');
+  c.addEventListener('animationend', () => c.classList.remove('shake'), { once: true });
+}
+
+// Coins flying to a target element. DOM, because they cross stacking contexts the canvas cannot
+// reach -- from the game-over modal out to the lobby wallet chip.
+function flyCoins(toEl, n = 8) {
+  if (!toEl) return;
+  const r = toEl.getBoundingClientRect();
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('i');
+    c.className = 'coin-fly';
+    c.style.setProperty('--i', i);
+    c.style.setProperty('--tx', `${r.left + r.width / 2}px`);
+    c.style.setProperty('--ty', `${r.top + r.height / 2}px`);
+    c.style.setProperty('--sx', `${(Math.random() - 0.5) * 40}vw`);
+    c.style.setProperty('--sy', `${(Math.random() - 0.5) * 30}vh`);
+    document.body.appendChild(c);
+    c.addEventListener('animationend', () => c.remove(), { once: true });
+  }
+}
+
+function confetti(n = 40) {
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('i');
+    c.className = 'confetti';
+    c.style.setProperty('--x', `${Math.random() * 100}vw`);
+    c.style.setProperty('--r', `${Math.random() * 360}deg`);
+    c.style.setProperty('--d', `${1.6 + Math.random() * 1.4}s`);
+    c.style.setProperty('--delay', `${Math.random() * 0.5}s`);
+    c.style.background = ['#ffd15a', '#4ee892', '#5aa6ff', '#ff5a91', '#c78bff'][i % 5];
+    document.body.appendChild(c);
+    c.addEventListener('animationend', () => c.remove(), { once: true });
+  }
+}
+
 function physicsFrame() {
   if (game.mode === 'guest') return;
   const audible = !document.hidden;
@@ -320,7 +440,13 @@ function physicsFrame() {
     game.sfxPocket++;
     game.shotPotted.push(b.number);
     if (b.number === 0) game.cueFoul = true;
+    burst(b.x, b.y, BALL_COLORS[b.number] || 0xffffff);
+    const spr = game.sprites.get(b);
+    if (spr) sinkBall(spr);
   }
+
+  // The break is the one shot that should feel like it hit something.
+  if (game.shots === 1 && game.sfxBall > 22 && !document.hidden) shakeCanvas();
 
   if (potted.length) refreshHud();
   if (game.shooting && allStopped(game.balls)) {
@@ -347,8 +473,11 @@ function physicsFrame() {
 
 function renderFrame() {
   const guest = game.mode === 'guest';
+  stepSparks();
+  stepSinking();
   for (const [ball, spr] of game.sprites) {
-    spr.visible = !ball.potted;
+    // A ball mid-sink is still drawn; SINKING owns its visibility until the animation finishes.
+    if (!SINKING.has(spr)) spr.visible = !ball.potted;
     if (ball.potted) continue;
     if (guest) {
       ball.x += ((ball.tx ?? ball.x) - ball.x) * 0.35;
@@ -402,6 +531,7 @@ function setupRack() {
   // A fresh rack must not inherit the last rack's aim, or the guide points somewhere the player
   // never chose the moment the table appears.
   game.aimDir = null;
+  game.myFouls = 0;
   powerFrac = 0;
   ui.hideGameOver();
   refreshHud();
@@ -532,6 +662,7 @@ function resolveTurn() {
     return;
   }
 
+  if (result.foul && shooter === game.myPlayer) game.myFouls++;
   if (!result.keepShooting) game.turn = other(shooter);
   game.ballInHand = result.foul;
   game.kitchenOnly = result.kitchenOnly;
@@ -548,9 +679,12 @@ function resolveTurn() {
 // deliberately doesn't award anything: it has no natural match-completion boundary (no win/loss,
 // just an open-ended rack you can restart anytime), and awarding on restart would be exploitable.
 function awardMatchResult(winner) {
-  if (game.mode === 'solo') return;
+  if (game.mode === 'solo') return null;
   const won = winner === game.myPlayer;
   const award = economy.awardForMatch({ mode: game.mode, won });
+  // Snapshot before mutating: the celebration animates the XP bar from where the player was to
+  // where they ended up, which needs both.
+  const before = { xp: profile.xp, level: profile.level };
   profile = economy.applyAward(profile, award);
   profile.pass.points += award.xp || 0;
   if (game.stakeAmount > 0 && game.currentMatchId) {
@@ -560,6 +694,14 @@ function awardMatchResult(winner) {
   persistProfile();
   mnHooks.hookCommitStats(profile);
   reportMatchResultToRelay(winner);
+
+  const stakeDelta = game.stakeAmount > 0 ? (won ? game.stakeAmount : -game.stakeAmount) : 0;
+  return {
+    won,
+    coins: (award.coins || 0) + stakeDelta,
+    xpFrom: before.xp, xpTo: profile.xp, xpNeed: economy.xpToNext(profile.level),
+    levelFrom: before.level, levelTo: profile.level,
+  };
 }
 
 // Both peers independently POST their own view of the result to the relay
@@ -581,18 +723,34 @@ function reportMatchResultToRelay(winner) {
 function endGame(winner) {
   game.gameOver = true;
   game.winner = winner;
-  awardMatchResult(winner);
+  const award = awardMatchResult(winner);
   refreshHud();
-  showEndBanner();
+  showEndBanner(award);
   sendState();
 }
 
-function showEndBanner() {
+// `award` is whatever awardMatchResult returned (null in solo, which has no match economy).
+function showEndBanner(award) {
   const won = game.winner === game.myPlayer;
   const text = won ? t('won') : t('lost');
   ui.banner(text);
-  ui.showGameOver(text);
+
+  // Stars are earned, not decorative: one for the win, one for leaving the opponent on a full rack,
+  // one for a foul-free match.
+  let stars = 0;
+  if (won) {
+    stars = 1;
+    const oppGroup = game.groups[other(game.myPlayer)];
+    const oppLeft = oppGroup
+      ? game.balls.filter((b) => groupOf(b.number) === oppGroup && !b.potted).length
+      : 7;
+    if (oppLeft === 7) stars++;
+    if (game.myFouls === 0) stars++;
+  }
+
+  ui.showGameOver({ won, text, stars, ...(award || {}) });
   won ? audio.win() : audio.lose();
+  if (won) { confetti(); flyCoins(document.getElementById('gameover-coins')); }
 }
 
 function announceTurn() {
@@ -774,8 +932,7 @@ function applyState(m) {
   }
 
   if (game.gameOver && !prevOver) {
-    awardMatchResult(game.winner);
-    showEndBanner();
+    showEndBanner(awardMatchResult(game.winner));
   }
 }
 

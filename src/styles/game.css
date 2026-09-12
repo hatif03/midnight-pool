@@ -433,3 +433,61 @@
   #vs-intro.show .vs-glyph,
   #vs-intro.show .vs-coin { animation-duration: .01s; }
 }
+
+/* --------------------------------------------------------------------------- Juice
+ * Screen shake is on the canvas element rather than the Pixi stage: compositor-only, and safe
+ * because canShoot() is false while the balls are moving, so no pointer maths reads the shifted
+ * bounding box mid-shake. Capped at 260ms. */
+#app canvas.shake { animation: tableShake .26s ease-in-out; }
+
+@keyframes tableShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 3px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, -2px); }
+  80% { transform: translate(2px, 2px); }
+}
+
+/* Coins flying to a target element -- DOM because they cross stacking contexts the canvas cannot
+   reach (the game-over modal out to the lobby wallet chip). */
+.coin-fly {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, var(--gold-t), var(--gold-b) 65%, var(--gold-e));
+  box-shadow: 0 2px 6px rgba(20, 8, 0, .5);
+  animation: coinFly .75s var(--ease) calc(var(--i) * .06s) both;
+}
+
+@keyframes coinFly {
+  from { transform: translate(calc(var(--tx) + var(--sx)), calc(var(--ty) + var(--sy))) scale(.4); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
+}
+
+.confetti {
+  position: fixed;
+  top: -20px;
+  left: var(--x);
+  width: 9px;
+  height: 14px;
+  z-index: 40;
+  pointer-events: none;
+  border-radius: 2px;
+  animation: confettiFall var(--d) linear var(--delay) both;
+}
+
+@keyframes confettiFall {
+  from { transform: translateY(0) rotate(0); opacity: 1; }
+  to { transform: translateY(110vh) rotate(var(--r)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app canvas.shake { animation: none; }
+  .coin-fly, .confetti { display: none; }
+}

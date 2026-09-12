@@ -58,9 +58,42 @@ export function showReactions(mode) {
   el('hud-reactions').classList.toggle('show', mode !== 'solo');
 }
 
-export function showGameOver(text) {
-  el('gameover-text').textContent = text;
+// `stars`, `coins` and the xp figures are all derived from real match data by the caller -- nothing
+// on this screen is a decorative number. A loss shows zero stars and a grey ribbon.
+export function showGameOver({ won, text, stars = 0, coins = 0, xpFrom = 0, xpTo = 0, xpNeed = 1, levelFrom = 1, levelTo = 1 }) {
+  const ribbon = el('gameover-text');
+  ribbon.textContent = text;
+  ribbon.classList.toggle('ribbon--grey', !won);
+
+  const box = el('gameover-stars');
+  box.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const s = document.createElement('i');
+    s.className = i < stars ? 'on' : '';
+    s.textContent = '★';
+    box.appendChild(s);
+  }
+
+  el('gameover-coins').textContent = `${coins >= 0 ? '+' : ''}${coins}`;
+  el('gameover-lvl').textContent = `Lv ${levelTo}`;
+
+  // Animate from the pre-match fraction to the post-match one. The bar already has a width
+  // transition, so this is two writes a frame apart rather than a tween.
+  const fill = el('gameover-xp');
+  const bar = fill.parentElement;
+  const levelled = levelTo > levelFrom;
+  bar.style.setProperty('--p', xpFrom / (xpNeed || 1));
   el('gameover-modal').classList.add('show');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.setProperty('--p', levelled ? 1 : xpTo / (xpNeed || 1));
+    if (levelled) {
+      el('gameover-lvl').classList.add('pop');
+      setTimeout(() => {
+        bar.style.setProperty('--p', 0);
+        requestAnimationFrame(() => bar.style.setProperty('--p', xpTo / (xpNeed || 1)));
+      }, 650);
+    }
+  }));
 }
 
 export function hideGameOver() {

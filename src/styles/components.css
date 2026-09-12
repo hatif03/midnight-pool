@@ -20,11 +20,20 @@
  * whose buttons carry no class and are addressed positionally by main.js; aliasing them here
  * restyles all of them at once without annotating 22 call sites or touching the JS that finds them.
  * =========================================================================== */
-.btn,
-.modal .box button:not(.seg-btn) {
+/* Ramp and ink defaults live in :where() so they carry ZERO specificity and every --colour variant
+   can override them. Without this the alias selector `.modal .box button` (0,3,1) outranks
+   `.btn--grey` (0,1,0) and silently repaints every variant inside a modal green. Found by noticing
+   a MENU button that refused to be grey; the same trap already bit .seg-btn once. */
+:where(.btn, .modal .box button:not(.seg-btn)) {
   --t: var(--green-t);
   --b: var(--green-b);
   --e: var(--green-e);
+  color: var(--paper);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+}
+
+.btn,
+.modal .box button:not(.seg-btn) {
   position: relative;
   isolation: isolate;
   display: inline-flex;
@@ -35,8 +44,6 @@
   font-size: var(--fs-label);
   letter-spacing: .5px;
   text-transform: uppercase;
-  color: var(--paper);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
   padding: .7em 1.4em;
   border: 0;
   border-radius: var(--r-m);

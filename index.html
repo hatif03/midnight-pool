@@ -185,12 +185,18 @@
       </div>
     </div>
 
-    <div id="gameover-modal" class="modal">
+    <div id="gameover-modal" class="modal modal--victory">
       <div class="box">
-        <p id="gameover-text">You won.</p>
+        <div class="ribbon" id="gameover-text">You won.</div>
+        <div class="stars" id="gameover-stars"></div>
+        <div class="reward"><svg class="svg-icon"><use href="#i-coin"/></svg><b id="gameover-coins">+0</b></div>
+        <div class="xp-row">
+          <span class="bar"><i id="gameover-xp"></i></span>
+          <span class="lvl-tag" id="gameover-lvl">Lv 1</span>
+        </div>
         <div class="row">
-          <button class="btn btn--green" id="gameover-rematch" data-i18n="rematch">Rematch</button>
-          <button id="gameover-menu" data-i18n="menu">Menu</button>
+          <button class="btn btn--lg btn--green" id="gameover-rematch" data-i18n="rematch">Rematch</button>
+          <button class="btn btn--grey" id="gameover-menu" data-i18n="menu">Menu</button>
         </div>
       </div>
     </div>
