@@ -1,48 +1,102 @@
 import { Container, Graphics, Text, Sprite, Rectangle, FillGradient } from 'pixi.js';
-import { CANVAS_W, CANVAS_H, CUSHION, TABLE_W, TABLE_H, BALL_R, POCKET_R, BALL_COLORS } from './config.js';
+import { CANVAS_W, CANVAS_H, CUSHION, TABLE_W, TABLE_H, BALL_R, POCKET_R, BALL_COLORS, HEAD_STRING_X } from './config.js';
 import { pocketPositions } from './physics.js';
+
+// Table palette, mirroring the CSS tokens in src/styles/tokens.css (docs/adr/0014).
+const RAIL = [0xc96a3d, 0x9a3f22, 0x5e2313];
+const CUSH = 0xb6502c;
+const CUSH_HI = 0xe08a5c;
+const FELT = [0x46b0f2, 0x1f7fd0, 0x114f88];
+const RIM = 0xffc94d;
+const SIGHT = 0xfff3d6;
+
+// How far the cushion mouth pulls back from a pocket centre, so the jaws read as jaws.
+const JAW = POCKET_R * 1.15;
+// Where the cushion's outer face starts, measured in from the frame edge.
+const LIP = 7;
 
 export function drawTable() {
   const g = new Graphics();
 
+  // --- frame -------------------------------------------------------------
   const wood = new FillGradient({
     type: 'linear', start: { x: 0, y: 0 }, end: { x: 0, y: 1 },
-    colorStops: [{ offset: 0, color: 0x8a5a30 }, { offset: 0.5, color: 0x5c3b1d }, { offset: 1, color: 0x36230f }],
+    colorStops: [{ offset: 0, color: RAIL[0] }, { offset: 0.5, color: RAIL[1] }, { offset: 1, color: RAIL[2] }],
     textureSpace: 'local',
   });
-  g.roundRect(0, 0, CANVAS_W, CANVAS_H, 16).fill(wood);
-  g.roundRect(3, 3, CANVAS_W - 6, CANVAS_H - 6, 13).stroke({ width: 2, color: 0xffe2b0, alpha: 0.18 });
+  g.roundRect(0, 0, CANVAS_W, CANVAS_H, 18).fill(wood);
+  g.roundRect(4, 4, CANVAS_W - 8, CANVAS_H - 8, 15).stroke({ width: 2, color: 0xffd98a, alpha: 0.30 });
 
-  g.rect(CUSHION - 8, CUSHION - 8, TABLE_W + 16, TABLE_H + 16).fill(0x1b6e3a);
-
+  // --- felt --------------------------------------------------------------
   const cloth = new FillGradient({
     type: 'radial',
-    innerCenter: { x: 0.5, y: 0.42 }, innerRadius: 0.04,
-    outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.66,
-    colorStops: [{ offset: 0, color: 0x24c55c }, { offset: 0.7, color: 0x12953f }, { offset: 1, color: 0x0a6b2c }],
+    innerCenter: { x: 0.5, y: 0.44 }, innerRadius: 0.04,
+    outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.72,
+    colorStops: [{ offset: 0, color: FELT[0] }, { offset: 0.7, color: FELT[1] }, { offset: 1, color: FELT[2] }],
     textureSpace: 'local',
   });
   g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).fill(cloth);
-  g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).stroke({ width: 8, color: 0x000000, alpha: 0.18 });
-  g.rect(CUSHION + 2, CUSHION + 2, TABLE_W - 4, TABLE_H - 4).stroke({ width: 2, color: 0x000000, alpha: 0.12 });
 
-  const dots = [];
+  // --- cushions ----------------------------------------------------------
+  // Six trapezoids: the sloped face between the rail top and the cushion nose. This is what makes
+  // the rails read as three-dimensional rather than as a flat border, and it is the single biggest
+  // difference between this table and the old one.
+  const x0 = CUSHION, xm = CUSHION + TABLE_W / 2, x1 = CUSHION + TABLE_W;
+  const y0 = CUSHION, y1 = CUSHION + TABLE_H;
+
+  // [outer edge start, outer edge end, nose start, nose end] per run, as polygon point lists.
+  const runs = [
+    // top-left, top-right (split by the middle pocket)
+    [x0 + JAW - 6, LIP, xm - JAW + 6, LIP, xm - JAW, y0, x0 + JAW, y0],
+    [xm + JAW - 6, LIP, x1 - JAW + 6, LIP, x1 - JAW, y0, xm + JAW, y0],
+    // bottom-left, bottom-right
+    [x0 + JAW - 6, CANVAS_H - LIP, xm - JAW + 6, CANVAS_H - LIP, xm - JAW, y1, x0 + JAW, y1],
+    [xm + JAW - 6, CANVAS_H - LIP, x1 - JAW + 6, CANVAS_H - LIP, x1 - JAW, y1, xm + JAW, y1],
+    // left, right (single runs, corner to corner)
+    [LIP, y0 + JAW - 6, LIP, y1 - JAW + 6, x0, y1 - JAW, x0, y0 + JAW],
+    [CANVAS_W - LIP, y0 + JAW - 6, CANVAS_W - LIP, y1 - JAW + 6, x1, y1 - JAW, x1, y0 + JAW],
+  ];
+  for (const pts of runs) g.poly(pts).fill(CUSH);
+
+  // Nose highlight: the lit top edge of each cushion, facing the table.
+  const noses = [
+    [x0 + JAW, y0, xm - JAW, y0], [xm + JAW, y0, x1 - JAW, y0],
+    [x0 + JAW, y1, xm - JAW, y1], [xm + JAW, y1, x1 - JAW, y1],
+    [x0, y0 + JAW, x0, y1 - JAW], [x1, y0 + JAW, x1, y1 - JAW],
+  ];
+  for (const [ax, ay, bx, by] of noses) {
+    g.moveTo(ax, ay).lineTo(bx, by).stroke({ width: 2.5, color: CUSH_HI, alpha: 0.55 });
+  }
+
+  // Contact shadow the cushions cast onto the felt.
+  g.rect(CUSHION, CUSHION, TABLE_W, TABLE_H).stroke({ width: 10, color: 0x000000, alpha: 0.16 });
+  g.rect(CUSHION + 1, CUSHION + 1, TABLE_W - 2, TABLE_H - 2).stroke({ width: 2, color: 0x000000, alpha: 0.14 });
+
+  // --- head string -------------------------------------------------------
+  // Free, and it makes the kitchen rule legible during ball-in-hand instead of invisible.
+  g.moveTo(HEAD_STRING_X, CUSHION).lineTo(HEAD_STRING_X, CUSHION + TABLE_H)
+    .stroke({ width: 1, color: 0xffffff, alpha: 0.14 });
+
+  // --- sights ------------------------------------------------------------
+  // Diamonds, not dots: this is what a real table has and what the reference draws.
+  const sights = [];
   for (const f of [0.25, 0.5, 0.75]) {
-    dots.push([CUSHION + TABLE_W * f, CUSHION / 2], [CUSHION + TABLE_W * f, CANVAS_H - CUSHION / 2]);
+    sights.push([CUSHION + TABLE_W * f, CUSHION / 2], [CUSHION + TABLE_W * f, CANVAS_H - CUSHION / 2]);
   }
-  dots.push([CUSHION / 2, CUSHION + TABLE_H / 2], [CANVAS_W - CUSHION / 2, CUSHION + TABLE_H / 2]);
-  for (const [x, y] of dots) {
-    g.circle(x, y, 3.5).fill(0xfff0cf);
-    g.circle(x, y, 3.5).stroke({ width: 1, color: 0x4a3a1f, alpha: 0.5 });
+  sights.push([CUSHION / 2, CUSHION + TABLE_H / 2], [CANVAS_W - CUSHION / 2, CUSHION + TABLE_H / 2]);
+  for (const [x, y] of sights) {
+    g.poly([x, y - 4.5, x + 4.5, y, x, y + 4.5, x - 4.5, y]).fill(SIGHT);
+    g.poly([x, y - 4.5, x + 4.5, y, x, y + 4.5, x - 4.5, y]).stroke({ width: 1, color: 0x5e2313, alpha: 0.45 });
   }
 
+  // --- pockets -----------------------------------------------------------
   for (const p of pocketPositions()) {
-    g.circle(p.x, p.y, POCKET_R + 6).fill({ color: 0x000000, alpha: 0.4 });
-    g.circle(p.x, p.y, POCKET_R + 3).fill(0x4a3a1f);
-    g.circle(p.x, p.y, POCKET_R + 3).stroke({ width: 2, color: 0xd9b15a, alpha: 0.7 });
+    g.circle(p.x, p.y, POCKET_R + 7).fill({ color: 0x000000, alpha: 0.35 });
+    g.circle(p.x, p.y, POCKET_R + 4).fill(0x7a4a10);
+    g.circle(p.x, p.y, POCKET_R + 4).stroke({ width: 3, color: RIM, alpha: 0.9 });
     const hole = new FillGradient({
       type: 'radial', innerCenter: { x: 0.5, y: 0.4 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.5,
-      colorStops: [{ offset: 0, color: 0x101010 }, { offset: 1, color: 0x000000 }], textureSpace: 'local',
+      colorStops: [{ offset: 0, color: 0x1a1a1a }, { offset: 1, color: 0x000000 }], textureSpace: 'local',
     });
     g.circle(p.x, p.y, POCKET_R).fill(hole);
   }

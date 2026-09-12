@@ -182,7 +182,7 @@ async function shareInvite() {
 
 async function main() {
   app = new Application();
-  await app.init({ width: CANVAS_W, height: CANVAS_H, backgroundColor: 0x081109, antialias: true });
+  await app.init({ width: CANVAS_W, height: CANVAS_H, backgroundColor: 0x0e2a44, antialias: true });
   app.ticker.maxFPS = 60;
   document.getElementById('app').appendChild(app.canvas);
 
@@ -191,7 +191,9 @@ async function main() {
   app.stage.addChild(ballLayer);
   aimLine = new Graphics();
   powerBar = new Graphics();
-  powerLabel = new Text({ text: 'POTENCIA', style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fontWeight: 'bold', fill: 0xffffff } });
+  // Was a hardcoded Spanish literal, so it read 'POTENCIA' in the English UI. Pixi Text is not
+  // covered by applyStatic(), so the language switch has to set it explicitly (see below).
+  powerLabel = new Text({ text: t('power').toUpperCase(), style: { fontFamily: 'Lilita One, system-ui, sans-serif', fontSize: 13, fill: 0xffffff } });
   powerLabel.position.set(24, CANVAS_H - 40);
   powerLabel.visible = false;
   app.stage.addChild(aimLine, powerBar, powerLabel);
@@ -206,6 +208,7 @@ async function main() {
     ui.el('btn-leagues').title = t('leaguesTitle');
     ui.el('btn-cues').title = t('cuesTitle');
     ui.el('btn-shop').title = t('shopTitle');
+    if (powerLabel) powerLabel.text = t('power').toUpperCase();
   };
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
     b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
