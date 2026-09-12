@@ -76,3 +76,22 @@
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-pop: cubic-bezier(.34, 1.56, .64, 1);
 }
+
+/* ---------------------------------------------------------------------------
+ * Document shell
+ *
+ * body's background is what shows in the letterbox around the fixed-size canvas, so it is a deep
+ * table-room blue rather than the old near-black -- it reads as the room the table is in.
+ * overflow/overscroll are locked because this is a fixed-viewport landscape game that must never
+ * scroll or rubber-band.
+ * ------------------------------------------------------------------------- */
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0b2137;
+  overflow: hidden;
+  overscroll-behavior: none;
+  font-family: var(--font-ui);
+  color: var(--paper);
+  touch-action: none;
+}

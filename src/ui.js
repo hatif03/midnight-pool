@@ -20,8 +20,13 @@ syncHudHeight();
 
 function setChip(prefix, name, level) {
   const { initial, color } = avatarFor(name);
-  el(`${prefix}-avatar`).textContent = initial;
-  el(`${prefix}-avatar`).style.background = color;
+  const av = el(`${prefix}-avatar`);
+  // The level badge is a child of the avatar now, so write the initial into a text node rather
+  // than textContent, which would delete the badge.
+  av.firstChild?.nodeType === Node.TEXT_NODE
+    ? (av.firstChild.nodeValue = initial)
+    : av.prepend(document.createTextNode(initial));
+  av.style.setProperty('--av-color', color);
   el(`${prefix}-name`).textContent = name;
   el(`${prefix}-level`).textContent = level;
 }
@@ -32,12 +37,21 @@ export function updatePlayers(mode, myName, myLevel, oppName, oppLevel) {
   if (mode !== 'solo') setChip('hud-opp', oppName, oppLevel);
 }
 
-export function updateTimer(seconds, show) {
-  const e = el('hud-timer');
-  e.classList.toggle('show', show);
+// The turn timer is the ring around the active player's avatar: one custom-property write per
+// tick, no extra element and no layout. --t runs 1 -> 0 as the turn burns down.
+export function updateTimer(seconds, show, base = 60) {
+  const me = el('hud-me-avatar'), opp = el('hud-opp-avatar');
+  for (const a of [me, opp]) {
+    a.classList.toggle('timed', show);
+    if (!show) { a.classList.remove('low'); a.style.removeProperty('--t'); }
+  }
   if (!show) return;
-  e.textContent = Math.ceil(seconds);
-  e.classList.toggle('low', seconds <= 10);
+  const active = el('hud-me').classList.contains('active') ? me : opp;
+  const idle = active === me ? opp : me;
+  active.style.setProperty('--t', Math.max(0, Math.min(1, seconds / base)));
+  active.classList.toggle('low', seconds <= 10);
+  idle.style.setProperty('--t', 1);
+  idle.classList.remove('low');
 }
 
 export function showReactions(mode) {
@@ -98,36 +112,27 @@ export function showHint() {
   el('hint').classList.remove('gone');
 }
 
-export function updateHud(shots, potted, total) {
-  el('hud-shots').textContent = shots;
-  el('hud-potted').textContent = `${potted}/${total}`;
-}
+// updateHud (shots/potted counters) and updateGroup (a solids/stripes pill) are gone: the rack of
+// ball dots already shows both -- which group is yours is which balls are in your rack, and how
+// many you have left is how many are unlit. Two pills of redundant text removed, not reskinned.
 
 export function updateTurn(mode, mine) {
-  const e = el('hud-turn');
   if (mode === 'solo') {
-    e.style.display = 'none';
     el('hud-me').classList.remove('active', 'inactive');
+    el('hud-opp').classList.remove('active', 'inactive');
     return;
   }
-  e.style.display = '';
-  e.textContent = mine ? t('you') : t('rival');
-  e.style.background = mine ? 'rgba(70,220,140,.28)' : 'rgba(220,90,90,.28)';
-  // Adapted from the reference's dimmed/bold name pattern — additive to this existing pill.
   el('hud-me').classList.toggle('active', mine);
   el('hud-me').classList.toggle('inactive', !mine);
   el('hud-opp').classList.toggle('active', !mine);
   el('hud-opp').classList.toggle('inactive', mine);
 }
 
-export function updateGroup(mode, group) {
-  const g = el('hud-group');
-  if (mode === 'solo' || !group) {
-    g.style.display = 'none';
-    return;
-  }
-  g.style.display = '';
-  g.textContent = group === 'stripes' ? t('stripes') : t('solids');
+// Shown only when there is a real stake; otherwise the chip stays hidden rather than showing a 0.
+export function setPot(amount) {
+  const chip = el('hud-pot');
+  chip.hidden = !amount;
+  if (amount) el('hud-pot-value').textContent = amount;
 }
 
 export function setStatus(id, text, error = false) {

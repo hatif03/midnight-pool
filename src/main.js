@@ -350,7 +350,10 @@ function renderFrame() {
     }
     spr.position.set(ball.x, ball.y);
   }
-  ui.updateTimer(game.turnTimeLeft, game.timedMode && game.started && !game.gameOver);
+  // The ring needs the turn's full duration to render a fraction, and that duration depends on
+  // whose turn it is -- each side's equipped cue carries its own timeBonus.
+  const turnBase = 60 + (game.turn === game.myPlayer ? equippedCue().timeBonus : game.opponentTimeBonus);
+  ui.updateTimer(game.turnTimeLeft, game.timedMode && game.started && !game.gameOver, turnBase);
 }
 
 function setupRack() {
@@ -383,16 +386,10 @@ function setupRack() {
 }
 
 function refreshHud() {
-  if (game.mode === 'solo') {
-    const p = game.balls.filter((b) => b.number !== 0 && b.potted).length;
-    ui.updateHud(game.shots, p, 15);
-  } else {
-    const mg = game.groups[game.myPlayer];
-    const p = mg ? game.balls.filter((b) => groupOf(b.number) === mg && b.potted).length : 0;
-    ui.updateHud(game.shots, p, 7);
-  }
-  ui.updateGroup(game.mode, game.groups[game.myPlayer]);
+  // The shots/potted counters and the solids-stripes pill are gone (docs/adr/0014) -- the rack of
+  // ball dots already carries both, so this is now just the rack plus the stake chip.
   ui.updateBallsLeft(game.mode, game.balls, game.groups, game.myPlayer);
+  ui.setPot(game.stakeAmount > 0 ? game.stakeAmount * 2 : 0);
 }
 
 function canShoot() {
@@ -1298,7 +1295,7 @@ function wireMenu() {
     b.onclick = (e) => { e.stopPropagation(); audio.uiClick(); ui.el(b.dataset.open).classList.add('show'); };
   });
 
-  click('btn-solo', () => { closeNet(); game.mode = 'solo'; game.timedMode = false; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); ui.updateGroup('solo'); updatePlayersDisplay(); });
+  click('btn-solo', () => { closeNet(); game.mode = 'solo'; game.timedMode = false; setupRack(); stopBanners(); ui.enterGame(); syncSpinGrid(); ui.updateTurn('solo'); updatePlayersDisplay(); });
   click('btn-multi', () => ui.showScreen('screen-mp'));
   click('btn-create', () => { ui.showScreen('screen-host'); startHost(); });
   click('btn-share', shareInvite);

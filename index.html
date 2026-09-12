@@ -94,35 +94,42 @@
     </div>
     <div id="app"></div>
 
+    <!-- Match HUD (docs/adr/0014): [me cluster] [pot] [opponent cluster], actions in the corner.
+         The dots-me/dots-opp ids are deliberately preserved so ui.renderDots is untouched; the
+         rack-slot look is pure CSS. The shots/potted/turn/group pills are gone -- turn is the lit
+         avatar ring and group is which balls fill your rack. -->
     <div id="hud">
-      <button class="hud-icon-btn" id="btn-menu" title="Menu">☰</button>
-      <div class="stats">
-        <span class="pill player-chip" id="hud-me">
-          <span class="avatar" id="hud-me-avatar"></span><span class="name" id="hud-me-name">You</span>
-          <span class="level-badge" id="hud-me-level">1</span>
-        </span>
-        <span class="dots-row" id="dots-me"></span>
-        <span class="pill" id="hud-turn">Tú</span>
-        <span class="pill" id="hud-group">Lisas</span>
-        <span class="pill" id="hud-timer">60</span>
-        <span class="pill"><span data-i18n="shots">Tiros</span>: <b id="hud-shots">0</b></span>
-        <span class="pill"><span data-i18n="potted">Embocadas</span>: <b id="hud-potted">0/7</b></span>
-        <span class="dots-row" id="dots-opp"></span>
-        <span class="pill player-chip" id="hud-opp">
-          <span class="avatar" id="hud-opp-avatar"></span><span class="name" id="hud-opp-name">Opponent</span>
-          <span class="level-badge" id="hud-opp-level">1</span>
-        </span>
+      <div class="hud-side" id="hud-me">
+        <span class="avatar timed" id="hud-me-avatar"><span class="lvl" id="hud-me-level">1</span></span>
+        <div class="hud-meta">
+          <b class="name" id="hud-me-name">You</b>
+          <span class="rack dots-row" id="dots-me"></span>
+        </div>
       </div>
-      <div class="actions">
+
+      <div class="hud-centre">
+        <span class="hud-pot" id="hud-pot" hidden><svg class="svg-icon"><use href="#i-coin"/></svg><b id="hud-pot-value">0</b></span>
+      </div>
+
+      <div class="hud-side hud-side--r" id="hud-opp">
+        <div class="hud-meta">
+          <b class="name" id="hud-opp-name">Opponent</b>
+          <span class="rack dots-row" id="dots-opp"></span>
+        </div>
+        <span class="avatar timed" id="hud-opp-avatar"><span class="lvl" id="hud-opp-level">1</span></span>
+      </div>
+
+      <div class="hud-corner">
         <span class="reactions" id="hud-reactions">
           <button data-emoji="👍" title="👍">👍</button>
           <button data-emoji="😅" title="😅">😅</button>
           <button data-emoji="🎱" title="🎱">🎱</button>
           <button data-emoji="😮" title="😮">😮</button>
         </span>
-        <button id="btn-cues-quick" title="Cues">🎱</button>
-        <button id="btn-mute" title="Silenciar">🔊</button>
-        <button id="btn-restart" data-i18n="restart">Reiniciar</button>
+        <button class="btn btn--icon btn--blue" id="btn-cues-quick" title="Cues"><svg><use href="#i-cue"/></svg></button>
+        <button class="btn btn--icon btn--grey" id="btn-mute" title="Mute">🔊</button>
+        <button class="btn btn--icon btn--red" id="btn-menu" title="Menu">☰</button>
+        <button class="btn btn--compact btn--grey" id="btn-restart" data-i18n="restart">Reiniciar</button>
       </div>
     </div>
 

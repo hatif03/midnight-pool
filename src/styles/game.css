@@ -1,0 +1,272 @@
+/* In-match surfaces (docs/adr/0014): HUD, hint, toast, banner, spin widget.
+ *
+ * The HUD is [me] [pot] [opponent] with the actions in a corner, mirroring the reference. It is
+ * pointer-events: none except where it needs to be clickable, so it never eats a shot.
+ */
+
+/* --hud-h is written by ui.js from the HUD's real rendered height, so the table is never sized
+   underneath the HUD bar whatever that height turns out to be on a given screen or font. A
+   hardcoded constant would drift the moment the HUD content wrapped differently. */
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: max(8px, var(--hud-h, 0px)) max(8px, env(safe-area-inset-right))
+           max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+#app canvas {
+  cursor: grab;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+  border-radius: var(--r-l);
+  box-shadow: var(--e-3);
+}
+
+#app canvas:active { cursor: grabbing; }
+
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: none;
+  align-items: flex-start;
+  gap: clamp(6px, 2dvw, 14px);
+  padding: calc(6px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right))
+           6px calc(10px + env(safe-area-inset-left));
+  pointer-events: none;
+  animation: hudIn .4s var(--ease) both;
+}
+
+@keyframes hudIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+#hud.show { display: flex; }
+
+/* --------------------------------------------------------------------------- Player clusters */
+.hud-side {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  min-width: 0;
+  padding: 3px 12px 3px 3px;
+  border: 1px solid var(--panel-line);
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, #0d2e4a, #08202f);
+  box-shadow: var(--e-1), inset 0 1px 0 rgba(255, 255, 255, .12);
+  transition: opacity .2s, box-shadow .2s;
+}
+
+.hud-side--r { padding: 3px 3px 3px 12px; }
+.hud-side.inactive { opacity: .55; }
+.hud-side.active { box-shadow: var(--e-2), 0 0 0 2px var(--gold-b), 0 0 16px rgba(255, 201, 77, .45); }
+#hud-opp.hidden { display: none; }
+
+.hud-side .avatar { --sz: clamp(24px, 8dvh, 34px); font-size: var(--fs-micro); }
+
+.hud-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.hud-side--r .hud-meta { align-items: flex-end; }
+
+.hud-meta .name {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--paper);
+  max-width: clamp(50px, 14dvw, 120px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------- Ball rack
+ * Same .dot/.gone classes ui.renderDots already writes -- only the look changed, so renderDots
+ * did not have to be touched. renderDots sets an inline background, hence the !important on the
+ * potted state: it is the one place inline styles have to lose. */
+.rack { display: none; gap: 3px; align-items: center; }
+.rack.show { display: flex; }
+
+.rack .dot {
+  width: clamp(7px, 2.2dvh, 11px);
+  height: clamp(7px, 2.2dvh, 11px);
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset -1px -2px 3px rgba(0, 0, 0, .45),
+              inset 2px 2px 3px rgba(255, 255, 255, .55),
+              0 1px 2px rgba(0, 0, 0, .5);
+  transition: opacity .3s, transform .3s;
+}
+
+.rack .dot.gone {
+  background: none !important;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .25);
+  transform: scale(.86);
+}
+
+/* --------------------------------------------------------------------------- Pot */
+.hud-centre { flex: 1; display: flex; justify-content: center; min-width: 0; }
+
+.hud-pot {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  padding: .25em .8em;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-t), var(--gold-b));
+  box-shadow: var(--inset-lip), 0 3px 0 var(--gold-e), var(--e-2);
+}
+
+.hud-pot[hidden] { display: none; }
+
+/* --------------------------------------------------------------------------- Corner actions */
+.hud-corner {
+  display: flex;
+  align-items: center;
+  gap: clamp(3px, 1dvw, 6px);
+  pointer-events: auto;
+  flex: none;
+}
+
+.hud-corner .btn--icon { font-size: var(--fs-label); }
+.reactions { display: none; gap: 3px; }
+.reactions.show { display: flex; }
+
+.reactions button {
+  border: 1px solid var(--panel-line);
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .4);
+  color: var(--paper);
+  font-size: var(--fs-label);
+  line-height: 1;
+  padding: .3em .45em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.reactions button:active { transform: scale(.92); }
+
+/* --------------------------------------------------------------------------- Hint / toast / banner */
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: min(62dvw, 520px);
+  padding: .6em 1.1em;
+  border-radius: var(--r-m);
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--paper);
+  background: rgba(6, 22, 36, .82);
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--e-2);
+  transition: opacity .4s var(--ease);
+  pointer-events: none;
+}
+
+#hint.gone { opacity: 0; }
+
+#toast {
+  position: fixed;
+  top: calc(var(--hud-h, 0px) + 8px);
+  left: calc(18px + env(safe-area-inset-left));
+  z-index: 20;
+  padding: .6em 1.1em;
+  border-radius: var(--r-m);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  color: var(--paper);
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--e-2);
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity .35s var(--ease), transform .35s var(--ease);
+  pointer-events: none;
+}
+
+#toast.show { opacity: 1; transform: translateX(0); }
+
+#banner {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#banner .txt {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 11dvh, 64px);
+  text-align: center;
+  padding: 0 30px;
+  color: var(--gold-t);
+  text-shadow: 0 4px 0 var(--gold-e), 0 8px 30px rgba(0, 0, 0, .7);
+}
+
+#banner.show { animation: bannerPop 2.4s var(--ease) forwards; }
+
+@keyframes bannerPop {
+  0% { opacity: 0; transform: scale(.6); }
+  15% { opacity: 1; transform: scale(1.08); }
+  25% { transform: scale(1); }
+  78% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+
+/* --------------------------------------------------------------------------- Spin widget
+ * A cue-ball-face proxy you drag on directly rather than picking from fixed presets. Offset from
+ * centre is the spin vector, clamped to the unit circle here and to the cue's spinCap in main.js. */
+#spin-widget {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 6;
+  display: none;
+  width: clamp(48px, 17dvh, 66px);
+  height: clamp(48px, 17dvh, 66px);
+  border-radius: 50%;
+  touch-action: none;
+  cursor: pointer;
+  background: radial-gradient(circle at 35% 32%, #fff 0%, #e2e2e2 55%, #a8a8a8 100%);
+  border: 2px solid var(--gold-b);
+  box-shadow: var(--e-2), inset 0 -4px 10px rgba(0, 0, 0, .25);
+}
+
+#spin-widget.show { display: block; }
+#spin-widget.disabled { opacity: .35; cursor: not-allowed; }
+
+#spin-dot {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--red-b);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+  pointer-events: none;
+  transition: left .05s linear, top .05s linear;
+}
