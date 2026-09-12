@@ -24,11 +24,11 @@ export default function handler(request) {
       {
         style: {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          width: '100%', height: '100%', background: '#04080a', color: '#fff',
+          width: '100%', height: '100%', background: '#0b2137', color: '#fff',
           fontFamily: 'system-ui, sans-serif',
         },
       },
-      el('div', { style: { fontSize: 64, fontWeight: 800, color: '#4ee892' } }, '\u{1F3B1} Midnight Pool'),
+      el('div', { style: { fontSize: 64, fontWeight: 800, color: '#ffc94d' } }, '\u{1F3B1} Midnight Pool'),
       el('div', { style: { fontSize: 40, marginTop: 24 } }, `${name} invited you to a game`),
     ),
     { width: 1200, height: 630 },

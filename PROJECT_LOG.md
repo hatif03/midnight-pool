@@ -5,7 +5,62 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
-## Current state (2026-09-13, visual overhaul phases 0-4, Buildathon wave 1)
+## Current state (2026-09-13, visual overhaul complete, Buildathon wave 1)
+
+All ten phases of [ADR-0014](docs/adr/0014-visual-overhaul.md) are done, plus
+[ADR-0017](docs/adr/0017-aim-guide-and-two-stage-input.md) for the two gameplay changes.
+`legacy.css` reached zero lines and was deleted, which was the agreed signal that no surface was
+missed. The stylesheet is now five files under `src/styles/` (`tokens`, `components`, `lobby`,
+`game`, `modals`) behind one `<link>`.
+
+**Phases 5-10, on top of the 0-4 already logged below:**
+
+- **HUD** rebuilt as `[me] [pot] [opponent]`. Whose turn it is is now the lit gold ring around a
+  player's avatar rather than a text pill, and the turn timer became a conic-gradient ring masked to
+  an annulus — one custom-property write per tick. The shots/potted counters and the solids-stripes
+  pill were **deleted rather than reskinned**: the rack of ball dots already carries both.
+  `ui.renderDots` was not touched at all.
+- **Ghost-ball aim.** `predictShot()` in `physics.js` does a ray/circle test against every ball and
+  reports the real first contact. The old guide predicted three rail bounces but passed straight
+  *through* balls, so it actively lied about the most common shot in pool. 17 new asserts.
+  `aimBonus` now extends the projected lines, which gives the cue stat real meaning.
+- **Two-stage input** — drag the table to aim, drag the rail to set power. The riskiest change in
+  the overhaul and the one that can be reverted on its own. The net protocol is untouched: a guest
+  still sends `{dx, dy, power, spin}`; only the local gesture producing them changed.
+- **Cue stick**, baked once and drawn below the ball layer so it passes behind the balls.
+- **VS intro** before each multiplayer match, as a promise-returning overlay rather than a screen,
+  so match-start ordering is untouched. Handles the host's race — it shows before `hello` arrives
+  and patches the opponent's name in mid-animation rather than waiting on a message that might
+  never come.
+- **Juice**: pot bursts from a recycled sprite pool, balls sinking instead of vanishing, screen
+  shake on the break, coin-fly and confetti in DOM. No animation dependency.
+- **Victory screen** with earned stars (win / whitewash / foul-free), the real coin delta including
+  stake, and an XP bar that animates from the pre-match fraction.
+- **Polish**: `theme-color`, the PWA manifest and the share-preview image had drifted to two
+  different near-blacks, neither of which was the app's palette; all three now agree on `#0b2137`.
+
+**Verified offline end to end**, which is the claim the self-hosted-font decision rested on: after
+one online visit, with the network fully cut, a cold reload still renders the lobby and
+`document.fonts.check('16px "Lilita One"')` is true. A Google Fonts CDN URL would have failed this,
+because `workbox.globPatterns` precaches the build output and a CDN URL never appears there.
+
+**Three more rendering bugs found only by looking at the page** (adding to the three logged below):
+
+- every tile icon rendered solid black — a `<button>` does not inherit `body`'s `color`, it takes
+  the UA's `buttontext`, and the sprite's shapes are `fill="currentColor"`;
+- the MENU button refused to be grey — the `.modal .box button` alias (0,3,1) outranks `.btn--grey`
+  (0,1,0), so **every** colour variant inside a modal was being silently repainted green. Ramp and
+  ink defaults now live in `:where()`, which carries zero specificity. This is the second bug from
+  that one alias (the first was `.seg-btn`), so it is now flagged in the comment beside it;
+- `waitForSelector('#vs-intro:not(.show)')` is not a valid "it went away" assertion — that waits for
+  *visibility*, and a dismissed overlay is hidden by definition. Use `waitForFunction` on the class.
+
+**Next:** the Hustle Protocol document and the one-stack collapse, then real in-browser submission.
+Note for that work: `compact` on this machine's PATH is Windows' NTFS compression tool and
+`~/.compact` is absent, but **WSL Ubuntu is available**, which is where the contract toolchain has
+to run.
+
+## Earlier state (2026-09-13, visual overhaul phases 0-4)
 
 **Context change: the target is now the Midnight Buildathon on AKINDO**, a three-wave program
 (wave 1 build closes 2026-09-16, wave 2 Sep 27–Oct 17, wave 3 Oct 27–Nov 16) that explicitly rewards

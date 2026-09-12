@@ -22,8 +22,10 @@ export default defineConfig({
         display: 'fullscreen',
         display_override: ['fullscreen', 'standalone'],
         orientation: 'landscape',
-        background_color: '#04080a',
-        theme_color: '#04080a',
+        // Must match index.html's theme-color meta and tokens.css's shell colour; these three
+        // had drifted to two different near-blacks, neither of which was the app's palette.
+        background_color: '#0b2137',
+        theme_color: '#0b2137',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
