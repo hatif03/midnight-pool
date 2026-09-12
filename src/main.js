@@ -30,6 +30,8 @@ const RANKED_LEVEL_THRESHOLD = 5;
 
 let profile = loadProfile();
 let currentSpin = { x: 0, y: 0 };
+// Power set on the slider, 0..1, persisting between shots so the rail does not snap to empty.
+let powerFrac = 0;
 
 const equippedCue = () => getCue(profile.cues.equipped);
 
@@ -151,7 +153,7 @@ const game = {
   firstContactBall: null, anyContact: false, anyRailAfterContact: false, shotRailBalls: new Set(),
   net: null, settled: true, cuePotted: false, ballInHand: false, kitchenOnly: false,
   opponentName: null, opponentLevel: 1, opponentTimeBonus: 0,
-  timedMode: false, turnTimeLeft: 0,
+  timedMode: false, turnTimeLeft: 0, aimDir: null,
   sfxBall: 0, sfxRail: 0, sfxPocket: 0,
 };
 
@@ -397,6 +399,10 @@ function setupRack() {
   game.gameOver = false;
   game.winner = null;
   game.ballInHand = false;
+  // A fresh rack must not inherit the last rack's aim, or the guide points somewhere the player
+  // never chose the moment the table appears.
+  game.aimDir = null;
+  powerFrac = 0;
   ui.hideGameOver();
   refreshHud();
 }
@@ -406,6 +412,10 @@ function refreshHud() {
   // ball dots already carries both, so this is now just the rack plus the stake chip.
   ui.updateBallsLeft(game.mode, game.balls, game.groups, game.myPlayer);
   ui.setPot(game.stakeAmount > 0 ? game.stakeAmount * 2 : 0);
+  // The aim guide, cue stick and power rail are all gated on canShoot(), and every path that can
+  // change that answer -- a shot landing, a turn passing, a rack being set, ball-in-hand being
+  // granted -- already calls through here. One hook instead of six call sites.
+  syncShotControls();
 }
 
 function canShoot() {
@@ -755,15 +765,45 @@ function applyState(m) {
   }
 }
 
+// Two-stage shot input (docs/adr/0017), matching the reference:
+//   stage 1  drag anywhere on the table  -> sets the ANGLE only
+//   stage 2  drag the power slider       -> sets power; releasing it shoots
+//
+// Why: with one gesture your thumb sits on the table while you aim, covering the very thing you
+// are trying to line up. Splitting them keeps the table clear during aiming and puts power on a
+// control at the edge of the screen. It is worth the rebuild only if it feels better in the hand,
+// so that is the thing to check on a real device.
+//
+// Aiming semantics are deliberately UNCHANGED -- the direction is still (cue ball - pointer), the
+// pull-back metaphor -- so existing muscle memory survives and only the power source moves.
+//
+// The net protocol is untouched: a guest still sends { type: 'shoot', dx, dy, power, spin }. Only
+// the local gesture that produces those four values changed.
 function setupInput() {
-  let dragStart = null;
+  let aiming = false;
   let placingCue = false;
+  let slidingPower = false;
 
   const pos = (e) => {
     const r = app.canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (app.canvas.width / r.width), y: (e.clientY - r.top) * (app.canvas.height / r.height) };
   };
 
+  const redrawAim = () => {
+    if (!game.aimDir || !canShoot()) return;
+    drawAim(aimLine, game.balls, game.cue, game.aimDir.x, game.aimDir.y, equippedCue().aimBonus);
+    placeCueStick(cueStick, game.cue, game.aimDir.x, game.aimDir.y, powerFrac);
+  };
+
+  const setAimFromPointer = (p) => {
+    const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;                       // a tap on the ball itself carries no direction
+    game.aimDir = { x: dx / len, y: dy / len };
+    redrawAim();
+  };
+
+  // ---- stage 1: angle, on the table ----
   app.canvas.addEventListener('pointerdown', (e) => {
     if (!document.hasFocus()) return;
     const p = pos(e);
@@ -773,7 +813,8 @@ function setupInput() {
       return;
     }
     if (!canShoot()) return;
-    dragStart = p;
+    aiming = true;
+    setAimFromPointer(p);
   });
 
   window.addEventListener('pointermove', (e) => {
@@ -782,47 +823,87 @@ function setupInput() {
       previewCuePlacement(p.x, p.y);
       return;
     }
-    if (!dragStart) return;
-    const p = pos(e);
-    const frac = Math.min(Math.hypot(game.cue.x - p.x, game.cue.y - p.y), MAX_DRAG) / MAX_DRAG;
-    const power = Math.pow(frac, POWER_CURVE);
-    const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
-    drawAim(aimLine, game.balls, game.cue, dx, dy, equippedCue().aimBonus);
-    placeCueStick(cueStick, game.cue, dx, dy, power);
-    setPower(power);
+    if (aiming) setAimFromPointer(pos(e));
   });
 
-  window.addEventListener('pointerup', (e) => {
+  window.addEventListener('pointerup', () => {
     if (placingCue) {
       // Free drag-and-reposition, not tap-to-place: the final position is already set by the last
-      // previewCuePlacement() call above, live throughout the drag. Releasing just commits it —
+      // previewCuePlacement() call above, live throughout the drag. Releasing just commits it --
       // canPlaceCue() stays true until an actual shot is taken, so a new pointerdown on the ball
       // starts another placement attempt, naturally allowing as many repositions as wanted.
       placingCue = false;
       placeCueAt(game.cue.x, game.cue.y);
+      syncShotControls();
       return;
     }
-    if (!dragStart) return;
-    const p = pos(e);
-    const dragged = Math.hypot(p.x - dragStart.x, p.y - dragStart.y);
-    if (canShoot() && dragged > MIN_DRAG) {
-      const dx = game.cue.x - p.x, dy = game.cue.y - p.y;
-      const dist = Math.hypot(dx, dy);
-      // Scaled here, at the sending side, with the shooter's OWN local cue stats — each player's
-      // profile is local-only, so the host can't look up the guest's equipped cue. This way the
-      // message already carries the effective, fairness-capped values regardless of who shoots.
-      const cue = equippedCue();
-      const power = Math.pow(Math.min(dist, MAX_DRAG) / MAX_DRAG, POWER_CURVE) * cue.powerMult;
-      const spin = { x: currentSpin.x * cue.spinCap, y: currentSpin.y * cue.spinCap };
-      strike = { t: 0, power, dx, dy };
-      if (game.mode === 'guest') game.net.send({ type: 'shoot', dx, dy, power, spin });
-      else doShoot(dx, dy, power, spin);
-    }
-    dragStart = null;
-    aimLine.clear();
-    setPower(0, false);
-    if (!strike) cueStick.visible = false;
+    aiming = false;
   });
+
+  // ---- stage 2: power, on the slider ----
+  const slider = document.getElementById('power-slider');
+
+  const powerFromPointer = (e) => {
+    const r = slider.getBoundingClientRect();
+    const frac = 1 - (e.clientY - r.top) / r.height;
+    powerFrac = Math.max(0, Math.min(1, frac));
+    setPower(powerFrac);
+    redrawAim();
+  };
+
+  slider.addEventListener('pointerdown', (e) => {
+    if (!canShoot() || !game.aimDir) return;
+    slidingPower = true;
+    slider.setPointerCapture(e.pointerId);
+    audio.resume();
+    powerFromPointer(e);
+  });
+
+  slider.addEventListener('pointermove', (e) => { if (slidingPower) powerFromPointer(e); });
+
+  const releasePower = () => {
+    if (!slidingPower) return;
+    slidingPower = false;
+    if (!canShoot() || !game.aimDir) return;
+    // Below this the player is cancelling, not tapping a feather shot -- snapping back to zero is
+    // kinder than launching a shot they did not mean to take.
+    if (powerFrac < 0.04) { powerFrac = 0; setPower(0); redrawAim(); return; }
+
+    // Scaled here, at the sending side, with the shooter's OWN local cue stats -- each player's
+    // profile is local-only, so the host can't look up the guest's equipped cue. This way the
+    // message already carries the effective, fairness-capped values regardless of who shoots.
+    const cue = equippedCue();
+    const dx = game.aimDir.x, dy = game.aimDir.y;
+    const power = Math.pow(powerFrac, POWER_CURVE) * cue.powerMult;
+    const spin = { x: currentSpin.x * cue.spinCap, y: currentSpin.y * cue.spinCap };
+
+    strike = { t: 0, power: powerFrac, dx, dy };
+    if (game.mode === 'guest') game.net.send({ type: 'shoot', dx, dy, power, spin });
+    else doShoot(dx, dy, power, spin);
+
+    powerFrac = 0;
+    setPower(0, false);
+    aimLine.clear();
+  };
+
+  slider.addEventListener('pointerup', releasePower);
+  slider.addEventListener('pointercancel', releasePower);
+}
+
+// Shows or hides the aim guide, cue stick and power rail to match whether a shot is possible right
+// now. Called wherever turn/settled state changes rather than polled every frame.
+function syncShotControls() {
+  const ready = canShoot();
+  setPower(ready ? powerFrac : 0, ready);
+  if (!ready) {
+    aimLine.clear();
+    if (!strike) cueStick.visible = false;
+    return;
+  }
+  if (game.aimDir) {
+    drawAim(aimLine, game.balls, game.cue, game.aimDir.x, game.aimDir.y, equippedCue().aimBonus);
+    placeCueStick(cueStick, game.cue, game.aimDir.x, game.aimDir.y, powerFrac);
+  }
 }
 
 function closeNet() {
