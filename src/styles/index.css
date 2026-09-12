@@ -1,0 +1,14 @@
+/* Midnight Pool stylesheet entry point.
+ *
+ * Loaded by one <link> in index.html rather than an `import` from main.js: in dev, the <link> is a
+ * stylesheet at first paint, whereas a JS import injects CSS only after the module graph parses --
+ * which on a full-bleed lobby means a white flash on every reload. In production Vite extracts both
+ * to a <link>, so this costs nothing.
+ *
+ * Import order matters: tokens define the custom properties every later file reads, components
+ * define the classes the three surface files compose.
+ *
+ * legacy.css is the original inline <style> block from index.html, moved here verbatim (docs/adr/0014).
+ * It shrinks as each surface is restyled and is deleted at the end of the overhaul.
+ */
+@import './legacy.css';

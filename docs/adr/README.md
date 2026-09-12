@@ -17,3 +17,9 @@ talks to another, a reversal of an earlier decision) — not for routine feature
 | [0006](0006-midnight-contract-architecture.md) | Midnight contract architecture — profile commitment, credentials, fair break order |
 | [0007](0007-effectstream-cross-chain.md) | Cross-chain via the full Effectstream evm-midnight-v2 stack |
 | [0008](0008-match-stakes-trust-model.md) | Match stakes trust model — honest scope, not trustless escrow |
+| [0009](0009-match-result-attestation-backend.md) | Server-recorded match attestation + signed stat receipts |
+| [0010](0010-guest-side-physics-verification.md) | Guest-side physics verification via deterministic replay |
+| [0011](0011-real-testnet-submission-attempt.md) | Real testnet submission — attempted, time-boxed, stopped after a reproducible crash |
+| [0012](0012-commit-compiled-contract-for-browser-build.md) | Commit the compiled contract's `contract/` output for the browser build |
+| [0013](0013-real-local-devnet-deploy.md) | Real contract deploy + circuit calls against the local devnet |
+| [0014](0014-visual-overhaul.md) | Rebuild the visual layer as a bright arcade theme, with CSS out of index.html |
