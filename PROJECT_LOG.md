@@ -5,7 +5,83 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
-## Current state (2026-08-30, submission prep: README, hackathon copy, demo video)
+## Current state (2026-09-13, visual overhaul phases 0-4, Buildathon wave 1)
+
+**Context change: the target is now the Midnight Buildathon on AKINDO**, a three-wave program
+(wave 1 build closes 2026-09-16, wave 2 Sep 27–Oct 17, wave 3 Oct 27–Nov 16) that explicitly rewards
+visible iteration over one-time polish. Cross-chain is deferred to a later wave by decision; this
+wave is game feel, visual identity, and the Midnight narrative.
+
+Three gaps drove this session, and the full plan for closing them is agreed:
+
+1. the app did not look like a game — 310 lines of dark glassmorphism inlined in `index.html`, no
+   font or image assets, a lobby that was a title plus one button plus seven emoji links;
+2. the Midnight layer is still mock-by-default in the browser (unchanged this session);
+3. there was no named protocol or narrative, which is the one axis where the Among-Midnight
+   benchmark is genuinely ahead.
+
+**Shipped this session — [ADR-0014](docs/adr/0014-visual-overhaul.md), phases 0-4 of 10:**
+
+- **Phase 0, CSS out of `index.html`.** The inline `<style>` block became `src/styles/legacy.css`,
+  extracted with `sed` and verified by comparing whitespace-stripped checksums, so the first step
+  was a provable no-op rather than a 310-line retype. `legacy.css` shrinks each phase and must reach
+  zero lines before the overhaul is done.
+- **Phase 1, the design system.** `tokens.css` (bright sunburst/felt/gold palette, six candy ramps,
+  dvh-aware type scale) and `components.css` (`.btn`, `.tile`, `.chip`, `.bar`, `.ribbon`,
+  `.avatar` with a conic-gradient turn-timer ring). One self-hosted OFL display face
+  (`@fontsource/lilita-one`) — verified that the bare-specifier `@import` resolves under Rolldown,
+  that the woff2 lands in the service worker's precache manifest so an offline launch keeps the
+  face, and that the `latin` subset covers the Spanish locale. An inline SVG `<symbol>` sprite
+  replaces the emoji currency/menu glyphs.
+- **Phase 2, modals and shared chrome.** `.glass` → `.btn`; all 12 modals restyled at once via
+  `.box`; every `backdrop-filter` deleted except a 3px modal scrim.
+- **Phase 3, the lobby.** Rebuilt as topbar / four mode tiles / strip. No live-ops logic was written
+  — every existing system is consumed as-is and the tiles keep the ids their handlers already bind.
+  `screen-mode` deleted (one less tap), `ranked-toggle` moved to settings, `btn-quit` deleted
+  (`window.close()` is a no-op in an installed PWA). One piece of new state, `profile.winStreak`,
+  three lines in `economy.applyAward` with three asserts.
+- **Phase 4, the table.** Blue felt, red-brown rails, and the change that does the real work:
+  cushion faces as six trapezoids with a lit nose edge and a contact shadow, so rails read as
+  three-dimensional and pockets have visible jaws. Diamond sights, gold rims, and the head string
+  drawn so the kitchen rule is visible during ball-in-hand.
+
+**Verification approach.** Screenshots in real Chrome via an ad-hoc Playwright install kept in the
+scratchpad, not in the repo — same precedent as earlier sessions. Playwright's own Chromium download
+fails in this environment; driving the installed Chrome via `channel: 'chrome'` works. Note
+`waitUntil: 'networkidle'` never settles against Vite because the HMR websocket stays open — wait on
+an element instead. Checks run at 800×340 and 740×360 (the landscape-phone floor): no page overflow,
+nothing clipped, back-navigation correct, and all four tile icons survive a language switch.
+
+**Three bugs found by looking at the rendered page rather than trusting the diff** — worth recording
+because none would have been caught by a build or a test:
+
+- the language segmented control rendered as two full candy buttons, because the
+  `.modal .box button` alias (0,2,1) outranks `.seg-btn` (0,1,0);
+- every tile icon rendered solid black, because a `<button>` does not inherit `body`'s color — it
+  takes the UA's `buttontext`, and the sprite's shapes are `fill="currentColor"`;
+- the Pixi power label was the hardcoded literal `'POTENCIA'`, so it read Spanish in the English UI;
+  Pixi `Text` is not covered by `applyStatic()`.
+
+**Also corrected: a dead citation.** ADR-0011, ADR-0013, this log, `README.md` and `hackathon.md` all
+cited the WalletFacade sync leak as `midnightntwrk/midnight-sdk#370`. **That issue does not exist** —
+the GitHub API cannot resolve it. The real report is
+[midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704),
+still open. All eight references fixed, and ADRs 0009-0013 backfilled into the ADR index, which had
+stopped at 0008.
+
+**Upstream status on #704, checked directly.** A maintainer has commented "this should be already
+fixed" and asked for a version confirmation. As of 2026-09-12 npm still serves
+`wallet-sdk-facade@4.0.1` / `wallet-sdk-shielded@3.0.1` / `wallet-sdk-dust-wallet@4.1.0` as `latest`
+— i.e. unchanged from the report — so any fix must be in the unreleased `5.0.0` line
+(`5.0.0-beta.3`, a whole-stack major on `ledger-v9@1.0.0-rc.4`). A second reporter's measurement
+(~96MB dust state vs ~82kB shielded) corroborates our trace, where `dust.appliedIndex` climbs
+alongside `shielded`. Plan: re-run the instrumented repro against the beta in an isolated scratch
+directory, then reply with the measured result rather than a question. Not posted yet.
+
+**Next:** phases 5-10 (HUD, ghost-ball aim, two-stage input, VS intro, juice, celebration), then the
+Hustle Protocol document and the one Compact/SDK stack collapse.
+
+## Earlier state (2026-08-30, submission prep: README, hackathon copy, demo video)
 
 - **README rewritten from scratch as a complete, ground-up project description** — no longer
   framed as "extending" a prior game; covers the full current feature set (gameplay, progression,
