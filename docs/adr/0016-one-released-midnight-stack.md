@@ -66,9 +66,26 @@ and ADR-0013 an afternoon each; the override is cheap insurance and the check is
 **Both contracts now demonstrably compile.** `midnight-pool.compact` and `stakes.compact` both build
 clean under 0.31.1 in the container. That was previously an assumption.
 
-**The target network is Preprod**, because it is the only public Midnight network currently
-answering: `indexer.preprod.midnight.network/api/v4/graphql` returns data, while `testnet` and
-`testnet-02` do not resolve at all.
+**The target network is Preview.**
+
+*Correction.* This ADR originally said "Preprod, because it is the only public Midnight network
+currently answering". That was wrong, and wrong in an avoidable way: the probe behind it tested
+`testnet`, `testnet-02` and `preprod` and never tested `preview`, then generalised from a negative
+result to a universal claim. `preview` answers on all three services:
+
+| Network | Purpose | Height (2026-09-13) |
+|---|---|---|
+| **`preview`** | public testnet for integration testing — the default | ~847,000 |
+| `preprod` | pre-production chain | ~2,531,000 |
+
+`rpc.preview.midnight.network` identifies as `Midnight Preview`, and the faucet at
+`faucet.preview.midnight.network` is live. `testnet` and `testnet-02` genuinely do not resolve.
+
+Preview is the right target for a testnet submission, and its size matters beyond labelling: it is
+roughly a third of preprod, which is directly relevant to the sync bug in ADR-0018 — that bug is a
+function of how much history a wallet must replay. The network is now a parameter
+(`localStorage['mn-network']`, `NETWORK=` for the probe) rather than a constant, so this is a setting
+rather than another thing to get wrong.
 
 **A ledger-v9 migration is coming and this pin does not avoid it**, only defers it to when the 5.x
 line is released. The upside of deferring is that the deployed artifact stays verifiable by anyone

@@ -113,8 +113,8 @@ stats live in the player's own browser, and the chain sees only commitments, nul
 Everything below is a public network — no trust in us required.
 
 ```bash
-# 1. The contract's public ledger state, straight from the Preprod indexer
-curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
+# 1. The contract's public ledger state, straight from the Preview indexer
+curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' \
   -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address state } }",
        "variables":{"a":"<CONTRACT_ADDRESS>"}}'
@@ -122,7 +122,7 @@ curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
 # 2. The chain is live and is the one you think it is
 curl -s -H 'content-type: application/json' \
   -d '{"id":1,"jsonrpc":"2.0","method":"system_chain","params":[]}' \
-  https://rpc.preprod.midnight.network
+  https://rpc.preview.midnight.network
 ```
 
 The contract address is shown in the app under **Settings → Midnight** after deploying, and is

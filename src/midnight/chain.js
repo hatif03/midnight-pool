@@ -54,7 +54,7 @@ const describeError = (e) => {
   return String((e && e.message) || e);
 };
 
-export async function connect(walletKey, networkId = 'preprod') {
+export async function connect(walletKey, networkId = 'preview') {
   const src = (typeof window !== 'undefined' && window.midnight) || {};
   const wallet = walletKey ? src[walletKey] : Object.values(src).find((w) => w && typeof w.connect === 'function');
   if (!wallet) throw new Error('no-wallet');

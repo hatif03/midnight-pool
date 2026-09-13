@@ -1,4 +1,4 @@
-# Deploying Midnight Pool to public Preprod
+# Deploying Midnight Pool to a public Midnight testnet
 
 This is the whole path from a clean checkout to a contract anyone can query on a public Midnight
 network. It has **one manual step** — the faucet — and that step is manual because the faucet is
@@ -10,15 +10,23 @@ protected by a CAPTCHA, not because the rest is unfinished.
 
 | | |
 |---|---|
-| Network | **Preprod** (`preprod`) |
+| Network | **Preview** (`preview`) — Midnight's public testnet |
 | Contract address | _(filled in after deploy — also shown in the app under Settings → Midnight)_ |
-| Indexer | `https://indexer.preprod.midnight.network/api/v4/graphql` |
-| Node RPC | `https://rpc.preprod.midnight.network` |
+| Indexer | `https://indexer.preview.midnight.network/api/v4/graphql` |
+| Node RPC | `https://rpc.preview.midnight.network` |
 | Compiler | `0.31.1` (language 0.23.0, runtime 0.16.0, ledger-8.0.2) |
 | SDK | `midnight-js` 4.1.1 |
 
-Preprod is the only public Midnight network currently answering; `testnet` and `testnet-02` do not
-resolve. See [ADR-0016](adr/0016-one-released-midnight-stack.md).
+Two public networks answer, and they are not interchangeable:
+
+| Network | Purpose | Height (2026-09-13) |
+|---|---|---|
+| **`preview`** | public testnet for integration testing — **the default** | ~847,000 |
+| `preprod` | pre-production chain | ~2,531,000 |
+
+`testnet` and `testnet-02` do not resolve at all. Switch networks with
+`localStorage.setItem('mn-network', 'preprod')` if you need the other one; the app otherwise asks the
+wallet for `preview`. See [ADR-0016](adr/0016-one-released-midnight-stack.md).
 
 ---
 
@@ -59,9 +67,9 @@ gets used; override it with `localStorage.setItem('mn-prover-uri', '...')` if yo
 
 ## 3. Install and fund a wallet
 
-1. Install the **Lace** wallet extension and switch it to the **Preprod** network.
-2. Copy its **unshielded address** (`mn_addr_preprod1...`).
-3. Go to **https://faucet.preprod.midnight.network/** and request tokens for that address.
+1. Install the **Lace** wallet extension and switch it to the **Preview** network.
+2. Copy its **unshielded address** (`mn_addr_preview1...`).
+3. Go to **https://faucet.preview.midnight.network/** and request tokens for that address.
    *This is the manual step: the faucet is behind a Cloudflare Turnstile CAPTCHA, so it cannot be
    scripted.*
 4. In Lace, **delegate NIGHT** so DUST begins to accrue. DUST pays transaction fees; without it a
@@ -95,7 +103,7 @@ Anyone can run these. Substitute the contract address.
 **The contract exists and has state:**
 
 ```bash
-curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
+curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' \
   -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address state } }",
        "variables":{"a":"<CONTRACT_ADDRESS>"}}'
@@ -106,10 +114,10 @@ curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
 ```bash
 curl -s -H 'content-type: application/json' \
   -d '{"id":1,"jsonrpc":"2.0","method":"system_chain","params":[]}' \
-  https://rpc.preprod.midnight.network
-# -> {"jsonrpc":"2.0","id":1,"result":"Midnight Preprod"}
+  https://rpc.preview.midnight.network
+# -> {"jsonrpc":"2.0","id":1,"result":"Midnight Preview"}
 
-curl -s -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
+curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' -d '{"query":"{ block { height } }"}'
 ```
 
@@ -129,7 +137,8 @@ point. See [HUSTLE_PROTOCOL.md](HUSTLE_PROTOCOL.md).
 `WalletFacade` leaks memory while syncing a populated chain — re-measured on 2026-09-13 at roughly
 **264 KB per processed ledger entry**, reaching a 4.5 GB heap in under three minutes on a brand-new
 empty wallet, with `highestIndex` reported as `0` throughout so the wallet cannot even say how far it
-has left to go. Preprod is past block 2,530,000.
+has left to go. Preprod is past block 2,530,000; `preview` is about a third of that, so the Node path may be
+viable there -- `NETWORK=preview npm run probe` is the check.
 
 That is [midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704).
 `contracts/preprod/sync-probe.ts` is the reproduction harness. This is exactly why deployment goes

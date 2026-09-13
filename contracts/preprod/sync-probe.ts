@@ -18,7 +18,11 @@ import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
 import { InMemoryTransactionHistoryStorage } from '@midnight-ntwrk/wallet-sdk-abstractions';
 import * as ledger from '@midnight-ntwrk/ledger-v8';
 
-const SEED_FILE = process.env.SEED_FILE ?? 'preprod-seed.hex';
+// Network is a parameter, not a constant: preview is the public testnet for integration testing
+// and is ~3x smaller than preprod (847k vs 2.53M blocks as of 2026-09-13), which matters a great
+// deal for a wallet that must replay history to sync (midnight-wallet#704).
+const NETWORK = process.env.NETWORK ?? 'preview';
+const SEED_FILE = process.env.SEED_FILE ?? `${NETWORK}-seed.hex`;
 const BUDGET_MS = Number(process.env.BUDGET_MS ?? 600_000);
 
 const seedHex = fs.existsSync(SEED_FILE)
@@ -41,13 +45,13 @@ const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(derived.keys[Roles.Zs
 const dustSecretKey = ledger.DustSecretKey.fromSeed(derived.keys[Roles.Dust]);
 
 const configuration: DefaultConfiguration = {
-  networkId: 'preprod',
+  networkId: NETWORK as any,
   costParameters: { feeBlocksMargin: 5, additionalFeeOverhead: 1_000_000n },
-  relayURL: new URL('wss://rpc.preprod.midnight.network'),
+  relayURL: new URL(`wss://rpc.${NETWORK}.midnight.network`),
   provingServerUrl: new URL(process.env.PROOF_SERVER ?? 'http://localhost:6300'),
   indexerClientConnection: {
-    indexerHttpUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
-    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
+    indexerHttpUrl: `https://indexer.${NETWORK}.midnight.network/api/v4/graphql`,
+    indexerWsUrl: `wss://indexer.${NETWORK}.midnight.network/api/v4/graphql/ws`,
   },
   txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema),
 };
@@ -55,6 +59,7 @@ const configuration: DefaultConfiguration = {
 const keystore = createKeystore(derived.keys[Roles.NightExternal], configuration.networkId);
 const pubKey = PublicKey.fromKeyStore(keystore);
 
+console.log(`network: ${NETWORK}`);
 console.log('unshielded address:', keystore.getBech32Address?.().asString?.() ?? String((pubKey as any).address ?? ''));
 
 const wallet = await WalletFacade.init({

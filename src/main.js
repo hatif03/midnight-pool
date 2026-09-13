@@ -1466,6 +1466,13 @@ function wireMidnightMenu() {
 
   updateMidnightWalletStatus();
 
+  // Which public network to ask the wallet for. 'preview' is Midnight's public testnet for
+  // integration testing; 'preprod' is the pre-production chain and is ~3x larger. Overridable so a
+  // local devnet ('undeployed') can be used without a code change.
+  const mnNetwork = () => {
+    try { return localStorage.getItem('mn-network') || 'preview'; } catch { return 'preview'; }
+  };
+
   // Connecting a wallet is what turns mock mode into real on-chain submission (docs/adr/0018).
   // chain.js is dynamically imported so midnight-js and the ledger WASM -- an 800KB worker chunk --
   // never load for a player who just wants to shoot pool.
@@ -1476,7 +1483,7 @@ function wireMidnightMenu() {
       const chain = await import('./midnight/chain.js');
       const wallets = chain.detectWallets();
       if (wallets.length === 0) { ui.toast(t('walletNotFound')); return; }
-      const info = await chain.connect(wallets[0].key, 'preprod');
+      const info = await chain.connect(wallets[0].key, mnNetwork());
       mnWallet.setMode('real');
       ui.setStatus('mn-chain-status', t('chainConnected').replace('{network}', info.networkId));
       ui.el('mn-chain').hidden = false;
