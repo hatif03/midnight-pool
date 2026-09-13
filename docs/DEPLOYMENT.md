@@ -131,16 +131,42 @@ point. See [HUSTLE_PROTOCOL.md](HUSTLE_PROTOCOL.md).
 
 ---
 
-## Known blocker: deploying from Node
+## Deploying from Node: blocked on preprod, unproven on preview
 
-`contracts/preprod/` contains a complete Node deploy path, and it **cannot currently reach Preprod**.
-`WalletFacade` leaks memory while syncing a populated chain — re-measured on 2026-09-13 at roughly
-**264 KB per processed ledger entry**, reaching a 4.5 GB heap in under three minutes on a brand-new
-empty wallet, with `highestIndex` reported as `0` throughout so the wallet cannot even say how far it
-has left to go. Preprod is past block 2,530,000; `preview` is about a third of that, so the Node path may be
-viable there -- `NETWORK=preview npm run probe` is the check.
+`contracts/preprod/` contains a complete Node deploy path. Whether it can reach a public network
+depends on which one, and the difference is worth stating precisely because it is the difference
+between "needs a browser wallet" and "does not".
 
-That is [midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704).
-`contracts/preprod/sync-probe.ts` is the reproduction harness. This is exactly why deployment goes
-through the browser: the wallet extension does its own syncing and the page never constructs a
-`WalletFacade` at all.
+**preprod — blocked.** `WalletFacade` leaks while syncing. Measured 2026-09-13: heap 96 MB ->
+4,954 MB while `appliedIndex` went 0 -> 71,293 in 249s, then
+`FATAL ERROR: Ineffective mark-compacts near heap limit` at a 6 GB cap. About **264 KB per processed
+entry**, on a brand-new empty wallet.
+
+**preview — bounded, but not proven to finish.** Same code, same versions, only `NETWORK` changed.
+Heap peaked at **1,733 MB and then declined** while the index kept climbing — GC reclaims, so the
+leak does not manifest. But a 15-minute run reached only `appliedIndex` 25,906 at ~29 entries/s and
+had **not** completed:
+
+```
+RESULT: TIMEOUT  elapsed=901s  peakHeapMB=1733  lastAppliedIndex=25906
+```
+
+So: preview does not crash, and it may well complete given long enough — but "it does not OOM" is not
+the same claim as "it syncs", and only the first has been demonstrated. `highestIndex` is reported as
+`0` throughout (part of the same upstream bug), so the wallet cannot say how far it has left to go,
+which is precisely why this cannot be settled by reasoning and has to be measured.
+
+Re-run it yourself:
+
+```bash
+cd contracts/preprod && NETWORK=preview BUDGET_MS=3600000 npm run probe
+```
+
+That chain-dependent difference is reported upstream on
+[midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704);
+`sync-probe.ts` is the harness.
+
+**Why the browser path exists regardless.** A wallet extension does its own syncing and the page
+never constructs a `WalletFacade`, so the browser route is unaffected by any of this. It is the
+supported path today and the one this guide documents; the Node path is a convenience that may open
+up on preview.
