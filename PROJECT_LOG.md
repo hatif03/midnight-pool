@@ -5,7 +5,76 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
-## Current state (2026-09-13, visual overhaul complete, Buildathon wave 1)
+## Current state (2026-09-13, real Midnight submission path + Hustle Protocol)
+
+**The Midnight layer is no longer mock-only.** `src/midnight/hooks.js` used to log
+`'real-mode submission not wired in this pass'`; it now submits `commitStats`, `proveThreshold` and
+`claimCue` to a deployed contract through the DApp Connector. See
+[ADR-0016](docs/adr/0016-one-released-midnight-stack.md) and
+[ADR-0018](docs/adr/0018-real-browser-submission.md).
+
+**Toolchain, finally reproducible.** `compact` on this machine's PATH is Windows' NTFS compression
+tool and WSL fails with `Wsl/Service/E_UNEXPECTED`, so the Compact CLI now runs in Docker
+(`scripts/compact-docker/`). `unzip` is a required and non-obvious dependency -- without it
+`compact update` fails with "Failed to spawn artifact extraction command", which does not name the
+missing tool. **Both contracts now demonstrably compile**; that was previously an assumption.
+
+**The compiler pin is measured, not inferred.** Asked the compiler itself:
+
+| Compiler | Language | Runtime | Ledger |
+|---|---|---|---|
+| **0.31.1** | 0.23.0 | **0.16.0** | ledger-8.0.2 |
+| 0.34.0 | 0.26.0 | 0.19.0 | ledger-9.1.0.0-rc.3 |
+
+`midnight-js-protocol@4.1.1` pins `compact-runtime@0.16.0`, so 0.31.1 is the only compiler whose
+output the released SDK can deploy. ADR-0013's dual-compile split is retired; `managed/` is that one
+output.
+
+**The 5.x beta line was evaluated and rejected.** It is the likeliest home of a #704 fix but is
+pre-release the whole way down, and decisively **`wallet-sdk-hd` has no released version exporting
+`WalletSeeds`**, which the 5.x facade's `start()` requires -- only canaries have it. Two real
+breaking changes found while evaluating it are recorded in ADR-0016 (`createKeystore` now takes
+`{kind, secret}`; `startWithSecretKeys` became `startWithSeed`/`startWithKeys({v8, v9})`).
+
+**Architecture: a Web Worker, and it is a correctness requirement not an optimisation.** Physics runs
+at a fixed 60Hz on the main thread and ledger (de)serialisation is synchronous, so an un-awaited
+promise still resolves on the main thread -- "don't await it" relocates jank. The split is only
+possible because the DApp Connector's whole transacting surface speaks serialized hex strings, which
+clone across a worker boundary; the `ConnectedAPI` itself cannot, being live injected functions.
+
+**Two bundling hazards hit, both predicted, both guarded:** two physical copies of
+`onchain-runtime-v3` (the wasm-bindgen class-identity failure ADR-0007 and ADR-0013 each lost an
+afternoon to), fixed with `overrides` + `npm dedupe`; and Vite building workers through a *separate*
+plugin pipeline, so `vite-plugin-wasm` had to be registered under `worker.plugins` too.
+
+**Measured, closing an open question:** per-circuit prover keys are **2.7-5.0 MB**, not the 10 MB that
+would have made in-browser proving unviable on a phone. Published to `public/midnight/{keys,zkir}/`
+at exactly the paths `FetchZkConfigProvider` requests (verified by reading the package), and
+deliberately excluded from the precache so an install does not pay 28 MB up front.
+
+**midnight-wallet#704 re-measured on the current released stack -- still broken, and worse.** Full
+trace in `contracts/preprod/sync-probe.ts`; heap 96 MB -> 4,954 MB while `appliedIndex` went
+0 -> 71,293 in 249s, then `FATAL ERROR: Ineffective mark-compacts near heap limit` at a 6 GB cap.
+That is ~**264 KB per processed entry** against the ~140 KB originally reported, on a brand-new empty
+wallet. `highestIndex` still reports `0` throughout. Preprod has grown 2,330,285 -> 2,530,822 since
+the report. **This is why deployment goes through the browser**, not a preference.
+
+**Security fix:** the Preprod wallet seed was committed by a `git add -A`. The commit was amended
+(never pushed, so the object is unreachable), the seed is gitignored, and the old one was deleted
+rather than reused.
+
+**Narrative:** `docs/HUSTLE_PROTOCOL.md` -- "Hide the player, prove the play" -- with a trust table
+whose right-hand column is the limits, three rows of which say "does not hold".
+
+**What remains manual, and why:** the Preprod faucet is behind a Cloudflare Turnstile CAPTCHA, so
+funding a wallet cannot be scripted. `docs/DEPLOYMENT.md` is the end-to-end path; everything either
+side of the faucet is automated.
+
+**Still not on the browser chain path:** the break-order flip (runs peer-to-peer; contract exists and
+is tested) and the stakes contract. HUSTLE_PROTOCOL.md states that split rather than implying
+everything is on-chain.
+
+## Earlier state (2026-09-13, visual overhaul complete)
 
 All ten phases of [ADR-0014](docs/adr/0014-visual-overhaul.md) are done, plus
 [ADR-0017](docs/adr/0017-aim-guide-and-two-stage-input.md) for the two gameplay changes.
