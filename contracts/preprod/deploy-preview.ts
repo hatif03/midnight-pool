@@ -120,7 +120,8 @@ async function createWalletProvider(facade: any, shieldedSecretKeys: any, dustSe
   console.log('SYNCED.');
   console.log('  shielded balances  :', bal(state.shielded?.balances));
   console.log('  unshielded balances:', bal(state.unshielded?.balances));
-  console.log('  dust balances      :', bal(state.dust?.balances));
+  console.log('  dust coins         :', (state.dust?.availableCoins ?? []).length,
+              'available,', dustTotal(state).toString(), 'Specks generated');
 
   return {
     getCoinPublicKey: () => state.shielded.coinPublicKey.toHexString(),
@@ -137,8 +138,13 @@ async function createWalletProvider(facade: any, shieldedSecretKeys: any, dustSe
 
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const dustTotal = (st: any) =>
-  Object.values(st?.dust?.balances ?? {}).reduce((a: bigint, b: any) => a + BigInt(b), 0n);
+// DustWalletState has NO `balances` property -- it exposes totalCoins / availableCoins /
+// pendingCoins, each a DustFullInfo carrying `generatedNow` ("current amount of Dust available, in
+// Specks"). Reading `.balances` here returned undefined and summed to 0n, which looked exactly like
+// "no DUST has accrued" and sent me chasing the chain for an hour. The DUST was there; the accessor
+// was wrong.
+const dustTotal = (st: any): bigint =>
+  (st?.dust?.availableCoins ?? []).reduce((a: bigint, c: any) => a + BigInt(c?.generatedNow ?? 0n), 0n);
 
 async function ensureDust(facade: any, keystore: any, shieldedSecretKeys: any, dustSecretKey: any) {
   let st: any = await Rx.firstValueFrom(facade.state().pipe(Rx.filter((s: any) => s.isSynced)));
@@ -201,11 +207,16 @@ async function waitForDust(facade: any, minutes = Number(process.env.DUST_WAIT_M
       // the right place -- whether its dust sync has reached the registration block, and whether
       // the generating UTxO pays the address this wallet watches.
       try {
-        console.log('  dust address      :', String(st.dust?.address ?? '(none)'));
+        const dustAddr = st.dust?.address;
+        console.log('  dust address      :', dustAddr?.asString?.() ?? dustAddr?.toString?.() ?? JSON.stringify(dustAddr));
         console.log('  dust sync progress:', JSON.stringify(st.dust?.progress ?? {}, (_, v) => typeof v === 'bigint' ? v.toString() : v));
         console.log('  registered UTxOs  :', (st.unshielded?.availableCoins ?? [])
           .filter((u: any) => u.meta?.registeredForDustGeneration).length,
           'of', (st.unshielded?.availableCoins ?? []).length);
+        for (const c of (st.dust?.availableCoins ?? [])) {
+          console.log('  dust coin         : generatedNow=', String(c.generatedNow),
+                      'maxCap=', String(c.maxCap), 'capAt=', String(c.maxCapReachedAt));
+        }
       } catch {}
     }
 
