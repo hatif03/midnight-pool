@@ -77,7 +77,13 @@ async function buildWallet() {
 
   const configuration: DefaultConfiguration = {
     networkId: NETWORK as any,
-    costParameters: { feeBlocksMargin: 5, additionalFeeOverhead: 1_000_000n },
+    // 1_000_000n is the LOCAL DEVNET value, where the per-block fee rate is ~0 and the overhead
+    // exists only to stop the fee being literally zero (error 117, NotNormalized). On a real
+    // network the fee is real, and the DUST spend proof commits to `output = input - declaredFee`
+    // -- too small an overhead and the declared fee disagrees with what the proof proves, which the
+    // node rejects as error 170, InvalidDustSpendProof. The documented value for wallets that
+    // submit contract calls is 300_000_000_000_000n.
+    costParameters: { feeBlocksMargin: 5, additionalFeeOverhead: 300_000_000_000_000n },
     relayURL: new URL(ENDPOINTS.node),
     provingServerUrl: new URL(PROOF_SERVER),
     indexerClientConnection: { indexerHttpUrl: ENDPOINTS.indexer, indexerWsUrl: ENDPOINTS.indexerWs },
