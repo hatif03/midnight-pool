@@ -8,14 +8,14 @@
 // Midnight features keep working with nothing installed -- the reliability
 // rationale documented in the plan and in Shadow Protocol's own MN_MODE=mock.
 //
-// Real mode (a wallet connected via wallet.js) is architecturally anticipated
-// but NOT submitted to an actual deployed contract in this pass: that needs
-// the pinned @midnight-ntwrk/midnight-js-* packages (not added as dependencies
-// here) plus a live indexer/proof-server, neither of which this environment
-// can install and verify against. Calling any circuit while
-// wallet.getMode() === 'real' logs an explicit "not implemented" audit entry
-// instead of pretending to submit one -- see contracts/README.md for the exact
-// circuit interface this must eventually call.
+// Real mode submits to an actual deployed contract on public Preprod via chain.js, which owns a
+// Web Worker running midnight-js against the wallet's own indexer (docs/adr/0018). It is opt-in:
+// mock stays the default so the game works with nothing installed.
+//
+// Real mode NEVER blocks gameplay. chain.js is dynamically imported so its multi-MB WASM never
+// touches the gameplay bundle, every submission goes through a serial queue off the main thread,
+// and any failure -- no wallet, rejected prompt, no contract deployed, unreachable indexer --
+// falls back to running the mock relation so play continues, with the failure recorded.
 import * as audit from './audit.js';
 import * as wallet from './wallet.js';
 
@@ -39,10 +39,32 @@ export function getPublicKey() {
   return localPk(getOrCreateSecretKeyHex());
 }
 
-async function run(circuit, disclosed, fn) {
-  if (wallet.getMode() === 'real') {
-    audit.record({ circuit, mode: 'real', disclosed, ok: false, note: 'real-mode submission not wired in this pass' });
-    return { ok: false, real: true };
+// Circuits that exist on the deployed contract. Anything not listed runs mock-only -- the break
+// flip is negotiated peer-to-peer (breakOrder.js) and is not on the chain path today.
+const ON_CHAIN = new Set(['commitStats', 'proveThreshold', 'claimCue']);
+
+// Dynamically imported so midnight-js and the ledger WASM are never in the gameplay bundle.
+let chainMod = null;
+const chain = async () => (chainMod ??= await import('./chain.js'));
+
+async function run(circuit, disclosed, fn, realArgs) {
+  if (wallet.getMode() === 'real' && ON_CHAIN.has(circuit)) {
+    try {
+      const c = await chain();
+      if (c.isReady() && c.getContractAddress()) {
+        const r = await c.call(circuit, realArgs ?? []);
+        // chain.call already writes its own audit row with the txId.
+        return { ok: true, real: true, txId: r.txId, result: r.result };
+      }
+      audit.record({
+        circuit, mode: 'real', disclosed, ok: false,
+        note: c.isReady() ? 'no contract address -- deploy or join one in Settings'
+                          : 'wallet not connected',
+      });
+    } catch (err) {
+      audit.record({ circuit, mode: 'real', disclosed, ok: false, error: String(err?.message || err) });
+    }
+    // Fall through to the mock relation: a chain problem must never cost the player the feature.
   }
   try {
     await fn();
@@ -68,10 +90,26 @@ export function hookCommitStats(profile) {
 /** Mirrors `proveThreshold`: resolves a boolean, never the underlying number. */
 export async function hookProveThreshold(profile, threshold, checkWins) {
   const pk = localPk(getOrCreateSecretKeyHex());
+
   if (wallet.getMode() === 'real') {
-    audit.record({ circuit: 'proveThreshold', mode: 'real', disclosed: { pk, threshold, checkWins }, ok: false, note: 'real-mode submission not wired in this pass' });
-    return false;
+    try {
+      const c = await chain();
+      if (c.isReady() && c.getContractAddress()) {
+        // The circuit discloses only the boolean; the level/win count never leaves the device.
+        const r = await c.call('proveThreshold', [BigInt(threshold), !!checkWins]);
+        if (typeof r.result === 'boolean') return r.result;
+      } else {
+        audit.record({
+          circuit: 'proveThreshold', mode: 'real', disclosed: { pk, threshold, checkWins }, ok: false,
+          note: c.isReady() ? 'no contract address -- deploy or join one in Settings' : 'wallet not connected',
+        });
+      }
+    } catch (err) {
+      audit.record({ circuit: 'proveThreshold', mode: 'real', disclosed: { pk, threshold, checkWins }, ok: false, error: String(err?.message || err) });
+    }
+    // Fall through rather than returning false: a chain problem must not read as "you do not qualify".
   }
+
   const value = checkWins ? (profile.wins || 0) : profile.level;
   const result = value >= threshold;
   audit.record({ circuit: 'proveThreshold', mode: 'mock', disclosed: { pk, threshold, checkWins, result }, ok: true });

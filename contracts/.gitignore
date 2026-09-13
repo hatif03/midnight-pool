@@ -1,3 +1,7 @@
+# NOTE (docs/adr/0016): managed/ is now compiler 0.31.1 output -- the only compiler whose
+# runtime (0.16.0) and ledger (8.0.2) the released midnight-js 4.1.1 can deploy. The ZK
+# artifacts the BROWSER needs are published separately under public/midnight/ and ARE
+# committed, because the deployed site has to serve them for in-browser proving.
 # Compiler output. `contract/` (the compiled circuit JS, ~160K, no zkir/key
 # dependency -- confirmed by grep) is committed on purpose: src/midnight/circuit.js
 # imports it directly for the browser bundle, and Vercel builds from a fresh

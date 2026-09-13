@@ -12,57 +12,57 @@ export type Witnesses<PS> = {
 }
 
 export type ImpureCircuits<PS> = {
-  commitStats(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+  commitStats(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   proveThreshold(context: __compactRuntime.CircuitContext<PS>,
                  threshold_0: bigint,
-                 checkWins_0: boolean): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
-  claimCue(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                 checkWins_0: boolean): __compactRuntime.CircuitResults<PS, boolean>;
+  claimCue(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   commitBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
                     role_0: bigint,
-                    revealDeadline_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    revealDeadline_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   revealBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
-                    role_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    role_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   resolveBreak(context: __compactRuntime.CircuitContext<PS>,
-               matchId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, bigint>>;
+               matchId_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
 }
 
 export type ProvableCircuits<PS> = {
-  commitStats(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+  commitStats(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   proveThreshold(context: __compactRuntime.CircuitContext<PS>,
                  threshold_0: bigint,
-                 checkWins_0: boolean): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
-  claimCue(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                 checkWins_0: boolean): __compactRuntime.CircuitResults<PS, boolean>;
+  claimCue(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   commitBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
                     role_0: bigint,
-                    revealDeadline_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    revealDeadline_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   revealBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
-                    role_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    role_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   resolveBreak(context: __compactRuntime.CircuitContext<PS>,
-               matchId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, bigint>>;
+               matchId_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
 }
 
 export type PureCircuits = {
 }
 
 export type Circuits<PS> = {
-  commitStats(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+  commitStats(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   proveThreshold(context: __compactRuntime.CircuitContext<PS>,
                  threshold_0: bigint,
-                 checkWins_0: boolean): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
-  claimCue(context: __compactRuntime.CircuitContext<PS>): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                 checkWins_0: boolean): __compactRuntime.CircuitResults<PS, boolean>;
+  claimCue(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   commitBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
                     role_0: bigint,
-                    revealDeadline_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    revealDeadline_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   revealBreakChoice(context: __compactRuntime.CircuitContext<PS>,
                     matchId_0: Uint8Array,
-                    role_0: bigint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                    role_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   resolveBreak(context: __compactRuntime.CircuitContext<PS>,
-               matchId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, bigint>>;
+               matchId_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
 }
 
 export type Ledger = {
@@ -119,9 +119,8 @@ export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>>
   impureCircuits: ImpureCircuits<PS>;
   provableCircuits: ProvableCircuits<PS>;
   constructor(witnesses: W);
-  initialState(context: __compactRuntime.ConstructorContext<PS>): Promise<__compactRuntime.ConstructorResult<PS>>;
+  initialState(context: __compactRuntime.ConstructorContext<PS>): __compactRuntime.ConstructorResult<PS>;
 }
 
 export declare function ledger(state: __compactRuntime.StateValue | __compactRuntime.ChargedState): Ledger;
 export declare const pureCircuits: PureCircuits;
-export declare const expectedVk: Record<string, string>;

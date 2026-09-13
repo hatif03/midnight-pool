@@ -1,5 +1,5 @@
 import * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
-__compactRuntime.checkRuntimeVersion('0.19.0');
+__compactRuntime.checkRuntimeVersion('0.16.0');
 
 const _descriptor_0 = new __compactRuntime.CompactTypeBytes(32);
 
@@ -63,8 +63,6 @@ class _ContractAddress_0 {
 
 const _descriptor_7 = new _ContractAddress_0();
 
-const _descriptor_8 = new __compactRuntime.CompactTypeUnsignedInteger(4294967295n, 4);
-
 export class Contract {
   witnesses;
   constructor(...args_0) {
@@ -77,7 +75,7 @@ export class Contract {
     }
     this.witnesses = witnesses_0;
     this.circuits = {
-      openStake: async (...args_1) => {
+      openStake: (...args_1) => {
         if (args_1.length !== 4) {
           throw new __compactRuntime.CompactError(`openStake: expected 4 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
@@ -85,7 +83,7 @@ export class Contract {
         const matchId_0 = args_1[1];
         const role_0 = args_1[2];
         const amount_0 = args_1[3];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('openStake',
                                      'argument 1 (as invoked from Typescript)',
                                      'stakes.compact line 60 char 1',
@@ -113,7 +111,7 @@ export class Contract {
                                      'Uint<0..18446744073709551616>',
                                      amount_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0).concat(_descriptor_1.toValue(role_0).concat(_descriptor_3.toValue(amount_0))),
@@ -123,16 +121,15 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._openStake_0(context,
-                                                 partialProofData,
-                                                 matchId_0,
-                                                 role_0,
-                                                 amount_0);
+        const result_0 = this._openStake_0(context,
+                                           partialProofData,
+                                           matchId_0,
+                                           role_0,
+                                           amount_0);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      attestResult: async (...args_1) => {
+      attestResult: (...args_1) => {
         if (args_1.length !== 4) {
           throw new __compactRuntime.CompactError(`attestResult: expected 4 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
@@ -140,7 +137,7 @@ export class Contract {
         const matchId_0 = args_1[1];
         const role_0 = args_1[2];
         const winner_0 = args_1[3];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('attestResult',
                                      'argument 1 (as invoked from Typescript)',
                                      'stakes.compact line 81 char 1',
@@ -168,7 +165,7 @@ export class Contract {
                                      'Uint<0..256>',
                                      winner_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0).concat(_descriptor_1.toValue(role_0).concat(_descriptor_1.toValue(winner_0))),
@@ -178,22 +175,21 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._attestResult_0(context,
-                                                    partialProofData,
-                                                    matchId_0,
-                                                    role_0,
-                                                    winner_0);
+        const result_0 = this._attestResult_0(context,
+                                              partialProofData,
+                                              matchId_0,
+                                              role_0,
+                                              winner_0);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      resolveStake: async (...args_1) => {
+      resolveStake: (...args_1) => {
         if (args_1.length !== 2) {
           throw new __compactRuntime.CompactError(`resolveStake: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
         const matchId_0 = args_1[1];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('resolveStake',
                                      'argument 1 (as invoked from Typescript)',
                                      'stakes.compact line 95 char 1',
@@ -207,7 +203,7 @@ export class Contract {
                                      'Bytes<32>',
                                      matchId_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0),
@@ -217,12 +213,11 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._resolveStake_0(context,
-                                                    partialProofData,
-                                                    matchId_0);
+        const result_0 = this._resolveStake_0(context,
+                                              partialProofData,
+                                              matchId_0);
         partialProofData.output = { value: _descriptor_1.toValue(result_0), alignment: _descriptor_1.alignment() };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       }
     };
     this.impureCircuits = {
@@ -236,7 +231,7 @@ export class Contract {
       resolveStake: this.circuits.resolveStake
     };
   }
-  async initialState(...args_0) {
+  initialState(...args_0) {
     if (args_0.length !== 1) {
       throw new __compactRuntime.CompactError(`Contract state constructor: expected 1 argument (as invoked from Typescript), received ${args_0.length}`);
     }
@@ -258,7 +253,7 @@ export class Contract {
     state_0.setOperation('openStake', new __compactRuntime.ContractOperation());
     state_0.setOperation('attestResult', new __compactRuntime.ContractOperation());
     state_0.setOperation('resolveStake', new __compactRuntime.ContractOperation());
-    const context = __compactRuntime.createCircuitContext('constructor', __compactRuntime.dummyContractAddress(), constructorContext_0.initialZswapLocalState.coinPublicKey, state_0.data, constructorContext_0.initialPrivateState);
+    const context = __compactRuntime.createCircuitContext(__compactRuntime.dummyContractAddress(), constructorContext_0.initialZswapLocalState.coinPublicKey, state_0.data, constructorContext_0.initialPrivateState);
     const partialProofData = {
       input: { value: [], alignment: [] },
       output: undefined,
@@ -287,11 +282,11 @@ export class Contract {
                                                           new __compactRuntime.StateMap()
                                                         ).encode() } },
                                        { ins: { cached: false, n: 1 } }]);
-    state_0.data = new __compactRuntime.ChargedState(context.callContext.currentQueryContext.state.state);
+    state_0.data = new __compactRuntime.ChargedState(context.currentQueryContext.state.state);
     return {
       currentContractState: state_0,
-      currentPrivateState: context.callContext.currentPrivateState,
-      currentZswapLocalState: context.callContext.currentZswapLocalState
+      currentPrivateState: context.currentPrivateState,
+      currentZswapLocalState: context.currentZswapLocalState
     }
   }
   _persistentHash_0(value_0) {
@@ -304,11 +299,12 @@ export class Contract {
                                     matchId: matchId_0,
                                     role: role_0 });
   }
-  async _openStake_0(context, partialProofData, matchId_0, role_0, amount_0) {
+  _openStake_0(context, partialProofData, matchId_0, role_0, amount_0) {
     const mid_0 = matchId_0;
     const r_0 = role_0;
     const amt_0 = amount_0;
-    __compactRuntime.assert(r_0 === 1n || r_0 === 2n, 'role must be 1 or 2');
+    __compactRuntime.assert(this._equal_0(r_0, 1n) || this._equal_1(r_0, 2n),
+                            'role must be 1 or 2');
     const slot_0 = this._deriveStakeSlot_0(mid_0, r_0);
     __compactRuntime.assert(!_descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                        partialProofData,
@@ -327,7 +323,8 @@ export class Contract {
                                                                                         { popeq: { cached: true,
                                                                                                    result: undefined } }]).value),
                             'this role already opened a stake for this match');
-    const otherSlot_0 = this._deriveStakeSlot_0(mid_0, r_0 === 1n ? 2n : 1n);
+    const otherSlot_0 = this._deriveStakeSlot_0(mid_0,
+                                                this._equal_2(r_0, 1n) ? 2n : 1n);
     if (_descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
                                                                   partialProofData,
                                                                   [
@@ -345,26 +342,25 @@ export class Contract {
                                                                    { popeq: { cached: true,
                                                                               result: undefined } }]).value))
     {
-      __compactRuntime.assert(_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
-                                                                                        partialProofData,
-                                                                                        [
-                                                                                         { dup: { n: 0 } },
-                                                                                         { idx: { cached: false,
-                                                                                                  pushPath: false,
-                                                                                                  path: [
-                                                                                                         { tag: 'value',
-                                                                                                           value: { value: _descriptor_1.toValue(0n),
-                                                                                                                    alignment: _descriptor_1.alignment() } }] } },
-                                                                                         { idx: { cached: false,
-                                                                                                  pushPath: false,
-                                                                                                  path: [
-                                                                                                         { tag: 'value',
-                                                                                                           value: { value: _descriptor_0.toValue(otherSlot_0),
-                                                                                                                    alignment: _descriptor_0.alignment() } }] } },
-                                                                                         { popeq: { cached: false,
-                                                                                                    result: undefined } }]).value)
-                              ===
-                              amt_0,
+      __compactRuntime.assert(this._equal_3(_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                                      partialProofData,
+                                                                                                      [
+                                                                                                       { dup: { n: 0 } },
+                                                                                                       { idx: { cached: false,
+                                                                                                                pushPath: false,
+                                                                                                                path: [
+                                                                                                                       { tag: 'value',
+                                                                                                                         value: { value: _descriptor_1.toValue(0n),
+                                                                                                                                  alignment: _descriptor_1.alignment() } }] } },
+                                                                                                       { idx: { cached: false,
+                                                                                                                pushPath: false,
+                                                                                                                path: [
+                                                                                                                       { tag: 'value',
+                                                                                                                         value: { value: _descriptor_0.toValue(otherSlot_0),
+                                                                                                                                  alignment: _descriptor_0.alignment() } }] } },
+                                                                                                       { popeq: { cached: false,
+                                                                                                                  result: undefined } }]).value),
+                                            amt_0),
                               "stake amount does not match the other player's");
     }
     __compactRuntime.queryLedgerState(context,
@@ -386,13 +382,14 @@ export class Contract {
                                        { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  async _attestResult_0(context, partialProofData, matchId_0, role_0, winner_0)
-  {
+  _attestResult_0(context, partialProofData, matchId_0, role_0, winner_0) {
     const mid_0 = matchId_0;
     const r_0 = role_0;
     const w_0 = winner_0;
-    __compactRuntime.assert(r_0 === 1n || r_0 === 2n, 'role must be 1 or 2');
-    __compactRuntime.assert(w_0 === 1n || w_0 === 2n, 'winner must be 1 or 2');
+    __compactRuntime.assert(this._equal_4(r_0, 1n) || this._equal_5(r_0, 2n),
+                            'role must be 1 or 2');
+    __compactRuntime.assert(this._equal_6(w_0, 1n) || this._equal_7(w_0, 2n),
+                            'winner must be 1 or 2');
     let tmp_0;
     __compactRuntime.assert((tmp_0 = this._deriveStakeSlot_0(mid_0, r_0),
                              _descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
@@ -448,7 +445,7 @@ export class Contract {
                                        { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  async _resolveStake_0(context, partialProofData, matchId_0) {
+  _resolveStake_0(context, partialProofData, matchId_0) {
     const mid_0 = matchId_0;
     __compactRuntime.assert(_descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                       partialProofData,
@@ -486,12 +483,44 @@ export class Contract {
                                                                       { popeq: { cached: false,
                                                                                  result: undefined } }]).value);
   }
+  _equal_0(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_1(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_2(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_3(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_4(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_5(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_6(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_7(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
 }
 export function ledger(stateOrChargedState) {
   const state = stateOrChargedState instanceof __compactRuntime.StateValue ? stateOrChargedState : stateOrChargedState.state;
   const chargedState = stateOrChargedState instanceof __compactRuntime.StateValue ? new __compactRuntime.ChargedState(stateOrChargedState) : stateOrChargedState;
   const context = {
-    callContext: { currentQueryContext: new __compactRuntime.QueryContext(chargedState, __compactRuntime.dummyContractAddress()), currentGasCost: __compactRuntime.emptyRunningCost() },
+    currentQueryContext: new __compactRuntime.QueryContext(chargedState, __compactRuntime.dummyContractAddress()),
     costModel: __compactRuntime.CostModel.initialCostModel()
   };
   const partialProofData = {
@@ -722,16 +751,10 @@ export function ledger(stateOrChargedState) {
   };
 }
 const _emptyContext = {
-  callContext: { currentQueryContext: new __compactRuntime.QueryContext(new __compactRuntime.ContractState().data, __compactRuntime.dummyContractAddress()), currentGasCost: __compactRuntime.emptyRunningCost() }
+  currentQueryContext: new __compactRuntime.QueryContext(new __compactRuntime.ContractState().data, __compactRuntime.dummyContractAddress())
 };
 const _dummyContract = new Contract({ });
 export const pureCircuits = {};
 export const contractReferenceLocations =
   { tag: 'publicLedgerArray', indices: { } };
-export const expectedVk = {
-  'attestResult': '64efd9b8a748d6e3c0106bcbec64c895f6c43dcbc4db3a9bdf740debd5210419',
-  'openStake': '29bb784ae4e5bdcdf7540f56e7baf650cc9b68455cd439f3b90668cc5a6326d9',
-  'resolveStake': 'fb6b887611de37ee92ffacaff20ee56f73f722db21f0f16a9ab9bfd1c77b585c',
-};
-
 //# sourceMappingURL=index.js.map

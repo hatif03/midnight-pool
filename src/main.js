@@ -1466,14 +1466,53 @@ function wireMidnightMenu() {
 
   updateMidnightWalletStatus();
 
+  // Connecting a wallet is what turns mock mode into real on-chain submission (docs/adr/0018).
+  // chain.js is dynamically imported so midnight-js and the ledger WASM -- an 800KB worker chunk --
+  // never load for a player who just wants to shoot pool.
   click('btn-mn-connect', async () => {
-    const wallets = mnWallet.detectWallets();
-    if (wallets.length === 0) { ui.toast(t('walletNotFound')); return; }
+    const btn = ui.el('btn-mn-connect');
+    btn.disabled = true;
     try {
-      await mnWallet.connect(wallets[0].id);
+      const chain = await import('./midnight/chain.js');
+      const wallets = chain.detectWallets();
+      if (wallets.length === 0) { ui.toast(t('walletNotFound')); return; }
+      const info = await chain.connect(wallets[0].key, 'preprod');
+      mnWallet.setMode('real');
+      ui.setStatus('mn-chain-status', t('chainConnected').replace('{network}', info.networkId));
+      ui.el('mn-chain').hidden = false;
+      ui.el('mn-contract-input').value = chain.getContractAddress();
       updateMidnightWalletStatus();
+      ui.toast(t('walletConnected').replace('{name}', wallets[0].name));
     } catch (err) {
-      ui.toast(String(err?.reason || err?.message || err));
+      ui.toast(String(err?.message || err));
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Point the app at a contract someone else deployed -- this is how a second player, or a judge,
+  // verifies against the same on-chain state rather than their own private copy.
+  click('btn-mn-join', async () => {
+    const addr = ui.el('mn-contract-input').value.trim();
+    if (!addr) return;
+    const chain = await import('./midnight/chain.js');
+    chain.setContractAddress(addr);
+    ui.setStatus('mn-deploy-status', t('contractSet'));
+  });
+
+  click('btn-mn-deploy', async () => {
+    const btn = ui.el('btn-mn-deploy');
+    btn.disabled = true;
+    ui.setStatus('mn-deploy-status', t('deploying'));
+    try {
+      const chain = await import('./midnight/chain.js');
+      const r = await chain.deploy({ level: profile.level, wins: profile.wins || 0 });
+      ui.el('mn-contract-input').value = r.contractAddress;
+      ui.setStatus('mn-deploy-status', t('deployed').replace('{address}', r.contractAddress));
+    } catch (err) {
+      ui.setStatus('mn-deploy-status', t('deployFailed').replace('{error}', String(err?.message || err)), true);
+    } finally {
+      btn.disabled = false;
     }
   });
 

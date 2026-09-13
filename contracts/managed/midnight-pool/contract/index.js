@@ -1,5 +1,5 @@
 import * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
-__compactRuntime.checkRuntimeVersion('0.19.0');
+__compactRuntime.checkRuntimeVersion('0.16.0');
 
 const _descriptor_0 = new __compactRuntime.CompactTypeBytes(32);
 
@@ -168,8 +168,6 @@ class _ContractAddress_0 {
 
 const _descriptor_13 = new _ContractAddress_0();
 
-const _descriptor_14 = new __compactRuntime.CompactTypeUnsignedInteger(4294967295n, 4);
-
 export class Contract {
   witnesses;
   constructor(...args_0) {
@@ -200,38 +198,37 @@ export class Contract {
     }
     this.witnesses = witnesses_0;
     this.circuits = {
-      commitStats: async (...args_1) => {
+      commitStats: (...args_1) => {
         if (args_1.length !== 1) {
           throw new __compactRuntime.CompactError(`commitStats: expected 1 argument (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('commitStats',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 153 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: { value: [], alignment: [] },
           output: undefined,
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._commitStats_0(context, partialProofData);
+        const result_0 = this._commitStats_0(context, partialProofData);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      proveThreshold: async (...args_1) => {
+      proveThreshold: (...args_1) => {
         if (args_1.length !== 3) {
           throw new __compactRuntime.CompactError(`proveThreshold: expected 3 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
         const threshold_0 = args_1[1];
         const checkWins_0 = args_1[2];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('proveThreshold',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 166 char 1',
@@ -252,7 +249,7 @@ export class Contract {
                                      'Boolean',
                                      checkWins_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_2.toValue(threshold_0).concat(_descriptor_3.toValue(checkWins_0)),
@@ -262,39 +259,37 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._proveThreshold_0(context,
-                                                      partialProofData,
-                                                      threshold_0,
-                                                      checkWins_0);
+        const result_0 = this._proveThreshold_0(context,
+                                                partialProofData,
+                                                threshold_0,
+                                                checkWins_0);
         partialProofData.output = { value: _descriptor_3.toValue(result_0), alignment: _descriptor_3.alignment() };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      claimCue: async (...args_1) => {
+      claimCue: (...args_1) => {
         if (args_1.length !== 1) {
           throw new __compactRuntime.CompactError(`claimCue: expected 1 argument (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('claimCue',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 191 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: { value: [], alignment: [] },
           output: undefined,
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._claimCue_0(context, partialProofData);
+        const result_0 = this._claimCue_0(context, partialProofData);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      commitBreakChoice: async (...args_1) => {
+      commitBreakChoice: (...args_1) => {
         if (args_1.length !== 4) {
           throw new __compactRuntime.CompactError(`commitBreakChoice: expected 4 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
@@ -302,7 +297,7 @@ export class Contract {
         const matchId_0 = args_1[1];
         const role_0 = args_1[2];
         const revealDeadline_0 = args_1[3];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('commitBreakChoice',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 208 char 1',
@@ -330,7 +325,7 @@ export class Contract {
                                      'Uint<0..18446744073709551616>',
                                      revealDeadline_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0).concat(_descriptor_1.toValue(role_0).concat(_descriptor_2.toValue(revealDeadline_0))),
@@ -340,23 +335,22 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._commitBreakChoice_0(context,
-                                                         partialProofData,
-                                                         matchId_0,
-                                                         role_0,
-                                                         revealDeadline_0);
+        const result_0 = this._commitBreakChoice_0(context,
+                                                   partialProofData,
+                                                   matchId_0,
+                                                   role_0,
+                                                   revealDeadline_0);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      revealBreakChoice: async (...args_1) => {
+      revealBreakChoice: (...args_1) => {
         if (args_1.length !== 3) {
           throw new __compactRuntime.CompactError(`revealBreakChoice: expected 3 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
         const matchId_0 = args_1[1];
         const role_0 = args_1[2];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('revealBreakChoice',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 233 char 1',
@@ -377,7 +371,7 @@ export class Contract {
                                      'Uint<0..256>',
                                      role_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0).concat(_descriptor_1.toValue(role_0)),
@@ -387,21 +381,20 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._revealBreakChoice_0(context,
-                                                         partialProofData,
-                                                         matchId_0,
-                                                         role_0);
+        const result_0 = this._revealBreakChoice_0(context,
+                                                   partialProofData,
+                                                   matchId_0,
+                                                   role_0);
         partialProofData.output = { value: [], alignment: [] };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       },
-      resolveBreak: async (...args_1) => {
+      resolveBreak: (...args_1) => {
         if (args_1.length !== 2) {
           throw new __compactRuntime.CompactError(`resolveBreak: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
         const matchId_0 = args_1[1];
-        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
+        if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('resolveBreak',
                                      'argument 1 (as invoked from Typescript)',
                                      'midnight-pool.compact line 260 char 1',
@@ -415,7 +408,7 @@ export class Contract {
                                      'Bytes<32>',
                                      matchId_0)
         }
-        const context = __compactRuntime.copyCircuitContext(contextOrig_0);
+        const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
           input: {
             value: _descriptor_0.toValue(matchId_0),
@@ -425,12 +418,11 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = await this._resolveBreak_0(context,
-                                                    partialProofData,
-                                                    matchId_0);
+        const result_0 = this._resolveBreak_0(context,
+                                              partialProofData,
+                                              matchId_0);
         partialProofData.output = { value: _descriptor_1.toValue(result_0), alignment: _descriptor_1.alignment() };
-        __compactRuntime.finalizeCallProofData(context, partialProofData);
-        return { result: result_0, context: context, gasCost: context.callContext.currentGasCost };
+        return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       }
     };
     this.impureCircuits = {
@@ -450,7 +442,7 @@ export class Contract {
       resolveBreak: this.circuits.resolveBreak
     };
   }
-  async initialState(...args_0) {
+  initialState(...args_0) {
     if (args_0.length !== 1) {
       throw new __compactRuntime.CompactError(`Contract state constructor: expected 1 argument (as invoked from Typescript), received ${args_0.length}`);
     }
@@ -482,7 +474,7 @@ export class Contract {
     state_0.setOperation('commitBreakChoice', new __compactRuntime.ContractOperation());
     state_0.setOperation('revealBreakChoice', new __compactRuntime.ContractOperation());
     state_0.setOperation('resolveBreak', new __compactRuntime.ContractOperation());
-    const context = __compactRuntime.createCircuitContext('constructor', __compactRuntime.dummyContractAddress(), constructorContext_0.initialZswapLocalState.coinPublicKey, state_0.data, constructorContext_0.initialPrivateState);
+    const context = __compactRuntime.createCircuitContext(__compactRuntime.dummyContractAddress(), constructorContext_0.initialZswapLocalState.coinPublicKey, state_0.data, constructorContext_0.initialPrivateState);
     const partialProofData = {
       input: { value: [], alignment: [] },
       output: undefined,
@@ -555,14 +547,14 @@ export class Contract {
                                                           new __compactRuntime.StateMap()
                                                         ).encode() } },
                                        { ins: { cached: false, n: 1 } }]);
-    state_0.data = new __compactRuntime.ChargedState(context.callContext.currentQueryContext.state.state);
+    state_0.data = new __compactRuntime.ChargedState(context.currentQueryContext.state.state);
     return {
       currentContractState: state_0,
-      currentPrivateState: context.callContext.currentPrivateState,
-      currentZswapLocalState: context.callContext.currentZswapLocalState
+      currentPrivateState: context.currentPrivateState,
+      currentZswapLocalState: context.currentZswapLocalState
     }
   }
-  async _blockTimeLt_0(context, partialProofData, time_0) {
+  _blockTimeLt_0(context, partialProofData, time_0) {
     return _descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
                                                                      partialProofData,
                                                                      [
@@ -580,8 +572,8 @@ export class Contract {
                                                                       { popeq: { cached: true,
                                                                                  result: undefined } }]).value);
   }
-  async _blockTimeGte_0(context, partialProofData, time_0) {
-    return !await this._blockTimeLt_0(context, partialProofData, time_0);
+  _blockTimeGte_0(context, partialProofData, time_0) {
+    return !this._blockTimeLt_0(context, partialProofData, time_0);
   }
   _persistentHash_0(value_0) {
     const result_0 = __compactRuntime.persistentHash(_descriptor_10, value_0);
@@ -612,9 +604,9 @@ export class Contract {
     return result_0;
   }
   _localSecretKey_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localSecretKey(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('localSecretKey',
                                  'return value',
@@ -629,9 +621,9 @@ export class Contract {
     return result_0;
   }
   _localStats_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localStats(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(typeof(result_0) === 'object' && typeof(result_0.level) === 'bigint' && result_0.level >= 0n && result_0.level <= 18446744073709551615n && typeof(result_0.wins) === 'bigint' && result_0.wins >= 0n && result_0.wins <= 18446744073709551615n)) {
       __compactRuntime.typeError('localStats',
                                  'return value',
@@ -646,9 +638,9 @@ export class Contract {
     return result_0;
   }
   _localStatsSalt_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localStatsSalt(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('localStatsSalt',
                                  'return value',
@@ -663,9 +655,9 @@ export class Contract {
     return result_0;
   }
   _localCueTier_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localCueTier(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(typeof(result_0) === 'bigint' && result_0 >= 0n && result_0 <= 255n)) {
       __compactRuntime.typeError('localCueTier',
                                  'return value',
@@ -680,9 +672,9 @@ export class Contract {
     return result_0;
   }
   _localBreakNonce_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localBreakNonce(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('localBreakNonce',
                                  'return value',
@@ -697,9 +689,9 @@ export class Contract {
     return result_0;
   }
   _localBreakSalt_0(context, partialProofData) {
-    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.callContext.currentQueryContext.state), context.callContext.currentPrivateState, context.callContext.currentQueryContext.address);
+    const witnessContext_0 = __compactRuntime.createWitnessContext(ledger(context.currentQueryContext.state), context.currentPrivateState, context.currentQueryContext.address);
     const [nextPrivateState_0, result_0] = this.witnesses.localBreakSalt(witnessContext_0);
-    context.callContext.currentPrivateState = nextPrivateState_0;
+    context.currentPrivateState = nextPrivateState_0;
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('localBreakSalt',
                                  'return value',
@@ -743,7 +735,7 @@ export class Contract {
                                       nonce: nonce_0 },
                                     salt_0);
   }
-  async _commitStats_0(context, partialProofData) {
+  _commitStats_0(context, partialProofData) {
     const pk_0 = this._derivePublicKey_0(this._localSecretKey_0(context,
                                                                 partialProofData));
     const tmp_0 = this._commitToStats_0(this._localStats_0(context,
@@ -769,7 +761,7 @@ export class Contract {
                                        { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  async _proveThreshold_0(context, partialProofData, threshold_0, checkWins_0) {
+  _proveThreshold_0(context, partialProofData, threshold_0, checkWins_0) {
     const pk_0 = this._derivePublicKey_0(this._localSecretKey_0(context,
                                                                 partialProofData));
     __compactRuntime.assert(_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
@@ -815,7 +807,7 @@ export class Contract {
     const value_0 = checkWins_0 ? stats_0.wins : stats_0.level;
     return value_0 >= threshold_0;
   }
-  async _claimCue_0(context, partialProofData) {
+  _claimCue_0(context, partialProofData) {
     const nullifier_0 = this._deriveCueNullifier_0(this._localSecretKey_0(context,
                                                                           partialProofData),
                                                    this._localCueTier_0(context,
@@ -855,20 +847,22 @@ export class Contract {
                                        { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  async _commitBreakChoice_0(context,
-                             partialProofData,
-                             matchId_0,
-                             role_0,
-                             revealDeadline_0)
+  _commitBreakChoice_0(context,
+                       partialProofData,
+                       matchId_0,
+                       role_0,
+                       revealDeadline_0)
   {
     const mid_0 = matchId_0;
     const slotRole_0 = role_0;
     const deadline_0 = revealDeadline_0;
-    __compactRuntime.assert(slotRole_0 === 1n || slotRole_0 === 2n,
+    __compactRuntime.assert(this._equal_1(slotRole_0, 1n)
+                            ||
+                            this._equal_2(slotRole_0, 2n),
                             'role must be 1 or 2');
-    __compactRuntime.assert(await this._blockTimeLt_0(context,
-                                                      partialProofData,
-                                                      deadline_0),
+    __compactRuntime.assert(this._blockTimeLt_0(context,
+                                                partialProofData,
+                                                deadline_0),
                             'reveal deadline is already in the past');
     const slot_0 = this._deriveBreakSlot_0(mid_0, slotRole_0);
     __compactRuntime.assert(!_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
@@ -946,10 +940,12 @@ export class Contract {
     }
     return [];
   }
-  async _revealBreakChoice_0(context, partialProofData, matchId_0, role_0) {
+  _revealBreakChoice_0(context, partialProofData, matchId_0, role_0) {
     const mid_0 = matchId_0;
     const slotRole_0 = role_0;
-    __compactRuntime.assert(slotRole_0 === 1n || slotRole_0 === 2n,
+    __compactRuntime.assert(this._equal_3(slotRole_0, 1n)
+                            ||
+                            this._equal_4(slotRole_0, 2n),
                             'role must be 1 or 2');
     const slot_0 = this._deriveBreakSlot_0(mid_0, slotRole_0);
     __compactRuntime.assert(_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
@@ -1003,29 +999,29 @@ export class Contract {
                                                                                        { popeq: { cached: true,
                                                                                                   result: undefined } }]).value),
                             'no deadline recorded for this match');
-    __compactRuntime.assert(await this._blockTimeLt_0(context,
-                                                      partialProofData,
-                                                      _descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
-                                                                                                                partialProofData,
-                                                                                                                [
-                                                                                                                 { dup: { n: 0 } },
-                                                                                                                 { idx: { cached: false,
-                                                                                                                          pushPath: false,
-                                                                                                                          path: [
-                                                                                                                                 { tag: 'value',
-                                                                                                                                   value: { value: _descriptor_1.toValue(4n),
-                                                                                                                                            alignment: _descriptor_1.alignment() } }] } },
-                                                                                                                 { idx: { cached: false,
-                                                                                                                          pushPath: false,
-                                                                                                                          path: [
-                                                                                                                                 { tag: 'value',
-                                                                                                                                   value: { value: _descriptor_0.toValue(mid_0),
-                                                                                                                                            alignment: _descriptor_0.alignment() } }] } },
-                                                                                                                 { popeq: { cached: false,
-                                                                                                                            result: undefined } }]).value)),
+    __compactRuntime.assert(this._blockTimeLt_0(context,
+                                                partialProofData,
+                                                _descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                                          partialProofData,
+                                                                                                          [
+                                                                                                           { dup: { n: 0 } },
+                                                                                                           { idx: { cached: false,
+                                                                                                                    pushPath: false,
+                                                                                                                    path: [
+                                                                                                                           { tag: 'value',
+                                                                                                                             value: { value: _descriptor_1.toValue(4n),
+                                                                                                                                      alignment: _descriptor_1.alignment() } }] } },
+                                                                                                           { idx: { cached: false,
+                                                                                                                    pushPath: false,
+                                                                                                                    path: [
+                                                                                                                           { tag: 'value',
+                                                                                                                             value: { value: _descriptor_0.toValue(mid_0),
+                                                                                                                                      alignment: _descriptor_0.alignment() } }] } },
+                                                                                                           { popeq: { cached: false,
+                                                                                                                      result: undefined } }]).value)),
                             'reveal deadline has passed');
     const nonce_0 = this._localBreakNonce_0(context, partialProofData);
-    __compactRuntime.assert(this._equal_1(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
+    __compactRuntime.assert(this._equal_5(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                                     partialProofData,
                                                                                                     [
                                                                                                      { dup: { n: 0 } },
@@ -1066,7 +1062,7 @@ export class Contract {
                                        { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  async _resolveBreak_0(context, partialProofData, matchId_0) {
+  _resolveBreak_0(context, partialProofData, matchId_0) {
     const mid_0 = matchId_0;
     if (_descriptor_3.fromValue(__compactRuntime.queryLedgerState(context,
                                                                   partialProofData,
@@ -1178,10 +1174,10 @@ export class Contract {
                                                                                                      { popeq: { cached: false,
                                                                                                                 result: undefined } }]).value))
                        :
-                       await this._forfeitWinner_0(context,
-                                                   partialProofData,
-                                                   mid_0,
-                                                   revealed1_0);
+                       this._forfeitWinner_0(context,
+                                             partialProofData,
+                                             mid_0,
+                                             revealed1_0);
       __compactRuntime.queryLedgerState(context,
                                         partialProofData,
                                         [
@@ -1210,27 +1206,27 @@ export class Contract {
                                                  nonce2: nonce2_0 }),
            (t_0 = BigInt(combined_0[0n]), t_0 < 128n) ? 1n : 2n;
   }
-  async _forfeitWinner_0(context, partialProofData, matchId_0, revealed1_0) {
-    return __compactRuntime.assert(await this._blockTimeGte_0(context,
-                                                              partialProofData,
-                                                              _descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
-                                                                                                                        partialProofData,
-                                                                                                                        [
-                                                                                                                         { dup: { n: 0 } },
-                                                                                                                         { idx: { cached: false,
-                                                                                                                                  pushPath: false,
-                                                                                                                                  path: [
-                                                                                                                                         { tag: 'value',
-                                                                                                                                           value: { value: _descriptor_1.toValue(4n),
-                                                                                                                                                    alignment: _descriptor_1.alignment() } }] } },
-                                                                                                                         { idx: { cached: false,
-                                                                                                                                  pushPath: false,
-                                                                                                                                  path: [
-                                                                                                                                         { tag: 'value',
-                                                                                                                                           value: { value: _descriptor_0.toValue(matchId_0),
-                                                                                                                                                    alignment: _descriptor_0.alignment() } }] } },
-                                                                                                                         { popeq: { cached: false,
-                                                                                                                                    result: undefined } }]).value)),
+  _forfeitWinner_0(context, partialProofData, matchId_0, revealed1_0) {
+    return __compactRuntime.assert(this._blockTimeGte_0(context,
+                                                        partialProofData,
+                                                        _descriptor_2.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                                                  partialProofData,
+                                                                                                                  [
+                                                                                                                   { dup: { n: 0 } },
+                                                                                                                   { idx: { cached: false,
+                                                                                                                            pushPath: false,
+                                                                                                                            path: [
+                                                                                                                                   { tag: 'value',
+                                                                                                                                     value: { value: _descriptor_1.toValue(4n),
+                                                                                                                                              alignment: _descriptor_1.alignment() } }] } },
+                                                                                                                   { idx: { cached: false,
+                                                                                                                            pushPath: false,
+                                                                                                                            path: [
+                                                                                                                                   { tag: 'value',
+                                                                                                                                     value: { value: _descriptor_0.toValue(matchId_0),
+                                                                                                                                              alignment: _descriptor_0.alignment() } }] } },
+                                                                                                                   { popeq: { cached: false,
+                                                                                                                              result: undefined } }]).value)),
                                    'only one player revealed and the deadline has not passed yet'),
            revealed1_0 ? 1n : 2n;
   }
@@ -1239,6 +1235,22 @@ export class Contract {
     return true;
   }
   _equal_1(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_2(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_3(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_4(x0, y0) {
+    if (x0 !== y0) { return false; }
+    return true;
+  }
+  _equal_5(x0, y0) {
     if (!x0.every((x, i) => y0[i] === x)) { return false; }
     return true;
   }
@@ -1247,7 +1259,7 @@ export function ledger(stateOrChargedState) {
   const state = stateOrChargedState instanceof __compactRuntime.StateValue ? stateOrChargedState : stateOrChargedState.state;
   const chargedState = stateOrChargedState instanceof __compactRuntime.StateValue ? new __compactRuntime.ChargedState(stateOrChargedState) : stateOrChargedState;
   const context = {
-    callContext: { currentQueryContext: new __compactRuntime.QueryContext(chargedState, __compactRuntime.dummyContractAddress()), currentGasCost: __compactRuntime.emptyRunningCost() },
+    currentQueryContext: new __compactRuntime.QueryContext(chargedState, __compactRuntime.dummyContractAddress()),
     costModel: __compactRuntime.CostModel.initialCostModel()
   };
   const partialProofData = {
@@ -1883,7 +1895,7 @@ export function ledger(stateOrChargedState) {
   };
 }
 const _emptyContext = {
-  callContext: { currentQueryContext: new __compactRuntime.QueryContext(new __compactRuntime.ContractState().data, __compactRuntime.dummyContractAddress()), currentGasCost: __compactRuntime.emptyRunningCost() }
+  currentQueryContext: new __compactRuntime.QueryContext(new __compactRuntime.ContractState().data, __compactRuntime.dummyContractAddress())
 };
 const _dummyContract = new Contract({
   localSecretKey: (...args) => undefined,
@@ -1896,13 +1908,4 @@ const _dummyContract = new Contract({
 export const pureCircuits = {};
 export const contractReferenceLocations =
   { tag: 'publicLedgerArray', indices: { } };
-export const expectedVk = {
-  'claimCue': '5c2f1feb8b6860eefefd9ae3bff5c5793880ab284c02bfc3e31e6df5921582ee',
-  'commitBreakChoice': '86ddac241cdd653f04e4a794ce0a3522e12b5d12ed986b5a1d73c58d50b943c4',
-  'commitStats': 'c60220cf6353683bbf1b28e1a7e3c508e9bae5b511b56d87eafe877c5a8fb6a1',
-  'proveThreshold': '7799986909ac53b07e26c6a92e4c65dd2ab5986ea02a6f92a10eada6c862e4f9',
-  'resolveBreak': '11905f808e9538f568d4990dd7f7dacc64cfc5ba0ac49a6944863c8dcc4ba216',
-  'revealBreakChoice': 'a8ecf410a694049719106006463b1c5000ee7d3774ce04f63f7a50604a5f0050',
-};
-
 //# sourceMappingURL=index.js.map

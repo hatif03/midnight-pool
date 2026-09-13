@@ -23,4 +23,5 @@ talks to another, a reversal of an earlier decision) — not for routine feature
 | [0012](0012-commit-compiled-contract-for-browser-build.md) | Commit the compiled contract's `contract/` output for the browser build |
 | [0013](0013-real-local-devnet-deploy.md) | Real contract deploy + circuit calls against the local devnet |
 | [0014](0014-visual-overhaul.md) | Rebuild the visual layer as a bright arcade theme, with CSS out of index.html |
+| [0016](0016-one-released-midnight-stack.md) | Pin one fully-released Midnight stack, and build the toolchain in Docker |
 | [0017](0017-aim-guide-and-two-stage-input.md) | Reference-accurate aim guide and two-stage shot input |

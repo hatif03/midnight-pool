@@ -8,6 +8,13 @@ export default defineConfig({
   // imports, not that form, so it needs this plugin (see docs/adr/0006). This Vite version
   // (Rolldown-based) doesn't need vite-plugin-top-level-await alongside it -- that plugin's own
   // esbuild dependency isn't installed/needed here, and top-level await already works without it.
+  // Vite builds workers through a SEPARATE pipeline with its own plugin list, so wasm() has to be
+  // registered here too -- without it the worker build fails with UNLOADABLE_DEPENDENCY on
+  // onchain-runtime's raw wasm-bindgen import, even though the main build handles it fine.
+  worker: {
+    format: 'es',
+    plugins: () => [wasm()],
+  },
   plugins: [
     wasm(),
     VitePWA({

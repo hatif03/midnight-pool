@@ -309,6 +309,18 @@
           </label>
           <button class="btn btn--blue btn--compact" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
           <div class="status" id="mn-wallet-status"></div>
+          <!-- Real on-chain controls (docs/adr/0018). Hidden until a wallet is connected, because
+               every one of them needs it. -->
+          <div id="mn-chain" hidden>
+            <div class="status" id="mn-chain-status"></div>
+            <span class="set-label" data-i18n="contractAddress">Contract address</span>
+            <input id="mn-contract-input" placeholder="0200..." autocomplete="off" spellcheck="false" />
+            <div class="row">
+              <button class="btn btn--compact btn--green" id="btn-mn-join" data-i18n="joinContract">Use this contract</button>
+              <button class="btn btn--compact btn--gold" id="btn-mn-deploy" data-i18n="deployContract">Deploy new</button>
+            </div>
+            <div class="status" id="mn-deploy-status"></div>
+          </div>
           <button class="btn btn--blue btn--compact" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
           <button class="btn btn--blue btn--compact" id="btn-mn-champion" data-i18n="championBadge">Cross-Chain Champion Badge</button>
         </div>

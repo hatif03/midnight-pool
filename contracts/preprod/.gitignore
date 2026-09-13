@@ -1,0 +1,6 @@
+# NEVER commit these. preprod-seed.hex is the private key that owns any funds sent to the
+# addresses this package prints -- a committed seed is a published private key.
+*seed*.hex
+node_modules/
+managed*/
+.private-state/
