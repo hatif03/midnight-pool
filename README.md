@@ -31,7 +31,12 @@ across all three tracks it targets — Mobile, Integrate Midnight, and Cross-Cha
 - Win/loss record, win-rate, and lifetime winnings tracked alongside the classic economy.
 - Five league divisions (Brass → Bronze → Silver → Gold → Diamond), gated on level or wins.
 
-**Midnight privacy layer**
+**Midnight privacy layer — [the Hustle Protocol](docs/HUSTLE_PROTOCOL.md)**
+
+*Hide the player, prove the play.* In a real pool hall the hustler hides how good they are; online
+pool inverted that, making your rating public while the cheating stays hidden. This puts it back the
+right way round — and [says plainly what it does not fix](docs/HUSTLE_PROTOCOL.md#trust-model--including-what-this-does-not-fix).
+
 - **Private ranked credentials** — your level and win count live as an on-chain commitment;
   entering ranked Quick Match or unlocking a league badge runs a real threshold-proof circuit that
   discloses only *yes/no*, never the number.
@@ -135,15 +140,29 @@ npm start        # listens on :8787 by default
 npm test
 ```
 
-The Compact contracts, their simulator tests, and the cross-chain scripts live under `contracts/`
-(see [`contracts/README.md`](contracts/README.md) for the circuit table and toolchain notes — the
-Compact CLI is Linux/macOS-only, so compiling on Windows means running it inside WSL). A fully real
-local deploy — genuine on-chain transactions against a local Midnight devnet — lives in
-`contracts/devnet-deploy/`, isolated into its own package for dependency-version reasons explained
-in [ADR-0013](docs/adr/0013-real-local-devnet-deploy.md).
+The Compact contracts and their simulator tests live under `contracts/` (see
+[`contracts/README.md`](contracts/README.md) for the circuit table). The Compact CLI is Linux/macOS
+only, so the build runs in Docker and is reproducible anywhere:
+
+```bash
+bash scripts/compact-docker/compile.sh
+```
+
+Real on-chain submission happens in the browser through the DApp Connector, with midnight-js and the
+ledger WASM confined to a Web Worker so nothing can stall the 60Hz physics loop
+([ADR-0018](docs/adr/0018-real-browser-submission.md)). The compiler is pinned to 0.31.1 because it
+is the only one whose runtime (0.16.0) and ledger (8.0.2) the released midnight-js 4.1.1 can deploy —
+measured, not inferred ([ADR-0016](docs/adr/0016-one-released-midnight-stack.md)).
+
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) is the end-to-end path to a public testnet contract, plus
+the commands **anyone can run to verify it without trusting this repo**.
 
 ## Documentation
 
+- [`docs/HUSTLE_PROTOCOL.md`](docs/HUSTLE_PROTOCOL.md) — what the privacy layer proves, where the
+  chain/peer-to-peer line sits, and a trust table whose right-hand column is the limits.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — deploying to a public testnet, and verifying it
+  independently.
 - [`docs/adr/`](docs/adr/) — every architectural decision, written before the change, including the
   honest limitations of each Midnight feature (what a proof does and doesn't guarantee).
 - [`PROJECT_LOG.md`](PROJECT_LOG.md) — living record of project state, updated each session.

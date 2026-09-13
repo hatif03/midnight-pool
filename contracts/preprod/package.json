@@ -5,7 +5,7 @@
   "description": "Deploy path for public Preprod. Pinned to the only combination that is fully RELEASED and mutually consistent: compiler 0.31.1 (runtime 0.16.0, ledger-8.0.2) + midnight-js 4.1.1 + wallet-sdk 4.x. Separate package because Node resolves a compiled module's imports from the module's own location and the stacks pin conflicting runtimes (docs/adr/0016).",
   "scripts": {
     "probe": "tsx sync-probe.ts",
-    "deploy": "tsx deploy-preprod.ts"
+    "deploy": "tsx deploy-preview.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-js": "2.5.1",
