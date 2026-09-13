@@ -11,6 +11,8 @@
 import * as audit from './audit.js';
 
 const ADDR_KEY = 'mn-contract-address';
+const PROVER_KEY = 'mn-prover-uri';
+const DEFAULT_PROVER = 'http://localhost:6300';
 const PRIV_KEY = 'mn-private-state';
 
 let worker = null;
@@ -24,6 +26,13 @@ export const getContractAddress = () => {
 };
 export const setContractAddress = (a) => {
   try { a ? localStorage.setItem(ADDR_KEY, a) : localStorage.removeItem(ADDR_KEY); } catch {}
+};
+
+export const getProverUri = () => {
+  try { return localStorage.getItem(PROVER_KEY) || DEFAULT_PROVER; } catch { return DEFAULT_PROVER; }
+};
+export const setProverUri = (u) => {
+  try { u ? localStorage.setItem(PROVER_KEY, u) : localStorage.removeItem(PROVER_KEY); } catch {}
 };
 
 // Enumerate every injected wallet rather than assuming a key: the connector is CAIP-372-compatible
@@ -68,9 +77,13 @@ export async function connect(walletKey, networkId = 'preprod') {
       networkId: cfg.networkId,
       indexerUri: cfg.indexerUri,
       indexerWsUri: cfg.indexerWsUri,
-      // proverServerUri is on Configuration but the skill docs omit it; fall back to the local
-      // proof server, which is what a developer running the devnet stack has.
-      proverUri: cfg.proverServerUri || 'http://localhost:6300',
+      // Configuration.proverServerUri exists but is DEPRECATED and documented as "likely to not be
+      // present" -- the connector points at getProvingProvider instead. Wallet-delegated proving
+      // would mean proxying proveTx to the main thread, and proveTx takes ledger WASM objects, so
+      // that would drag the WASM back onto the thread this worker exists to keep clear. So: use the
+      // wallet's URI when it offers one, otherwise a proof server the player controls. Only whoever
+      // DEPLOYS needs one -- verifying a deployed contract is a plain indexer read.
+      proverUri: cfg.proverServerUri || getProverUri(),
       origin: location.origin,
     },
     addresses,
