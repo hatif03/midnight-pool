@@ -147,13 +147,24 @@ async function ensureDust(facade: any, keystore: any, shieldedSecretKeys: any, d
     return;
   }
 
-  const unregistered = (st.unshielded?.availableCoins ?? [])
-    .filter((u: any) => !u.meta?.registeredForDustGeneration);
+  const coins = st.unshielded?.availableCoins ?? [];
+  const unregistered = coins.filter((u: any) => !u.meta?.registeredForDustGeneration);
+
+  if (coins.length === 0) {
+    throw new Error('no NIGHT UTxOs at all: fund the unshielded address at the faucet first');
+  }
+
+  // Already registered but nothing accrued yet is the NORMAL state on a re-run -- registering again
+  // would be wrong. DUST builds up from the registered UTxO over time, so the only thing to do here
+  // is wait.
+  if (unregistered.length === 0) {
+    console.log(`
+all ${coins.length} NIGHT UTxO(s) already registered for DUST generation; waiting for it to accrue…`);
+    return waitForDust(facade);
+  }
+
   console.log(`
 no DUST yet; ${unregistered.length} unregistered NIGHT UTxO(s) -> registering for DUST generation…`);
-  if (unregistered.length === 0) {
-    throw new Error('no unregistered NIGHT UTxOs: fund the unshielded address first');
-  }
 
   try {
     const est = await facade.estimateRegistration(unregistered);
@@ -171,17 +182,38 @@ no DUST yet; ${unregistered.length} unregistered NIGHT UTxO(s) -> registering fo
   const txId = await facade.submitTransaction(tx);
   console.log('  registration submitted:', txId);
 
-  // DUST accrues over time once registered (about a week to the cap); we only need enough for a
-  // few transactions, which the docs put at a couple of minutes.
-  const deadline = Date.now() + 15 * 60 * 1000;
+  return waitForDust(facade);
+}
+
+// DUST accrues from a registered NIGHT UTxO over time -- the docs put full accrual at about a week,
+// but a deploy needs only a few transactions' worth.
+async function waitForDust(facade: any, minutes = Number(process.env.DUST_WAIT_MIN ?? 30)) {
+  const deadline = Date.now() + minutes * 60 * 1000;
+  let first = true;
   while (Date.now() < deadline) {
     await sleep(20000);
-    st = await Rx.firstValueFrom(facade.state().pipe(Rx.filter((s: any) => s.isSynced)));
+    const st = await Rx.firstValueFrom(facade.state().pipe(Rx.filter((s: any) => s.isSynced)));
     const d = dustTotal(st);
-    console.log(`  waiting for DUST… ${d.toString()} Specks`);
+
+    if (first) {
+      first = false;
+      // Printed once: if DUST never appears, the question is whether the wallet is even LOOKING at
+      // the right place -- whether its dust sync has reached the registration block, and whether
+      // the generating UTxO pays the address this wallet watches.
+      try {
+        console.log('  dust address      :', String(st.dust?.address ?? '(none)'));
+        console.log('  dust sync progress:', JSON.stringify(st.dust?.progress ?? {}, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+        console.log('  registered UTxOs  :', (st.unshielded?.availableCoins ?? [])
+          .filter((u: any) => u.meta?.registeredForDustGeneration).length,
+          'of', (st.unshielded?.availableCoins ?? []).length);
+      } catch {}
+    }
+
+    const left = Math.round((deadline - Date.now()) / 60000);
+    console.log(`  waiting for DUST… ${d.toString()} Specks (${left}m left)`);
     if (d > 0n) { console.log('DUST available.'); return; }
   }
-  throw new Error('registered for DUST generation but none accrued within 15 minutes');
+  throw new Error(`registered for DUST generation but none accrued within ${minutes} minutes`);
 }
 
 async function main() {
