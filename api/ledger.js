@@ -1,6 +1,9 @@
 // CORS proxy for the Preview indexer. Browsers often cannot POST to
 // indexer.preview.midnight.network from midnight-pool-one.vercel.app.
 // Cache ~15s so The Hall does not hammer the indexer.
+// Web Request/Response API — same Edge runtime as api/invite.js. Node serverless
+// passes IncomingMessage (relative url, no .text()), which 500s.
+export const config = { runtime: 'edge' };
 
 const INDEXER = 'https://indexer.preview.midnight.network/api/v4/graphql';
 const MAX_BODY = 8_192;

@@ -1,5 +1,7 @@
 // Opaque table blob store (ADR-0020). Body is ciphertext; this process never decrypts.
 // Prefer Vercel KV / Upstash REST when env is set; otherwise an in-memory Map (dev / warm instance).
+// Web Request/Response API — same Edge runtime as api/invite.js.
+export const config = { runtime: 'edge' };
 
 const MAX_BLOB = 32 * 1024;
 const ID_RE = /^[0-9a-f]{64}$/;
