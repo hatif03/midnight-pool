@@ -1,21 +1,59 @@
-# Deploying Midnight Pool to a public Midnight testnet
+# Deploying Midnight Pool
 
 This is the whole path from a clean checkout to a contract anyone can query on a public Midnight
-network. It has **one manual step** — the faucet — and that step is manual because the faucet is
-protected by a CAPTCHA, not because the rest is unfinished.
+network, plus what the two cloud hosts (Vercel and GCP) actually run. It has **one manual step** —
+the faucet — and that step is manual because the faucet is protected by a CAPTCHA, not because the
+rest is unfinished.
 
 ---
 
-## Deployed contract
+## Who can do what
+
+**Not every player can put every action on Midnight.** Gameplay never requires a wallet; on-chain
+submission does, and today that wallet is a **desktop browser extension**.
+
+| What | Who can do it | On Midnight? |
+|---|---|---|
+| Solo, invite-a-friend, Quick Match, progression, PWA install | Anyone, any device, no wallet | No — the game is peer-to-peer / local |
+| Scorecard (`commitStats`), Blind Rank (`proveThreshold`), Cue Case (`claimCue`) | **Desktop Chrome or Brave** + **Lace** on **Preview** + tNIGHT + **generated tDUST** | **Yes** — shared Preview contract, independently verifiable |
+| Break order | Every multiplayer match | Peer-to-peer now. The Compact circuits exist and are tested; the browser does not call them |
+| Match stakes (`stakes.compact`) | Not on the live path | Implemented and tested, **not deployed** to Preview, not wired in the browser |
+| Champion Badge (EVM mint) | Local `anvil` + simulator or local Midnight devnet | Not on Preview |
+| On-chain from iOS Safari / typical Android Chrome | Nobody, until Midnight ships an in-PWA wallet | No Lace extension there; the game still plays in mock mode |
+
+A missing wallet, a rejected prompt, or a proof-server timeout **never blocks a shot**. Real mode
+falls through to the local mock relation and writes a row in The Rail. That is intentional
+([ADR-0018](adr/0018-real-browser-submission.md)).
+
+**What is verifiable on Midnight today** is exactly those three circuits on the shared contract:
+commitment hashes, nullifiers, and booleans. Anyone can check them on the indexer or the explorers
+without trusting this repo (commands below). Levels, win counts, cue tiers, and the live break flip
+are *not* sitting in ledger state as plaintext — that is the point of the protocol, not a gap.
+
+---
+
+## Live services
 
 | | |
 |---|---|
 | Network | **Preview** (`preview`) — Midnight's public testnet |
-| Contract address | _(filled in after deploy — also shown in the app under Settings → Midnight)_ |
+| App (Vercel) | [https://midnight-pool-one.vercel.app/](https://midnight-pool-one.vercel.app/) |
+| Contract address | `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3` |
+| Deploy tx | `005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364` (block 866570) |
+| `commitStats` tx | `00b32911d7c538482796d178aa0323db085aa1dc6c287a25a1871850e981191153` (block 866574) |
+| `proveThreshold(5, false)` tx | `005d98a2de6ff4ba0dbd15c5ba20006e407cad9234e82167cc165027b72bd88f4f` (block 866579, disclosed `true`) |
 | Indexer | `https://indexer.preview.midnight.network/api/v4/graphql` |
 | Node RPC | `https://rpc.preview.midnight.network` |
+| Proof server (players) | `https://midnight-pool-prover-147606977567.us-central1.run.app` (Cloud Run, CORS-open — [ADR-0019](adr/0019-cloud-run-proof-server.md)) |
+| Matchmaking relay | `wss://midnight-pool-relay-147606977567.us-central1.run.app` |
+| Explorers | [preview.midnightexplorer.com](https://preview.midnightexplorer.com/), [midnight-preview.subscan.io](https://midnight-preview.subscan.io/) |
 | Compiler | `0.31.1` (language 0.23.0, runtime 0.16.0, ledger-8.0.2) |
 | SDK | `midnight-js` 4.1.1 |
+
+The app bakes the contract address and prover URL as defaults (`VITE_MN_CONTRACT_ADDRESS` /
+`VITE_MN_PROVER_URI`, with the same values hardcoded in `src/midnight/chain.js` so a missing env
+file cannot silently drop players onto localhost). Anyone who connects a Preview Lace wallet talks
+to the same contract. Paste a different address in Settings to point at your own.
 
 Two public networks answer, and they are not interchangeable:
 
@@ -27,6 +65,53 @@ Two public networks answer, and they are not interchangeable:
 `testnet` and `testnet-02` do not resolve at all. Switch networks with
 `localStorage.setItem('mn-network', 'preprod')` if you need the other one; the app otherwise asks the
 wallet for `preview`. See [ADR-0016](adr/0016-one-released-midnight-stack.md).
+
+---
+
+## Vercel vs GCP — what each host can and cannot do
+
+The frontend is a **static Vite PWA** plus two short Node functions (`api/og.js`, `api/invite.js`).
+That is a good fit for Vercel. These are not:
+
+| Need | Why Vercel is the wrong place | Where it lives |
+|---|---|---|
+| Midnight proof server | Long-lived Docker process, ~4 GiB RAM, proves that can take minutes. Not a serverless handler. Midnight's public `lace-proof-pub` host 404s from browsers (no CORS) | Cloud Run `midnight-pool-prover` ([ADR-0019](adr/0019-cloud-run-proof-server.md)) |
+| Matchmaking WebSocket | In-memory single-process queue (must be `--max-instances=1`) and connections that last a whole match (Cloud Run `--timeout=3600`). Vercel Functions are request-scoped; even with newer WS support they are the wrong durability/sticky-state model | Cloud Run `midnight-pool-relay` ([ADR-0004](adr/0004-matchmaking-relay.md)) |
+| `VITE_*` config | Inlined at **build** time. A dashboard env change does nothing until the next production build. `.env.production` is committed on purpose (public URLs only) and the same values are baked into `chain.js` / `net.js` | Repo + Vercel build |
+
+Limits that **do not** bite this app:
+
+- Static assets + PWA service worker on the CDN — fine. ZK keys (`public/midnight/`, 2.7–5 MB each)
+  are fetched on demand and **not** precached, so an install does not pay 28 MB
+  ([ADR-0012](adr/0012-commit-compiled-contract-for-browser-build.md), `vite.config.js`).
+- `api/og.js` / `api/invite.js` are short Node functions, not Edge (see ADR-0005's original Edge
+  intent; the shipped files are Node). Share-preview HTML is well inside duration/payload limits.
+- No server-side Midnight SDK on Vercel, so there is no `WalletFacade` OOM, no WASM heap, and no
+  proof-server binary to run there.
+
+Trust note: proof inputs go to **our** Cloud Run prover at prove-time (same pattern as Midnight's
+own leaderboard tutorial hosting a prover on Railway). The chain still only stores commitments,
+nullifiers and booleans. A wallet-side prover would be more private; `getProvingProvider` is not
+wired because `proveTx` takes ledger WASM objects that cannot cross the worker boundary
+([ADR-0018](adr/0018-real-browser-submission.md)).
+
+Redeploy:
+
+```bash
+# Frontend (from repo root, after committing .env.production). Team: Midnight Pool.
+vercel --prod --scope team_1Jem7eBa13lSblQuFiYEZCaE
+
+# Matchmaking relay — --max-instances=1 and --timeout=3600 are correctness, not cost knobs.
+gcloud run deploy midnight-pool-relay --source server --region us-central1 \
+  --project=project-f0b6b4ce-541f-43ff-9f7 --allow-unauthenticated \
+  --max-instances=1 --timeout=3600
+
+# Proof server — image already uses $PORT, so Cloud Run's PORT injection is enough.
+gcloud run deploy midnight-pool-prover --image=midnightntwrk/proof-server:8.0.3 \
+  --region=us-central1 --project=project-f0b6b4ce-541f-43ff-9f7 \
+  --memory=4Gi --cpu=2 --timeout=3600 --concurrency=1 --max-instances=3 \
+  --min-instances=0 --allow-unauthenticated --cpu-boost --port=8080
+```
 
 ---
 
@@ -50,49 +135,45 @@ ls public/midnight/keys   # *.prover (2.7-5.0 MB each) and *.verifier
 ls public/midnight/zkir   # *.bzkir
 ```
 
-## 2. Run a proof server
+## 2. Run a proof server (local development)
 
-Only whoever **deploys or calls** a circuit needs this. Verifying a deployed contract is a plain
-indexer read and needs nothing.
+Production players use the Cloud Run prover above. Local `npm run dev` talks to Docker on `:6300`.
 
 ```bash
 docker run -d --rm -p 6300:6300 --name midnight-proof-server \
-  midnightntwrk/proof-server:latest
-curl -s http://localhost:6300/health   # or just check the container is up
+  midnightntwrk/proof-server:8.0.3
 ```
 
-The app uses the wallet's own prover URI when the wallet supplies one. `Configuration.proverServerUri`
-is deprecated and documented as "likely to not be present", so in practice this local server is what
-gets used; override it with `localStorage.setItem('mn-prover-uri', '...')` if yours runs elsewhere.
+Override with `localStorage.setItem('mn-prover-uri', '...')` if yours runs elsewhere. Do **not**
+point production at `https://lace-proof-pub.preview.midnight.network` — it 404s from the browser.
 
 ## 3. Install and fund a wallet
 
-1. Install the **Lace** wallet extension and switch it to the **Preview** network.
+1. Install the **Lace** wallet extension (Chrome/Brave) and switch it to the **Preview** network.
 2. Copy its **unshielded address** (`mn_addr_preview1...`).
 3. Go to **https://faucet.preview.midnight.network/** and request tokens for that address.
    *This is the manual step: the faucet is behind a Cloudflare Turnstile CAPTCHA, so it cannot be
    scripted.*
-4. In Lace, **delegate NIGHT** so DUST begins to accrue. DUST pays transaction fees; without it a
-   deploy will fail for insufficient fees rather than for anything wrong with the contract.
+4. In Lace, **Generate tDUST** (and/or delegate NIGHT so DUST accrues). Fees are DUST, not tNIGHT;
+   without it a submit fails for insufficient fees rather than for anything wrong with the contract.
 5. Wait for DUST to appear in Lace.
 
-## 4. Deploy from the app
+Do **not** click **Deploy new** in the app. The shared contract is already baked. **Use this
+contract** is only if you want to point at a different address.
+
+## 4. Play against the shared contract
 
 ```bash
 npm run build && npm run preview
 ```
 
-Open the app → **Settings** (gear) → **Midnight**:
+Or open the live app. Then **Settings** (gear) → **Midnight**:
 
-1. **Connect Wallet** — approve the Lace prompt. The panel below it appears, showing the network
-   the wallet reports.
-2. **Deploy new** — approve the transaction. The contract address appears when it confirms.
-
-The address is stored locally and shown in the input box. Share it with anyone who wants to verify,
-or paste someone else's address and press **Use this contract** to point the app at theirs.
-
-From then on, `commitStats`, `proveThreshold` and `claimCue` submit to that contract. Every call is
-recorded in **The Rail** (Settings → View On-Chain Activity) with its transaction id.
+1. **Connect Wallet** — Lace on **Preview**. Approve the prompt. The baked contract address is
+   already in the input.
+2. Confirm tDUST is non-zero.
+3. Play. `commitStats`, `proveThreshold` and `claimCue` submit to the shared contract. Every call
+   lands in **The Rail** (Settings → View On-Chain Activity) with its transaction id.
 
 ---
 
@@ -105,8 +186,8 @@ Anyone can run these. Substitute the contract address.
 ```bash
 curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' \
-  -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address state } }",
-       "variables":{"a":"<CONTRACT_ADDRESS>"}}'
+  -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address } }",
+       "variables":{"a":"749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3"}}'
 ```
 
 **The chain is the one you think it is, and is live:**
@@ -121,9 +202,19 @@ curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' -d '{"query":"{ block { height } }"}'
 ```
 
-What you will **not** find is a block explorer: Midnight does not have a public one for Preprod yet,
-so a direct indexer query is the honest verification ceiling. That is the same standard
-[ADR-0013](adr/0013-real-local-devnet-deploy.md) set for the local deploy, held to for the public one.
+**The production prover answers CORS from the live origin:**
+
+```bash
+curl -sI -X OPTIONS https://midnight-pool-prover-147606977567.us-central1.run.app/prove \
+  -H "Origin: https://midnight-pool-one.vercel.app" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type"
+# -> access-control-allow-origin: https://midnight-pool-one.vercel.app
+```
+
+Explorers exist for Preview ([midnightexplorer](https://preview.midnightexplorer.com/),
+[Subscan](https://midnight-preview.subscan.io/)). A direct indexer query is still the check that
+does not depend on an explorer's indexing delay.
 
 What you can read from the contract state is exactly what the protocol claims is public: commitment
 hashes, nullifiers and booleans. Levels, win counts and cue tiers are not in there — that is the
@@ -131,42 +222,32 @@ point. See [HUSTLE_PROTOCOL.md](HUSTLE_PROTOCOL.md).
 
 ---
 
-## Deploying from Node: blocked on preprod, unproven on preview
+## Deploying from Node: works on preview, still blocked on preprod
 
-`contracts/preprod/` contains a complete Node deploy path. Whether it can reach a public network
-depends on which one, and the difference is worth stating precisely because it is the difference
-between "needs a browser wallet" and "does not".
+`contracts/preprod/` is the Node deploy path that landed the address above.
 
-**preprod — blocked.** `WalletFacade` leaks while syncing. Measured 2026-09-13: heap 96 MB ->
-4,954 MB while `appliedIndex` went 0 -> 71,293 in 249s, then
-`FATAL ERROR: Ineffective mark-compacts near heap limit` at a 6 GB cap. About **264 KB per processed
-entry**, on a brand-new empty wallet.
+**preview — done, 2026-09-14.** With `batchUpdates: { size: 5000, timeout: 1, spacing: 4 }` (default
+size is 10; that is the #704 / #425 WASM trap), a funded Preview wallet synced in ~11 minutes at a
+heap of **86–211 MB**, then deployed, called `commitStats`, and called `proveThreshold(5, false)`
+which disclosed `true`. Independently confirmed: the public indexer returns this contract at that
+address. Record: `contracts/preprod/deployed.json`.
 
-**preview — bounded, but not proven to finish.** Same code, same versions, only `NETWORK` changed.
-Heap peaked at **1,733 MB and then declined** while the index kept climbing — GC reclaims, so the
-leak does not manifest. But a 15-minute run reached only `appliedIndex` 25,906 at ~29 entries/s and
-had **not** completed:
+Without the larger batch size, the same SDK on preview reached only `appliedIndex` 25,906 in 15
+minutes at a 1.7 GB heap and never finished.
 
-```
-RESULT: TIMEOUT  elapsed=901s  peakHeapMB=1733  lastAppliedIndex=25906
-```
-
-So: preview does not crash, and it may well complete given long enough — but "it does not OOM" is not
-the same claim as "it syncs", and only the first has been demonstrated. `highestIndex` is reported as
-`0` throughout (part of the same upstream bug), so the wallet cannot say how far it has left to go,
-which is precisely why this cannot be settled by reasoning and has to be measured.
-
-Re-run it yourself:
+**preprod — still blocked.** `WalletFacade` leaks while syncing. Measured 2026-09-13: heap 96 MB ->
+4,954 MB while `appliedIndex` went 0 -> 71,293 in 249s, then OOM at a 6 GB cap. Do not target
+preprod until [midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704)
+is fixed on a released line.
 
 ```bash
-cd contracts/preprod && NETWORK=preview BUDGET_MS=3600000 npm run probe
+cd contracts/preprod && NETWORK=preview npm run deploy
 ```
 
-That chain-dependent difference is reported upstream on
-[midnightntwrk/midnight-wallet#704](https://github.com/midnightntwrk/midnight-wallet/issues/704);
-`sync-probe.ts` is the harness.
+Needs a local proof server (`docker run -d -p 6300:6300 midnightntwrk/proof-server:8.0.3`), a funded
+seed in `preview-seed.hex` (gitignored), and DUST already accruing. Players do **not** run this —
+they connect Lace to the baked address.
 
-**Why the browser path exists regardless.** A wallet extension does its own syncing and the page
-never constructs a `WalletFacade`, so the browser route is unaffected by any of this. It is the
-supported path today and the one this guide documents; the Node path is a convenience that may open
-up on preview.
+**Why the browser path still exists.** Other people never construct a `WalletFacade`. They connect
+Lace, which already synced, and submit through the DApp Connector. Proofs go to the Cloud Run
+prover so they also do not need Docker. The Node path is how *we* deploy the shared contract.

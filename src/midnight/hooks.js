@@ -8,9 +8,9 @@
 // Midnight features keep working with nothing installed -- the reliability
 // rationale documented in the plan and in Shadow Protocol's own MN_MODE=mock.
 //
-// Real mode submits to an actual deployed contract on public Preprod via chain.js, which owns a
-// Web Worker running midnight-js against the wallet's own indexer (docs/adr/0018). It is opt-in:
-// mock stays the default so the game works with nothing installed.
+// Real mode submits to the shared Preview contract via chain.js, which owns a Web Worker running
+// midnight-js against the wallet's own indexer (docs/adr/0018). It is opt-in: mock stays the
+// default so the game works with nothing installed.
 //
 // Real mode NEVER blocks gameplay. chain.js is dynamically imported so its multi-MB WASM never
 // touches the gameplay bundle, every submission goes through a serial queue off the main thread,

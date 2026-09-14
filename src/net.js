@@ -48,7 +48,10 @@ export function join(code, handlers) {
   };
 }
 
-export const RELAY_URL = import.meta.env.VITE_MATCH_RELAY_URL || 'ws://localhost:8787';
+const BAKED_RELAY = 'wss://midnight-pool-relay-147606977567.us-central1.run.app';
+export const RELAY_URL =
+  import.meta.env.VITE_MATCH_RELAY_URL
+  || (import.meta.env.PROD ? BAKED_RELAY : 'ws://localhost:8787');
 
 // Pairs with a random waiting stranger via the matchmaking relay (server/, see
 // docs/adr/0004-matchmaking-relay.md), then falls through to the same host()/join() flow above —

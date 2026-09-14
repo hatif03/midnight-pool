@@ -1,0 +1,9 @@
+{
+  "network": "preview",
+  "contractAddress": "749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3",
+  "deployTxId": "005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364",
+  "deployBlockHeight": 866570,
+  "commitStatsTxId": "00b32911d7c538482796d178aa0323db085aa1dc6c287a25a1871850e981191153",
+  "proveThresholdTxId": "005d98a2de6ff4ba0dbd15c5ba20006e407cad9234e82167cc165027b72bd88f4f",
+  "deployedAt": "2026-09-14T20:20:07.613Z"
+}

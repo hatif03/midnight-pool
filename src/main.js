@@ -1167,10 +1167,10 @@ function newMatchGroups() {
 // host can no longer just always break first. This only runs for the host --
 // the guest never decides `turn` locally, it just receives whatever 'start'
 // says, same as before; the guest's half of the handshake lives in onMessage.
-// The result is also fire-and-forget submitted to the Midnight contract for a
-// tamper-evident record (hookRecordBreakOrder) -- that submission never gates
-// this, and a peer that doesn't respond within the timeout just forfeits the
-// flip back to the pre-existing "host breaks" default rather than stalling.
+// The result is also fire-and-forget into The Rail (hookRecordBreakOrder). The
+// Compact break circuits exist but are not on the live browser submit path
+// (docs/adr/0006 Update); this call never gates the rack. A peer that doesn't
+// respond within the timeout forfeits the flip back to "host breaks".
 async function negotiateBreakOrder() {
   if (game.mode !== 'host') return;
   const matchId = breakOrder.toHex(breakOrder.newMatchId());

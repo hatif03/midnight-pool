@@ -41,8 +41,11 @@ Full project direction lives in [CLAUDE.md](../../../CLAUDE.md) at the repo root
 
 ## Mobile-first PWA checklist
 
-- Touch-first UI as the primary layout; no manifest/service worker exist yet — add both
-  (prefer an existing Vite PWA plugin over hand-rolled boilerplate).
+- Touch-first UI as the primary layout. Manifest + service worker are in place via
+  `vite-plugin-pwa` (ADR-0002). Don't hand-write a competing `sw.js`.
+- Live Preview contract is baked into the app (`docs/DEPLOYMENT.md`). On-chain from the PWA needs
+  desktop Lace; phones play in mock mode. Proofs go to Cloud Run `midnight-pool-prover` (ADR-0019)
+  because Midnight's public prover 404s from browsers. Keys stay in the browser.
 - Keep private data (keys, proof inputs) client-side wherever the Midnight SDK allows it —
   this is both correct-by-design and literally what the Mobile Track judges for.
 

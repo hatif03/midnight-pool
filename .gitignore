@@ -23,5 +23,5 @@ dev-dist
 .claude/settings.local.json
 .midnight-devnet/
 
-.vercel
 .env*
+!.env.production

@@ -51,8 +51,11 @@ original defaults considered, but the code doesn't care which host runs it). Dep
 --allow-unauthenticated --max-instances=1 --timeout=3600`, to the user's existing
 `project-f0b6b4ce-541f-43ff-9f7` project (chosen over creating a new dedicated project, to avoid
 the extra billing-account-linking step). Live at
-`wss://midnight-pool-relay-147606977567.us-central1.run.app`, verified with real `ws` clients
-against the deployed URL (queue → pair → code exchange all worked).
+`wss://midnight-pool-relay-147606977567.us-central1.run.app`. Cloud Run also serves an alias
+(`https://midnight-pool-relay-2wv6ilt7fa-uc.a.run.app`); both answer. The committed env var and
+the baked fallback in `src/net.js` keep the project-number URL. Verified with real `ws` clients
+against the deployed URL (queue → pair → code exchange all worked). A sibling service,
+`midnight-pool-prover`, hosts the Midnight proof server — see [ADR-0019](0019-cloud-run-proof-server.md).
 
 Two Cloud-Run-specific correctness details that aren't optional:
 - **`--max-instances=1` is required, not a cost optimization.** The `Matchmaker`'s waiting queue

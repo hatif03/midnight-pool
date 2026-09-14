@@ -12,7 +12,18 @@ import * as audit from './audit.js';
 
 const ADDR_KEY = 'mn-contract-address';
 const PROVER_KEY = 'mn-prover-uri';
-const DEFAULT_PROVER = 'http://localhost:6300';
+// Shared Preview contract, baked at build time once deploy-preview.ts writes it.
+// A player can still override via localStorage (Settings → paste address → Use this contract).
+const BAKED_ADDR =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MN_CONTRACT_ADDRESS)
+  || '749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3';
+// CORS-open Cloud Run prover (docs/adr/0019). Midnight's lace-proof-pub host 404s from
+// browsers; Lace's proverServerUri is ignored when it points there.
+const PUBLIC_PROVER =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MN_PROVER_URI)
+  || 'https://midnight-pool-prover-147606977567.us-central1.run.app';
+const LOCAL_PROVER = 'http://localhost:6300';
+const BROKEN_PUBLIC_PROVER = /lace-proof-pub/;
 const PRIV_KEY = 'mn-private-state';
 
 let worker = null;
@@ -22,14 +33,23 @@ let seq = 0;
 const pending = new Map();
 
 export const getContractAddress = () => {
-  try { return localStorage.getItem(ADDR_KEY) || ''; } catch { return ''; }
+  try { return localStorage.getItem(ADDR_KEY) || BAKED_ADDR || ''; } catch { return BAKED_ADDR || ''; }
 };
 export const setContractAddress = (a) => {
   try { a ? localStorage.setItem(ADDR_KEY, a) : localStorage.removeItem(ADDR_KEY); } catch {}
 };
 
-export const getProverUri = () => {
-  try { return localStorage.getItem(PROVER_KEY) || DEFAULT_PROVER; } catch { return DEFAULT_PROVER; }
+export const getProverUri = (laceUri) => {
+  try {
+    const stored = localStorage.getItem(PROVER_KEY);
+    if (stored) return stored;
+  } catch {}
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    return LOCAL_PROVER;
+  }
+  if (PUBLIC_PROVER) return PUBLIC_PROVER;
+  if (laceUri && !BROKEN_PUBLIC_PROVER.test(laceUri)) return laceUri;
+  return LOCAL_PROVER;
 };
 export const setProverUri = (u) => {
   try { u ? localStorage.setItem(PROVER_KEY, u) : localStorage.removeItem(PROVER_KEY); } catch {}
@@ -77,13 +97,11 @@ export async function connect(walletKey, networkId = 'preview') {
       networkId: cfg.networkId,
       indexerUri: cfg.indexerUri,
       indexerWsUri: cfg.indexerWsUri,
-      // Configuration.proverServerUri exists but is DEPRECATED and documented as "likely to not be
-      // present" -- the connector points at getProvingProvider instead. Wallet-delegated proving
-      // would mean proxying proveTx to the main thread, and proveTx takes ledger WASM objects, so
-      // that would drag the WASM back onto the thread this worker exists to keep clear. So: use the
-      // wallet's URI when it offers one, otherwise a proof server the player controls. Only whoever
-      // DEPLOYS needs one -- verifying a deployed contract is a plain indexer read.
-      proverUri: cfg.proverServerUri || getProverUri(),
+      // Prover resolution (docs/adr/0019): localStorage → localhost Docker → Cloud Run
+      // → Lace URI unless it is the known-broken lace-proof-pub host.
+      // Wallet-delegated getProvingProvider still takes ledger WASM objects, which cannot
+      // cross this worker boundary, so it is not used here (docs/adr/0018).
+      proverUri: getProverUri(cfg.proverServerUri),
       origin: location.origin,
     },
     addresses,

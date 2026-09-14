@@ -26,3 +26,4 @@ talks to another, a reversal of an earlier decision) — not for routine feature
 | [0016](0016-one-released-midnight-stack.md) | Pin one fully-released Midnight stack, and build the toolchain in Docker |
 | [0017](0017-aim-guide-and-two-stage-input.md) | Reference-accurate aim guide and two-stage shot input |
 | [0018](0018-real-browser-submission.md) | Real on-chain submission from the browser, via the DApp Connector in a Web Worker |
+| [0019](0019-cloud-run-proof-server.md) | Host the Midnight proof server on Cloud Run (CORS-open), not on Vercel |

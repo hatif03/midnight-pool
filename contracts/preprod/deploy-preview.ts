@@ -88,7 +88,10 @@ async function buildWallet() {
     provingServerUrl: new URL(PROOF_SERVER),
     indexerClientConnection: { indexerHttpUrl: ENDPOINTS.indexer, indexerWsUrl: ENDPOINTS.indexerWs },
     txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema),
-  };
+    // Default batch size is 10; that is what OOMs WalletFacade on a populated chain
+    // (midnight-wallet#704 / #425). Operators independently synced Preprod with size 5000.
+    batchUpdates: { size: 5000, timeout: 1, spacing: 4 },
+  } as DefaultConfiguration;
 
   const keystore = createKeystore(derived.keys[Roles.NightExternal], configuration.networkId);
   console.log('network          :', NETWORK);

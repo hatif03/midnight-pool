@@ -54,13 +54,15 @@ writing or editing anything Midnight-related, check:
 
 ## Mobile-first PWA requirements
 
-- Touch/small-screen is the primary layout; desktop is secondary. The current game is
-  desktop-drag-first and needs revisiting for touch input.
-- No web app manifest or service worker exist yet (`index.html` has no `<link rel="manifest">`,
-  no `sw.js`). Add both for installability/offline support — prefer an existing Vite PWA plugin
-  over hand-rolled manifest/SW boilerplate.
+- Touch/small-screen is the primary layout; desktop is secondary.
+- Manifest + service worker are done via `vite-plugin-pwa` (`vite.config.js`, ADR-0002). Don't
+  hand-write a competing `sw.js`.
+- Shared Preview contract is live and baked in — see `docs/DEPLOYMENT.md`. On-chain submission
+  needs desktop Chrome/Brave + Lace + tDUST; mobile PWA players can play, not submit. Proofs go
+  to Cloud Run `midnight-pool-prover` (ADR-0019); do not point at `lace-proof-pub` (404 / no CORS).
 - Keep private data (keys, proof inputs) client-side wherever the Midnight SDK supports it —
-  this is both correct-by-design and what the Mobile Track judges for.
+  this is both correct-by-design and what the Mobile Track judges for. Production proving still
+  sends circuit inputs to our Cloud Run prover at prove-time; the chain stores commitments only.
 
 ## Submission constraints
 

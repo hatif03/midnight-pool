@@ -20,8 +20,8 @@ most protocol write-ups skip — **what it does not fix**.
 | **Scorecard** | A commitment to your level and win count, published under a derived public key | `commitStats` — on-chain |
 | **Blind Rank** | Proof that your committed level or wins meets a threshold, disclosing only the boolean | `proveThreshold` — on-chain |
 | **Cue Case** | A one-time, non-transferable claim on a cue tier, as a nullifier in a set | `claimCue` — on-chain |
-| **The Rack** | A provably-fair 2-party coin flip deciding who breaks, with a reveal deadline | peer-to-peer today, contract implemented |
-| **Sealed Table** | Match stakes recorded write-once, so the first attestation on-chain is canonical | `stakes.compact` — implemented, not yet on the browser path |
+| **The Rack** | A provably-fair 2-party coin flip deciding who breaks, with a reveal deadline | peer-to-peer today; Compact circuits exist, not called from the browser |
+| **Sealed Table** | Match stakes recorded write-once, so the first attestation on-chain is canonical | `stakes.compact` — implemented and tested, **not deployed** to Preview, not on the browser path |
 | **The Rail** | The in-app audit log — what an observer can see from the rail | local, mirrors every circuit call |
 
 ---
@@ -100,7 +100,7 @@ or the proof server is unavailable. A player with no wallet plays the same game.
 | The break flip is unbiased | **Holds** | Enforced peer-to-peer in the live path; the contract is the record |
 | Match results are correct | **Does not hold** | The contract records who claimed to win, first-write-wins. It makes disagreement permanent and public; it cannot adjudicate one. |
 | Roles are bound to identity | **Does not hold** | `role` is a bare public argument, not signature-bound. A third party who reads a public matchId can pollute that match's record. Nothing custodial is at stake, so the consequence is a polluted audit row, not stolen funds. |
-| Proofs are generated on your device | **Holds** | The private inputs never leave the browser; the worker proves locally or delegates to the wallet |
+| Proofs are generated on your device | **Holds for a local Docker prover; production uses our Cloud Run prover** | Secret key, salts and stats live in the player's browser. At prove-time the circuit inputs go to `midnight-pool-prover` on Cloud Run (same trust move as Midnight's own leaderboard tutorial hosting a prover). The chain still only stores commitments, nullifiers and booleans. Midnight's public `lace-proof-pub` host 404s from browsers — we do not use it. |
 
 That last row is the one worth comparing. A retrofitted ZK layer that routes every player's secrets
 through a central bridge has moved the trust, not removed it. Here the secret key, the salts and the
@@ -116,8 +116,8 @@ Everything below is a public network — no trust in us required.
 # 1. The contract's public ledger state, straight from the Preview indexer
 curl -s -X POST https://indexer.preview.midnight.network/api/v4/graphql \
   -H 'content-type: application/json' \
-  -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address state } }",
-       "variables":{"a":"<CONTRACT_ADDRESS>"}}'
+  -d '{"query":"query($a:HexEncoded!){ contractAction(address:$a){ __typename address } }",
+       "variables":{"a":"749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3"}}'
 
 # 2. The chain is live and is the one you think it is
 curl -s -H 'content-type: application/json' \
@@ -125,8 +125,9 @@ curl -s -H 'content-type: application/json' \
   https://rpc.preview.midnight.network
 ```
 
-The contract address is shown in the app under **Settings → Midnight** after deploying, and is
-recorded in [`docs/DEPLOYMENT.md`](DEPLOYMENT.md).
+The contract address is baked into the app and recorded in [`docs/DEPLOYMENT.md`](DEPLOYMENT.md).
+On-chain submission from the live PWA needs desktop Chrome/Brave + Lace on Preview + tDUST; mobile
+players still play, in mock mode. See that page's "Who can do what" table.
 
 To reproduce the build rather than trusting the committed artifacts:
 

@@ -2,6 +2,14 @@
 
 Read the VO lines as-is or loosely — they're timed to fit, not to be recited word-for-word.
 
+Live app: https://midnight-pool-one.vercel.app/
+Shared Preview contract: `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3`
+(anyone can query — see `docs/DEPLOYMENT.md`)
+
+Honest limits to not over-claim on camera: on-chain submits need **desktop Chrome/Brave + Lace on
+Preview + tDUST**. Phones play and install; they do not submit. The break flip is peer-to-peer in
+the live match. Stakes and the EVM Champion Badge mint are not on Preview.
+
 ---
 
 ### 0:00–0:10 — Hook
@@ -16,29 +24,31 @@ Read the VO lines as-is or loosely — they're timed to fit, not to be recited w
 **ON SCREEN:** A quick real shot or two, mobile landscape view, maybe the install prompt
 
 > "It's a real 2D pool game — physics, spin, peer-to-peer multiplayer, installable on your phone.
-> But every privacy-sensitive part of your progress — your rank, your cosmetics, your match
-> history — runs on real Midnight Network zero-knowledge circuits."
+> Rank, cosmetics, match history — the privacy-sensitive parts — run as Midnight zero-knowledge
+> circuits on a public testnet anyone can query."
 
 ---
 
-### 0:30–1:00 — Midnight, live in the browser
-**ON SCREEN:** Settings → Midnight → Champion Badge → "Check eligibility" → result appears.
-Then a quick pass through Leagues and Cues.
+### 0:30–1:00 — Midnight, live
+**ON SCREEN:** Desktop + Lace connected. Settings → Midnight → play or hit a league gate so
+`proveThreshold` submits. Then The Rail showing a real tx id. Optionally Champion Badge
+"Check eligibility" as the in-browser circuit (no chain wait).
 
-> "Here's the proof running live, right in my browser. This is the actual compiled Compact
-> circuit — not a simulation — checking privately whether I qualify for Champion rank. It says
-> yes, without ever revealing my exact level. Same pattern for leagues, and for soulbound cues
-> that can be claimed once and never sold."
+> "Here's a real threshold proof, submitted from the browser to Midnight Preview. The chain
+> learns only yes or no — never my exact level. Same pattern for soulbound cues that can be
+> claimed once and never sold. And because it's a public network, you don't have to take our
+> word for it — the contract address is in the repo."
 
 ---
 
 ### 1:00–1:20 — Multiplayer + audit trail
-**ON SCREEN:** A moment of a real multiplayer match (stake amount, the break), then Settings →
-Midnight → View on-chain activity, showing real logged entries.
+**ON SCREEN:** A moment of a real multiplayer match (the break), then Settings → Midnight →
+View on-chain activity.
 
-> "Every match is peer-to-peer. The break is decided fairly by an on-chain commit-reveal, the
-> guest independently verifies the host's physics, and both sides sign a match receipt. It's all
-> logged right here, in a real audit trail."
+> "Every match is peer-to-peer — the break is decided in milliseconds over the same connection,
+> the guest independently verifies the host's physics, and both sides can sign a match receipt.
+> It's all logged right here, in a real audit trail, with transaction ids when the chain path
+> runs."
 
 ---
 
@@ -46,15 +56,14 @@ Midnight → View on-chain activity, showing real logged entries.
 **ON SCREEN:** Cut to your terminal, running (or already showing the tail end of)
 `npx tsx cross-chain-join-real.ts 10` — hold on the final output block.
 
-> "And this is the part that goes all the way — a real contract, deployed live to a running
-> Midnight network. Real ZK proof. Real confirmed transaction. And because I qualify, it mints a
-> badge on a real Ethereum contract — no bridge, no custody, two chains independently joined by
-> one proof."
+> "And this is the part that goes all the way — a real contract, a real ZK proof, a real
+> confirmed transaction, joined to a badge on a real Ethereum contract — no bridge, no custody,
+> two chains independently joined by one proof."
 
 ---
 
 ### 1:50–2:00 — Close
-**ON SCREEN:** Repo URL / logo
+**ON SCREEN:** Repo URL / logo / midnight-pool-one.vercel.app
 
 > "Midnight Pool — built for the Midnight Hackathon. Thanks for watching."
 
@@ -62,4 +71,4 @@ Midnight → View on-chain activity, showing real logged entries.
 
 **Total: ~235 words** at a comfortable pace — leaves a few seconds of buffer under the 2:00 limit
 for pauses and transitions. If you're running long, the easiest trim is the Leagues/Cues sentence
-in the 0:30–1:00 block — the Champion Badge alone already carries that section.
+in the 0:30–1:00 block — the threshold proof plus The Rail already carries that section.

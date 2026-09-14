@@ -37,16 +37,18 @@ across all three tracks it targets — Mobile, Integrate Midnight, and Cross-Cha
 pool inverted that, making your rating public while the cheating stays hidden. This puts it back the
 right way round — and [says plainly what it does not fix](docs/HUSTLE_PROTOCOL.md#trust-model--including-what-this-does-not-fix).
 
-- **Private ranked credentials** — your level and win count live as an on-chain commitment;
-  entering ranked Quick Match or unlocking a league badge runs a real threshold-proof circuit that
-  discloses only *yes/no*, never the number.
+- **Private ranked credentials** — your level and win count live as an on-chain commitment on
+  Midnight **Preview**; entering ranked Quick Match or unlocking a league badge runs a real
+  threshold-proof circuit that discloses only *yes/no*, never the number. Independently verifiable
+  on the public indexer ([docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 - **Soulbound cosmetics** — cue tiers are claimed through a nullifier-based circuit: claimable once,
   untradeable, and nobody else learns which cue you unlocked.
 - **Provably fair break** — both players commit and reveal a nonce over the existing peer
-  connection (so the rack starts instantly) and the same flip is recorded on-chain for audit,
-  with a reveal deadline that closes the classic last-revealer bias.
-- **Match stakes** in practice Coins, resolved by a write-once on-chain attestation so a losing
-  host can't overwrite an honest result by going silent.
+  connection (so the rack starts instantly). The same relation exists as Compact circuits; the live
+  path does not wait on a block.
+- **Match stakes** in practice Coins, with a write-once Compact design so a losing host can't
+  overwrite an honest result by going silent. Implemented and tested; not yet on the Preview
+  contract or the browser submit path.
 - **Guest-side physics verification** — the guest independently replays the host's shot from the
   same snapshot and inputs and flags any mismatch, closing the "host fabricates the outcome" gap.
 - **Server-signed stat receipts** — once both peers agree on a match result, either side can fetch
@@ -55,11 +57,15 @@ right way round — and [says plainly what it does not fix](docs/HUSTLE_PROTOCOL
   EVM contract, with no bridge and no custody: both chains are read independently and joined by a
   shared key in a script. Two versions exist — one runs the Midnight side through the compiler's
   simulator (fast, no network needed), the other does a genuine `deployContract`/`callTx` against a
-  running local Midnight network (real ZK proof, real transaction, real block confirmation).
-- A local audit dashboard shows every one of the above as it happens, in-app, not just at demo time.
+  running local Midnight network (real ZK proof, real transaction, real block confirmation). This
+  mint is **not** on Preview; the live chain path is Scorecard / Blind Rank / Cue Case.
+- A local audit dashboard (The Rail) shows every one of the above as it happens, in-app, and real
+  submits include a transaction id.
 
 Every Midnight feature is designed to never block gameplay: a missing or slow wallet falls back to
-a fast local mock instantly, so a shot never waits on a proof server.
+a fast local mock instantly, so a shot never waits on a proof server. On-chain submission from the
+live PWA needs **desktop Chrome/Brave + Lace on Preview + tDUST**; phones can play and install the
+PWA, they cannot yet submit (no Lace in iOS Safari / typical Android Chrome).
 
 ## How to play
 
@@ -154,8 +160,9 @@ ledger WASM confined to a Web Worker so nothing can stall the 60Hz physics loop
 is the only one whose runtime (0.16.0) and ledger (8.0.2) the released midnight-js 4.1.1 can deploy —
 measured, not inferred ([ADR-0016](docs/adr/0016-one-released-midnight-stack.md)).
 
-[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) is the end-to-end path to a public testnet contract, plus
-the commands **anyone can run to verify it without trusting this repo**.
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) is the end-to-end path to the public Preview contract,
+who can submit from the live PWA (desktop Lace; not yet mobile wallets), Vercel vs GCP limits, and
+the commands **anyone can run to verify the contract without trusting this repo**.
 
 ## Documentation
 

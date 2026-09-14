@@ -144,3 +144,14 @@ full writeup with exact versions, the instrumented reproduction, and both contro
 the finding isn't lost. Real on-chain testnet submission stays deferred, unchanged from
 `docs/adr/0006`'s original scoping; the local-devnet/mock-mode Midnight story remains this
 project's demo path.
+
+## Update 3: Preview Node deploy succeeded (2026-09-14); players submit from the browser
+
+The "next avenue" (Lace / DApp Connector) was taken in [ADR-0018](0018-real-browser-submission.md).
+Then a Node `WalletFacade` deploy to **Preview** (not Preprod) landed the shared contract
+`749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3`. `batchUpdates.size: 5000` is
+what made Preview sync finish on the same `4.0.1` facade that still OOMs on Preprod. Record:
+`contracts/preprod/deployed.json`. Preprod stays blocked on #704. How players prove from the live
+PWA, and who can, is in [DEPLOYMENT.md](../DEPLOYMENT.md) and
+[ADR-0019](0019-cloud-run-proof-server.md).
+

@@ -101,3 +101,30 @@ gitignored — a committed seed is a published private key.
 chain path. The break-order flip runs peer-to-peer (the contract exists and is tested); the stakes
 contract is not yet wired to the browser. `docs/HUSTLE_PROTOCOL.md` states this split and its trust
 consequences plainly rather than implying everything is on-chain.
+
+## Update: Preview Node deploy succeeded (2026-09-14)
+
+The browser path in this ADR is still how *players* submit. The Node path is now how *we* deploy the
+shared contract they submit to.
+
+`batchUpdates: { size: 5000, timeout: 1, spacing: 4 }` on `WalletFacade` (default size 10) is what
+made Preview sync finish. Same released `4.0.1` stack that OOMs on Preprod. Measured: heap stayed
+**86–211 MB** while `shielded.appliedIndex` ran 0 → 233,567 in ~11 minutes, then `isSynced`. Without
+that batch size, a 15-minute Preview run had previously stalled at 25,906 applied / 1.7 GB heap.
+
+Then a real deploy landed on Preview:
+
+| | |
+|---|---|
+| Contract | `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3` |
+| Deploy tx | `005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364` @ block 866570 |
+| `proveThreshold(5, false)` | disclosed `true` @ block 866579 |
+
+The public indexer returns that address independently of the deploy script. The app bakes it in as
+the default. Players prove against our CORS-open Cloud Run prover
+(`midnight-pool-prover`, [ADR-0019](0019-cloud-run-proof-server.md)) — Midnight's public
+`lace-proof-pub` host 404s from browsers, so it is not used. Preprod remains blocked on #704.
+
+On-chain from the live PWA still requires **desktop Chrome/Brave + Lace on Preview + generated
+tDUST**. iOS Safari and typical Android Chrome have no Lace extension; those players play, they do
+not submit. Break-order and `stakes.compact` are still not on the browser chain path.

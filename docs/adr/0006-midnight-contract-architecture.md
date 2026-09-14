@@ -100,6 +100,17 @@ Neither `circuit.js` nor the hand-rolled mocks touch `hookRecordBreakOrder`/`hoo
 `hookAttestResult` — those need real shared on-chain state across two independent browser
 sessions, which local simulation cannot provide regardless of how the mock is implemented.
 
+## Update: live chain path is three circuits, not the full original dual-path (2026-09-15)
+
+The Preview contract and the browser worker (ADR-0018) submit **`commitStats` / `proveThreshold` /
+`claimCue` only** (`ON_CHAIN` in `src/midnight/hooks.js`). `hookRecordBreakOrder` still runs and
+writes The Rail, but `resolveBreak` is not in that set, so a connected wallet does **not** land a
+break-order transaction. The P2P handshake in `breakOrder.js` is the live fairness mechanism; the
+Compact break circuits remain compiled, tested, and ready. `stakes.compact` is likewise not
+deployed. See [HUSTLE_PROTOCOL.md](../HUSTLE_PROTOCOL.md) and
+[DEPLOYMENT.md](../DEPLOYMENT.md#who-can-do-what).
+
+
 **Implementation note added once 8-Ball-Pool-style leagues were built**: leagues (`src/leagues.js`,
 Brass through Diamond) reuse `proveThreshold` exactly as designed rather than adding a new circuit
 — a win-rate-gated tier was considered and rejected specifically because it would need `losses`

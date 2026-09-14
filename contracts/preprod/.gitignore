@@ -4,3 +4,5 @@
 node_modules/
 managed*/
 .private-state/
+# WalletFacade LevelDB from a local deploy — never commit.
+midnight-level-db/

@@ -5,6 +5,74 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-15, Preview live + hosted prover + honest player matrix)
+
+**The shared contract is on Midnight Preview** and the production PWA is pointed at it. Players
+with desktop Lace can submit `commitStats` / `proveThreshold` / `claimCue` to
+`749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3`. Anyone can verify that address
+on the public indexer without trusting this repo (`docs/DEPLOYMENT.md`).
+
+**Not every player, not every circuit.** Gameplay works for everyone (mock fallback). On-chain
+needs **Chrome/Brave + Lace on Preview + generated tDUST**. iOS Safari / typical Android Chrome
+have no Lace extension — those players play, they do not submit. Break-order stays P2P.
+`stakes.compact` and the EVM Champion Badge mint are **not** on Preview.
+
+**Proving from Vercel.** Midnight's `lace-proof-pub.preview.midnight.network` 404s from browsers
+(no CORS) — same fact the official midnight-leaderboard tutorial documents. Vercel cannot run the
+proof-server Docker image. We now host `midnightntwrk/proof-server:8.0.3` as Cloud Run
+`midnight-pool-prover` (`https://midnight-pool-prover-147606977567.us-central1.run.app`). Measured:
+`OPTIONS /prove` from origin `https://midnight-pool-one.vercel.app` returns
+`access-control-allow-origin` reflecting that origin. [ADR-0019](docs/adr/0019-cloud-run-proof-server.md).
+Proof inputs are visible to this GCP project at prove-time; the chain still stores commitments,
+nullifiers and booleans.
+
+**Vercel is the right host for the PWA and the wrong host for everything stateful.** Static Vite
+app + two short Node functions (`api/og`, `api/invite`) are fine. No WebSocket matchmaking, no
+4 GiB prover, no `WalletFacade`. `VITE_*` is build-time; `.env.production` is committed (public
+URLs) and the same values are baked into `chain.js` / `net.js` so a missing env file cannot send
+production to localhost.
+
+**GCP.** Relay `midnight-pool-relay` (in-memory queue, `--max-instances=1`, `--timeout=3600`) and
+prover `midnight-pool-prover` (4 GiB / 2 vCPU / concurrency 1). Project
+`project-f0b6b4ce-541f-43ff-9f7`, region `us-central1`.
+
+**Preprod stays off-limits** until #704 is fixed on a released line.
+
+## Current state (2026-09-14, MidnightPool is on Preview)
+
+**The contract is on a public Midnight network.** Node deploy to Preview succeeded. Independent
+indexer read confirms the address; `commitStats` and `proveThreshold(5, false)` both confirmed
+on-chain, the latter disclosing `true`.
+
+| | |
+|---|---|
+| Network | Preview |
+| Contract | `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3` |
+| Deploy | tx `005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364`, block 866570 |
+
+Record: `contracts/preprod/deployed.json`. Address is baked into the app
+(`VITE_MN_CONTRACT_ADDRESS` + fallback in `src/midnight/chain.js`). Players connect Lace on Preview
+and talk to this contract; they do not each deploy.
+
+**What unblocked Node sync.** Default `batchUpdates.size` is 10 and that is the #704/425 WASM trap.
+Setting `{ size: 5000, timeout: 1, spacing: 4 }` kept the heap at **86–211 MB** through 233k
+applied entries in ~11 minutes. Same `wallet-sdk-facade@4.0.1` that still OOMs on Preprod. DUST was
+already on the funded seed (no faucet wait this run). Local `proof-server:8.0.3` generated the
+proofs.
+
+**How other people submit.** Default prover is now
+`https://lace-proof-pub.preview.midnight.network` (Lace's own `proverServerUri` still wins). That is
+the scalable demo: no Docker on the player's machine. Proof inputs are visible to that operator —
+acceptable on testnet; production would keep proving in the wallet / a prover they control. Wallet-
+delegated `getProvingProvider` is still not wired, because `proveTx` takes ledger WASM objects that
+cannot cross the worker boundary (ADR-0018).
+
+**Still needed for a live player:** Lace on Preview with tNIGHT *and* generated DUST (fees are
+DUST). Gameplay stays mock if that is missing. A Vercel rebuild is required before production serves
+the baked address.
+
+**Preprod stays off-limits** until #704 is fixed on a released line.
+
 ## Current state (2026-09-13, real Midnight submission path + Hustle Protocol)
 
 **The Midnight layer is no longer mock-only.** `src/midnight/hooks.js` used to log
