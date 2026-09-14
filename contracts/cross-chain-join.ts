@@ -74,26 +74,23 @@ async function proveMidnightSide(level: bigint): Promise<{ pk: Uint8Array; quali
   let state = deployed.currentContractState;
 
   const commitCtx = createCircuitContext(
-    'commitStats',
     CONTRACT_ADDRESS,
     COIN_PUBLIC_KEY,
     state as never,
     player,
-    undefined,
     undefined,
     undefined,
     Math.floor(Date.now() / 1000),
   );
   const committed = await contract.impureCircuits.commitStats(commitCtx);
-  state = committed.context.callContext.currentQueryContext.state;
+  const committedCtx = committed.context.callContext ?? committed.context;
+  state = committedCtx.currentQueryContext.state;
 
   const proveCtx = createCircuitContext(
-    'proveThreshold',
     CONTRACT_ADDRESS,
     COIN_PUBLIC_KEY,
     state as never,
     player,
-    undefined,
     undefined,
     undefined,
     Math.floor(Date.now() / 1000),

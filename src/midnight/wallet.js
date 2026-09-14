@@ -30,11 +30,10 @@ export function current() {
 }
 
 /**
- * Connects to one detected wallet. Real on-chain circuit submission is not
- * wired in this pass (see hooks.js) -- this gets only as far as the
- * wallet-detection/connect handshake, which is enough to demonstrate the
- * Mobile Track's "runs in the browser" claim for the connection itself. A
- * connected wallet does not yet change what hooks.js submits.
+ * Connects to one detected wallet. Real on-chain submission is wired through
+ * chain.js (docs/adr/0018): connect here flips mock → real so hooks.js will
+ * submit commitStats / proveThreshold / claimCue (and best-effort break) to
+ * the shared Preview contract.
  */
 export async function connect(walletId, networkId = 'preview') {
   const wallet = detectWallets().find((w) => w.id === walletId);

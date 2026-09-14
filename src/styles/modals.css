@@ -217,6 +217,63 @@
   box-shadow: 0 0 0 3px rgba(255, 201, 77, .25);
 }
 
+#mn-recovery-pin,
+#mn-recovery-code,
+#mn-contract-input {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  text-align: left;
+  color: var(--paper);
+  outline: none;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--r-s);
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, .38);
+  border: 2px solid var(--panel-line);
+}
+
+#mn-recovery-code {
+  resize: vertical;
+  min-height: 4.5em;
+  margin-top: 8px;
+}
+
+#mn-recovery-qr {
+  display: block;
+  margin: 10px auto 0;
+  max-width: 180px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.set-blurb {
+  margin: 0 0 10px;
+  font-size: var(--fs-micro);
+  line-height: 1.45;
+  color: var(--paper-dim);
+  text-align: left;
+}
+
+.modal .box.box--wide {
+  width: min(520px, 92vw);
+  text-align: left;
+}
+
+.hall-body { text-align: left; }
+.hall-link {
+  color: var(--gold-t);
+  word-break: break-all;
+}
+.audit-mode {
+  font-size: .75em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  opacity: .8;
+}
+.audit-mode.real { color: var(--gold-t); }
+.audit-mode.mock { color: var(--paper-dim); }
+
 .check-row {
   display: flex;
   align-items: center;

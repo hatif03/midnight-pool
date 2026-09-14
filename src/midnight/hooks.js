@@ -18,17 +18,7 @@
 // falls back to running the mock relation so play continues, with the failure recorded.
 import * as audit from './audit.js';
 import * as wallet from './wallet.js';
-
-const SECRET_KEY_STORAGE = 'mn-secret-key';
-
-function getOrCreateSecretKeyHex() {
-  let hex = localStorage.getItem(SECRET_KEY_STORAGE);
-  if (!hex) {
-    hex = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem(SECRET_KEY_STORAGE, hex);
-  }
-  return hex;
-}
+import { getOrCreateSecretKeyHex, hexToBytes } from './secret.js';
 
 // Display-only stand-in for the contract's derivePublicKey(persistentHash) --
 // never used for any check, only to label audit-log rows consistently.
@@ -39,20 +29,23 @@ export function getPublicKey() {
   return localPk(getOrCreateSecretKeyHex());
 }
 
-// Circuits that exist on the deployed contract. Anything not listed runs mock-only -- the break
-// flip is negotiated peer-to-peer (breakOrder.js) and is not on the chain path today.
-const ON_CHAIN = new Set(['commitStats', 'proveThreshold', 'claimCue']);
+// Circuits submitted in real mode. Break is still negotiated peer-to-peer first
+// (breakOrder.js) so the rack never waits on a block; these three are fire-and-forget after.
+const ON_CHAIN = new Set([
+  'commitStats', 'proveThreshold', 'claimCue',
+  'commitBreakChoice', 'revealBreakChoice', 'resolveBreak',
+]);
 
 // Dynamically imported so midnight-js and the ledger WASM are never in the gameplay bundle.
 let chainMod = null;
 const chain = async () => (chainMod ??= await import('./chain.js'));
 
-async function run(circuit, disclosed, fn, realArgs) {
+async function run(circuit, disclosed, fn, realArgs, extras) {
   if (wallet.getMode() === 'real' && ON_CHAIN.has(circuit)) {
     try {
       const c = await chain();
       if (c.isReady() && c.getContractAddress()) {
-        const r = await c.call(circuit, realArgs ?? []);
+        const r = await c.call(circuit, realArgs ?? [], extras);
         // chain.call already writes its own audit row with the txId.
         return { ok: true, real: true, txId: r.txId, result: r.result };
       }
@@ -79,12 +72,13 @@ async function run(circuit, disclosed, fn, realArgs) {
 /** Mirrors `commitStats`: commit the player's level/wins. Fire-and-forget. */
 export function hookCommitStats(profile) {
   const pk = localPk(getOrCreateSecretKeyHex());
+  const extras = { stats: { level: profile.level, wins: profile.wins || 0 } };
   return run('commitStats', { pk }, async () => {
     const KEY = 'mn-mock-stats';
     const stats = JSON.parse(localStorage.getItem(KEY) || '{}');
     stats[pk] = { level: profile.level, wins: profile.wins || 0 };
     localStorage.setItem(KEY, JSON.stringify(stats));
-  });
+  }, [], extras);
 }
 
 /** Mirrors `proveThreshold`: resolves a boolean, never the underlying number. */
@@ -127,7 +121,7 @@ export function hookClaimCue(tierId) {
     if (claimed.has(nullifier)) throw new Error('cue tier already claimed');
     claimed.add(nullifier);
     localStorage.setItem(CLAIMED_CUES_KEY, JSON.stringify([...claimed]));
-  });
+  }, [], { cueTier: tierId });
 }
 
 /** Whether this tier was unlocked through the soulbound claimCue flow (a status-symbol badge,
@@ -143,7 +137,30 @@ export function isCueClaimed(tierId) {
  * gates `game.turn` -- called after the fact, fire-and-forget.
  */
 export function hookRecordBreakOrder({ matchId, role, winner }) {
-  return run('resolveBreak', { matchId, role, winner }, async () => {});
+  // P2P already decided game.turn. On-chain is fire-and-forget and incomplete until the
+  // opponent also submits (their wallet may be missing). Never await this from the rack.
+  audit.record({
+    circuit: 'resolveBreak', mode: 'p2p',
+    disclosed: { matchId, role, winner },
+    ok: true,
+    note: 'P2P flip stands; on-chain Rack is best-effort and needs both wallets',
+  });
+  queueBreakOnChain(matchId, role).catch(() => {});
+  return { ok: true };
+}
+
+async function queueBreakOnChain(matchId, role) {
+  if (wallet.getMode() !== 'real') return;
+  let matchIdBytes;
+  try { matchIdBytes = hexToBytes(matchId); } catch { return; }
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+  const extras = { break: { matchIdHex: matchId, role } };
+  await run('commitBreakChoice', { matchId, role }, async () => {},
+    [matchIdBytes, BigInt(role), deadline], extras);
+  await run('revealBreakChoice', { matchId, role }, async () => {},
+    [matchIdBytes, BigInt(role)], extras);
+  await run('resolveBreak', { matchId, role }, async () => {},
+    [matchIdBytes], extras);
 }
 
 /**

@@ -5,17 +5,42 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
-## Current state (2026-09-15, Preview live + hosted prover + honest player matrix)
+## Current state (2026-09-15, E2E + full README)
+
+Canonical product document is now [`README.md`](README.md) — what the app is, how it was built,
+Hustle Protocol, what is live, what anyone can verify, Wave 2/3. `npm run e2e` (`scripts/e2e.mjs`)
+probes unit tests, Compact simulator tests (34 + 12), Preview indexer/RPC, Cloud Run prover CORS,
+relay WS, `/api/ledger` + `/api/table`, HTML markers, and a real Chrome pass of lobby / Hall /
+Settings / solo (not Lace, not WebAuthn). Last report: [`docs/E2E.md`](docs/E2E.md).
+
+**This branch is green locally. Production Vercel is still a pre-Wave-1 build** (no Hall, no
+Continue, no `/api/ledger` or `/api/table`). Submit needs a push + `vercel --prod`. Durable Continue
+blobs also need `KV_REST_API_*`. Compact `compile` scripts and `contracts/` runtime are pinned to
+**0.31.1 / 0.16.0**; simulator tests were updated off the 0.19 `createCircuitContext` signature so
+they actually execute the committed circuits.
+
+## Current state (2026-09-15, Wave 1 Hall + passkey table)
+
+## Current state (2026-09-15, Wave 1 Hall + passkey table)
+
+**The Hall** is a wallet-less Preview indexer UI (shield icon / Settings). Phones verify the
+shared contract without Lace. **Continue** (WebAuthn PRF, ADR-0020) is the player identity;
+encrypted blobs go to `/api/table` (ciphertext only). Lace still stamps. QR is recovery only.
+Auto-`commitStats` on connect skips a virgin default profile. **Deploy new** is behind a confirm.
+The Rail links explorer by txId. Break circuits are fire-and-forget after P2P.
+
+See [`docs/WAVES.md`](docs/WAVES.md).
 
 **The shared contract is on Midnight Preview** and the production PWA is pointed at it. Players
 with desktop Lace can submit `commitStats` / `proveThreshold` / `claimCue` to
 `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3`. Anyone can verify that address
-on the public indexer without trusting this repo (`docs/DEPLOYMENT.md`).
+in The Hall or on the public indexer (`docs/DEPLOYMENT.md`).
 
-**Not every player, not every circuit.** Gameplay works for everyone (mock fallback). On-chain
+**Not every player, not every circuit.** Gameplay and The Hall work for everyone. On-chain submit
 needs **Chrome/Brave + Lace on Preview + generated tDUST**. iOS Safari / typical Android Chrome
-have no Lace extension — those players play, they do not submit. Break-order stays P2P.
-`stakes.compact` and the EVM Champion Badge mint are **not** on Preview.
+have no Lace extension — those players play, Continue, and verify; they do not submit. Break-order
+is P2P first, on-chain best-effort. `stakes.compact` and the EVM Champion Badge mint are **not**
+on Preview.
 
 **Proving from Vercel.** Midnight's `lace-proof-pub.preview.midnight.network` 404s from browsers
 (no CORS) — same fact the official midnight-leaderboard tutorial documents. Vercel cannot run the

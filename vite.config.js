@@ -1,6 +1,49 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import wasm from 'vite-plugin-wasm';
+import ledgerHandler from './api/ledger.js';
+import tableHandler from './api/table.js';
+
+function vercelApiDev() {
+  const mount = (pluginServer, prefix, handler) => {
+    pluginServer.middlewares.use(async (req, res, next) => {
+      const path = req.url?.split('?')[0];
+      if (path !== prefix) return next();
+      try {
+        const origin = `http://${req.headers.host || 'localhost'}`;
+        const full = origin + req.url;
+        const headers = new Headers();
+        for (const [k, v] of Object.entries(req.headers)) {
+          if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
+        }
+        let body;
+        if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+          body = await new Promise((resolve, reject) => {
+            const chunks = [];
+            req.on('data', (c) => chunks.push(c));
+            req.on('end', () => resolve(Buffer.concat(chunks)));
+            req.on('error', reject);
+          });
+        }
+        const request = new Request(full, { method: req.method, headers, body });
+        const response = await handler(request);
+        res.statusCode = response.status;
+        response.headers.forEach((val, key) => res.setHeader(key, val));
+        res.end(Buffer.from(await response.arrayBuffer()));
+      } catch (err) {
+        next(err);
+      }
+    });
+  };
+
+  return {
+    name: 'vercel-api-dev',
+    configureServer(server) {
+      mount(server, '/api/ledger', ledgerHandler);
+      mount(server, '/api/table', tableHandler);
+    },
+  };
+}
 
 export default defineConfig({
   // The compiled Midnight contract's onchain-runtime dependency ships a raw ESM `.wasm` import
@@ -16,6 +59,7 @@ export default defineConfig({
     plugins: () => [wasm()],
   },
   plugins: [
+    vercelApiDev(),
     wasm(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -49,6 +93,12 @@ export default defineConfig({
         // precaching them would make every install pay for all of them. They are fetched on demand
         // and left to the HTTP cache.
         globPatterns: ['**/*.{js,css,html,svg,png,ogg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\/(ledger|table)/,
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],

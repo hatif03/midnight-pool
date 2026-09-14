@@ -22,7 +22,7 @@ import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import { Transaction } from '@midnight-ntwrk/ledger-v8';
 
 import { Contract, ledger as contractLedger } from '../../contracts/managed/midnight-pool/contract/index.js';
-import { createPrivateState, withStats, witnesses } from '../../contracts/witnesses.ts';
+import { createPrivateState, withActiveMatch, withPendingCueTier, withStats, witnesses } from '../../contracts/witnesses.ts';
 
 const PRIVATE_STATE_ID = 'midnight-pool';
 
@@ -61,6 +61,12 @@ function makePrivateStateProvider() {
     removeSigningKey: async () => {},
     clearSigningKeys: async () => {},
   };
+}
+
+function ensurePrivateState(st, secretKeyHex) {
+  const base = st ?? createPrivateState(secretKeyHex ? fromHex(secretKeyHex) : undefined);
+  if (base.breakSecrets instanceof Map) return base;
+  return { ...base, breakSecrets: new Map() };
 }
 
 let providers = null;
@@ -125,7 +131,7 @@ self.onmessage = async (e) => {
 
   try {
     if (m.kind === 'init') {
-      privateState = m.privateState ?? createPrivateState();
+      privateState = ensurePrivateState(m.privateState, m.secretKeyHex);
       providers = await buildProviders(m.config, m.addresses);
       return reply(true, { ready: true });
     }
@@ -150,6 +156,23 @@ self.onmessage = async (e) => {
     if (m.kind === 'call') {
       return enqueue(async () => {
         try {
+          if (m.extras?.stats) {
+            privateState = withStats(
+              ensurePrivateState(privateState),
+              BigInt(m.extras.stats.level),
+              BigInt(m.extras.stats.wins || 0),
+            );
+          }
+          if (m.extras?.cueTier != null) {
+            privateState = withPendingCueTier(privateState, BigInt(m.extras.cueTier));
+          }
+          if (m.extras?.break?.matchIdHex) {
+            privateState = withActiveMatch(
+              ensurePrivateState(privateState),
+              fromHex(m.extras.break.matchIdHex),
+              BigInt(m.extras.break.role),
+            );
+          }
           const found = await findDeployedContract(providers, {
             compiledContract: compiled(),
             contractAddress: m.contractAddress,

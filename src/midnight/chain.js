@@ -9,6 +9,7 @@
 // of view, and a missing wallet, a rejected prompt or an unreachable indexer resolves to a recorded
 // failure rather than a thrown error on the shot path.
 import * as audit from './audit.js';
+import { getSecretKeyHex } from './secret.js';
 
 const ADDR_KEY = 'mn-contract-address';
 const PROVER_KEY = 'mn-prover-uri';
@@ -106,6 +107,7 @@ export async function connect(walletKey, networkId = 'preview') {
     },
     addresses,
     privateState: loadPrivateState(),
+    secretKeyHex: getSecretKeyHex(),
   });
 
   ready = true;
@@ -191,12 +193,12 @@ export async function deploy({ level = 1, wins = 0 } = {}) {
   return r;
 }
 
-export async function call(circuit, args = []) {
+export async function call(circuit, args = [], extras = {}) {
   if (!ready) throw new Error('not-connected');
   const contractAddress = getContractAddress();
   if (!contractAddress) throw new Error('no-contract');
   try {
-    const r = await request({ kind: 'call', contractAddress, circuit, args });
+    const r = await request({ kind: 'call', contractAddress, circuit, args, extras });
     audit.record({
       circuit, mode: 'real',
       disclosed: { txId: r.txId, blockHeight: r.blockHeight, ...(r.result !== null ? { result: r.result } : {}) },

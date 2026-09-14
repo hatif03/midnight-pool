@@ -2,6 +2,10 @@
 
 Paste-ready Devpost answers for the [Midnight Hackathon (MLH, Aug 2026)](https://midnight-hackathon-august-2026.devpost.com/).
 
+**Shipping now into** the [Midnight Buildathon on AKINDO](https://app.akindo.io/wave-hacks/jaMZjqPOBsLXvjdG)
+(Wave 1 due 2026-09-16 15:00 UTC). Product arc: [`docs/WAVES.md`](docs/WAVES.md). Canonical product
+doc: [`README.md`](README.md).
+
 ---
 
 ## 1. Elevator pitch (148 / 200)
@@ -60,7 +64,7 @@ We kept the existing game as the Integrate Midnight "before," and layered Midnig
 
 **Stakes (`contracts/stakes.compact`).** Originally designed as "timestamped 2-of-2, first attestation wins on timeout." Compiling proved you **cannot store block time as data** — only compare it. We replaced that with a write-once ledger cell: whoever lands first is permanently canonical. Same exploit closed, simpler circuit. 12 execution checks, including "a late self-favoring host claim cannot displace the guest's earlier honest one."
 
-**Frontend (`src/midnight/`).** `hooks.js` is mock-mode by default so a missing wallet never stalls a shot. Real mode submits `commitStats`, `proveThreshold` and `claimCue` to the shared Preview contract through the DApp Connector in a Web Worker (`chain.js` / `chain.worker.js`). Break order stays peer-to-peer. `circuit.js` dynamically imports the compiled WASM (~1.4 MB) only for the Champion Badge panel, so live gameplay stays synchronous. `wallet.js` talks to `window.midnight` (Lace / DApp Connector) with no extra SDK. `audit.js` is a local activity log (The Rail) that records real transaction ids.
+**Frontend (`src/midnight/`).** `hooks.js` is mock-mode by default so a missing wallet never stalls a shot. Real mode submits `commitStats`, `proveThreshold` and `claimCue` to the shared Preview contract through the DApp Connector in a Web Worker (`chain.js` / `chain.worker.js`). Break order is decided peer-to-peer so the rack starts immediately; the same Compact circuits are fire-and-forget after the fact when a wallet is connected. `circuit.js` dynamically imports the compiled WASM (~1.4 MB) only for the Champion Badge panel, so live gameplay stays synchronous. `wallet.js` talks to `window.midnight` (Lace / DApp Connector) with no extra SDK. `audit.js` is a local activity log (The Rail) that records real transaction ids. Continue (WebAuthn PRF) is the player identity; Lace only stamps ([ADR-0020](docs/adr/0020-passkey-table-identity.md)). The Hall reads the Preview indexer with no wallet.
 
 **Cross-chain.** We attempted the full Effectstream `evm-midnight-v2` stack (Midnight's recommended engine). Got genuinely far: EVM deploy on Hardhat, a real local Midnight devnet producing blocks, indexer and proof server up. Then six environment bugs in a row (Bun symlink hell, Nix-hardcoded interpreter paths, `graphql@17` bun export, compiler/runtime pin mismatch, WASM module-identity duplication). Per the ADR we wrote *before* starting, we fell back to a lighter join: real `proveThreshold` + real `anvil` mint, both directions verified.
 

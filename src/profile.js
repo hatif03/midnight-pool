@@ -43,3 +43,12 @@ export function loadProfile() {
 export function saveProfile(profile) {
   localStorage.setItem(KEY, JSON.stringify(profile));
 }
+
+/** Fresh install / never played. Must not auto-commitStats over a real Scorecard. */
+export function isVirginProfile(profile) {
+  if (!profile) return true;
+  return (profile.level || 1) <= 1
+    && (profile.wins || 0) === 0
+    && (profile.losses || 0) === 0
+    && (profile.xp || 0) === 0;
+}

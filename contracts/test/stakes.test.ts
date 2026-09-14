@@ -71,18 +71,17 @@ const call = async <R>(
   }>,
 ): Promise<R> => {
   const ctx = createCircuitContext<PrivateState>(
-    circuitId,
     CONTRACT_ADDRESS,
     COIN_PUBLIC_KEY,
     chain.state as never,
     {},
     undefined,
     undefined,
-    undefined,
     1_700_000_000,
   );
   const { result, context } = await invoke(ctx);
-  chain.state = context.callContext.currentQueryContext.state;
+  const inner = context.callContext ?? context;
+  chain.state = inner.currentQueryContext.state;
   return result;
 };
 

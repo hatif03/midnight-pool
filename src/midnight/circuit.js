@@ -50,25 +50,28 @@ async function ensureInit() {
   chainState = deployed.currentContractState;
 }
 
-function callCtx(circuitId) {
+function callCtx() {
   return createCircuitContext(
-    circuitId,
     CONTRACT_ADDRESS,
     COIN_PUBLIC_KEY,
     chainState,
     privateState,
     undefined,
     undefined,
-    undefined,
     Math.floor(Date.now() / 1000),
   );
 }
 
+function applyResult(context) {
+  const inner = context.callContext ?? context;
+  chainState = inner.currentQueryContext.state;
+  privateState = inner.currentPrivateState;
+}
+
 async function commitStats(level, wins) {
   privateState = withStats(privateState, BigInt(level), BigInt(wins));
-  const { context } = await contract.impureCircuits.commitStats(callCtx('commitStats'));
-  chainState = context.callContext.currentQueryContext.state;
-  privateState = context.callContext.currentPrivateState;
+  const { context } = await contract.impureCircuits.commitStats(callCtx());
+  applyResult(context);
 }
 
 /**
@@ -79,12 +82,11 @@ export async function proveThresholdReal(level, wins, threshold, checkWins) {
   await ensureInit();
   await commitStats(level, wins);
   const { result, context } = await contract.impureCircuits.proveThreshold(
-    callCtx('proveThreshold'),
+    callCtx(),
     BigInt(threshold),
     checkWins,
   );
-  chainState = context.callContext.currentQueryContext.state;
-  privateState = context.callContext.currentPrivateState;
+  applyResult(context);
   return result;
 }
 
@@ -92,9 +94,8 @@ export async function proveThresholdReal(level, wins, threshold, checkWins) {
 export async function claimCueReal(tierId) {
   await ensureInit();
   privateState = withPendingCueTier(privateState, BigInt(tierId));
-  const { context } = await contract.impureCircuits.claimCue(callCtx('claimCue'));
-  chainState = context.callContext.currentQueryContext.state;
-  privateState = context.callContext.currentPrivateState;
+  const { context } = await contract.impureCircuits.claimCue(callCtx());
+  applyResult(context);
 }
 
 /** Read-only: how many stats commitments exist on this local simulated ledger (demo/debug aid). */

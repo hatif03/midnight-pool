@@ -104,21 +104,20 @@ const call = async <R>(
   time: number = NOW,
 ): Promise<CallResult<R>> => {
   const ctx = createCircuitContext<MidnightPoolPrivateState>(
-    circuitId,
     CONTRACT_ADDRESS,
     COIN_PUBLIC_KEY,
     chain.state as never,
     privateState,
     undefined,
     undefined,
-    undefined,
     time,
   );
   const { result, context } = await invoke(ctx);
-  chain.state = context.callContext.currentQueryContext.state;
+  const inner = context.callContext ?? context;
+  chain.state = inner.currentQueryContext.state;
   return {
     result,
-    privateState: context.callContext.currentPrivateState as MidnightPoolPrivateState,
+    privateState: inner.currentPrivateState as MidnightPoolPrivateState,
   };
 };
 

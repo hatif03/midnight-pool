@@ -6,9 +6,12 @@ description: Project context for Midnight Pool - a pool game being turned into a
 # Midnight Pool — hackathon project context
 
 This repo (`midnight-pool`) is a browser 2D pool game (PixiJS + PeerJS p2p multiplayer, Vite)
-being rebuilt into a **mobile-first PWA** with **Midnight Network** privacy features, for the
+being rebuilt into a **mobile-first PWA** with **Midnight Network** privacy features.
+
+**Current ship:** Midnight Buildathon on AKINDO, Wave 1 due 2026-09-16 15:00 UTC
+([docs/WAVES.md](../../../docs/WAVES.md), [README.md](../../../README.md)). The earlier
 [Midnight Hackathon](https://midnight-hackathon-august-2026.devpost.com/) (MLH, 2026-08-28 to
-2026-08-30, submit by 11:45am EDT 08-30).
+2026-08-30) is how the tracks were first named.
 
 Full project direction lives in [CLAUDE.md](../../../CLAUDE.md) at the repo root — read that first.
 
@@ -44,8 +47,9 @@ Full project direction lives in [CLAUDE.md](../../../CLAUDE.md) at the repo root
 - Touch-first UI as the primary layout. Manifest + service worker are in place via
   `vite-plugin-pwa` (ADR-0002). Don't hand-write a competing `sw.js`.
 - Live Preview contract is baked into the app (`docs/DEPLOYMENT.md`). On-chain from the PWA needs
-  desktop Lace; phones play in mock mode. Proofs go to Cloud Run `midnight-pool-prover` (ADR-0019)
-  because Midnight's public prover 404s from browsers. Keys stay in the browser.
+  desktop Lace; phones play, Continue (passkey), and verify in The Hall. Proofs go to Cloud Run
+  `midnight-pool-prover` (ADR-0019) because Midnight's public prover 404s from browsers. Keys stay
+  in the browser. See `docs/WAVES.md` and ADR-0020.
 - Keep private data (keys, proof inputs) client-side wherever the Midnight SDK allows it —
   this is both correct-by-design and literally what the Mobile Track judges for.
 

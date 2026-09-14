@@ -300,6 +300,9 @@
             <span data-i18n="vibrateOnTurn">Vibrate on your turn</span>
           </label>
           <span class="set-label" data-i18n="midnightSection">Midnight</span>
+          <p class="set-blurb" id="mn-wallet-hint"></p>
+          <button class="btn btn--green btn--compact" id="btn-mn-continue" data-i18n="continueTable">Continue</button>
+          <div class="status" id="mn-continue-status"></div>
           <!-- Moved here from screen-mp (docs/adr/0014): Quick Match is now a lobby tile, so the
                toggle was no longer on the path to it. It is a standing preference, not a per-match
                choice, so settings is where it belongs. main.js still reads #ranked-toggle.checked. -->
@@ -317,12 +320,25 @@
             <input id="mn-contract-input" placeholder="0200..." autocomplete="off" spellcheck="false" />
             <div class="row">
               <button class="btn btn--compact btn--green" id="btn-mn-join" data-i18n="joinContract">Use this contract</button>
+            </div>
+            <button class="btn btn--compact btn--grey" id="btn-mn-deploy-show" data-i18n="deployAdvanced">Advanced: deploy a private copy</button>
+            <div id="mn-deploy-advanced" hidden>
               <button class="btn btn--compact btn--gold" id="btn-mn-deploy" data-i18n="deployContract">Deploy new</button>
             </div>
             <div class="status" id="mn-deploy-status"></div>
           </div>
+          <button class="btn btn--blue btn--compact" id="btn-mn-hall" data-i18n="hallOpen">The Hall</button>
           <button class="btn btn--blue btn--compact" id="btn-mn-audit" data-i18n="viewActivity">View On-Chain Activity</button>
           <button class="btn btn--blue btn--compact" id="btn-mn-champion" data-i18n="championBadge">Cross-Chain Champion Badge</button>
+          <span class="set-label" data-i18n="recoveryTitle">Recovery (not daily login)</span>
+          <p class="set-blurb" data-i18n="recoveryHint">PIN + code if Face ID cannot sync (Windows, mixed Apple/Google, lost device).</p>
+          <input id="mn-recovery-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password" data-i18n-ph="recoveryPinPh" />
+          <div class="row">
+            <button class="btn btn--compact btn--green" id="btn-mn-recovery-export" data-i18n="recoveryExport">Show recovery</button>
+            <button class="btn btn--compact btn--blue" id="btn-mn-recovery-import" data-i18n="recoveryImport">Import</button>
+          </div>
+          <canvas id="mn-recovery-qr" hidden></canvas>
+          <textarea id="mn-recovery-code" rows="3" autocomplete="off" spellcheck="false" data-i18n-ph="recoveryCodePh"></textarea>
         </div>
         <div class="row">
           <button data-close="settings-modal" data-i18n="close">Close</button>
@@ -330,10 +346,22 @@
       </div>
     </div>
 
+    <div id="hall-modal" class="modal">
+      <div class="box box--wide">
+        <p class="box-title" data-i18n="hallTitle">The Hall</p>
+        <p class="set-blurb" data-i18n="hallBlurb">Public Midnight Preview contract. Anyone can verify it. Your level and wins are not here — only commitments, nullifiers, and yes/no proofs.</p>
+        <div class="status" id="hall-status"></div>
+        <div id="hall-body" class="item-list hall-body"></div>
+        <div class="row">
+          <button data-close="hall-modal" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="champion-modal" class="modal">
       <div class="box">
         <p class="box-title" data-i18n="championTitle">Cross-Chain Champion Badge</p>
-        <div class="status" id="champion-hint" data-i18n="championHint">Runs the real proveThreshold circuit in your browser (no server, no chain submission yet).</div>
+        <div class="status" id="champion-hint" data-i18n="championHint">Runs the real proveThreshold circuit in your browser. Ranked play on Preview already submits this on-chain when a wallet is connected; this button is the local check without waiting for a block.</div>
         <div id="champion-result" class="item-list"></div>
         <div class="row">
           <button class="btn btn--green btn--compact" id="btn-champion-prove" data-i18n="checkEligibility">Check Eligibility</button>
@@ -371,6 +399,7 @@
             <div class="topbar-actions">
               <button class="btn btn--icon btn--gold" id="btn-leagues" title="Leagues"><svg><use href="#i-trophy"/></svg></button>
               <button class="btn btn--icon btn--blue" id="btn-cues" title="Cues"><svg><use href="#i-cue"/></svg></button>
+              <button class="btn btn--icon btn--green" id="btn-hall" title="The Hall"><svg><use href="#i-shield"/></svg></button>
               <button class="btn btn--icon btn--grey" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
             </div>
           </header>

@@ -1,5 +1,5 @@
 ---
-description: Midnight Pool project context - mobile-first PWA + Midnight Network integration for the Aug 2026 Midnight Hackathon
+description: Midnight Pool project context - mobile-first PWA + Midnight Network, AKINDO Wave 1
 alwaysApply: true
 ---
 
@@ -7,10 +7,12 @@ alwaysApply: true
 
 This repo (`midnight-pool`) is a browser 2D pool game (PixiJS rendering, custom physics, PeerJS
 peer-to-peer 1v1 multiplayer, Vite build) being rebuilt into a **mobile-first PWA** with
-**Midnight Network** privacy features, for submission to the
-[Midnight Hackathon](https://midnight-hackathon-august-2026.devpost.com/) (MLH, 2026-08-28 to
-2026-08-30, submit by 11:45am EDT 08-30; also see the
-[MLH event page](https://events.mlh.com/events/14510-midnight-hackathon)).
+**Midnight Network** privacy features.
+
+**Current ship:** [Midnight Buildathon on AKINDO](https://app.akindo.io/wave-hacks/jaMZjqPOBsLXvjdG),
+Wave 1 due **2026-09-16 15:00 UTC**. See [README.md](README.md) and [docs/WAVES.md](docs/WAVES.md).
+The earlier [Midnight Hackathon](https://midnight-hackathon-august-2026.devpost.com/) (MLH,
+2026-08-28 to 2026-08-30) named the three tracks this product still targets.
 
 Treat the mobile-first PWA + Midnight direction as the target regardless of the code's current
 state — the pool-game-only version is the starting point, not the destination.
@@ -58,8 +60,9 @@ writing or editing anything Midnight-related, check:
 - Manifest + service worker are done via `vite-plugin-pwa` (`vite.config.js`, ADR-0002). Don't
   hand-write a competing `sw.js`.
 - Shared Preview contract is live and baked in — see `docs/DEPLOYMENT.md`. On-chain submission
-  needs desktop Chrome/Brave + Lace + tDUST; mobile PWA players can play, not submit. Proofs go
-  to Cloud Run `midnight-pool-prover` (ADR-0019); do not point at `lace-proof-pub` (404 / no CORS).
+  needs desktop Chrome/Brave + Lace + tDUST; mobile PWA players can play, Continue, and open The
+  Hall, not submit. Proofs go to Cloud Run `midnight-pool-prover` (ADR-0019); do not point at
+  `lace-proof-pub` (404 / no CORS). Passkey table is the player (ADR-0020); wallet is the stamp.
 - Keep private data (keys, proof inputs) client-side wherever the Midnight SDK supports it —
   this is both correct-by-design and what the Mobile Track judges for. Production proving still
   sends circuit inputs to our Cloud Run prover at prove-time; the chain stores commitments only.

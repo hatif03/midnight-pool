@@ -14,8 +14,8 @@ Two contracts:
 Toolchain (pinned, measured — [ADR-0016](../docs/adr/0016-one-released-midnight-stack.md)): Compact
 compiler **0.31.1**, language 0.23.0, `@midnight-ntwrk/compact-runtime` **0.16.0**, ledger-8.0.2,
 `midnight-js` **4.1.1**. Do not "upgrade" to compiler 0.34 / runtime 0.19 — that output cannot be
-deployed by the released SDK. Compile in Docker (`bash scripts/compact-docker/compile.sh`);
-`compact` on Windows PATH is the NTFS compression tool.
+deployed by the released SDK, and `npm test` will fail a runtime version check. Compile in Docker
+(`bash scripts/compact-docker/compile.sh`); `compact` on Windows PATH is the NTFS compression tool.
 
 Live Preview contract (anyone can query — [DEPLOYMENT.md](../docs/DEPLOYMENT.md)):
 
@@ -44,18 +44,19 @@ npm test             # executes every circuit, incl. failure paths
 
 ## Circuits — midnight-pool.compact
 
-On the live browser path: `commitStats`, `proveThreshold`, `claimCue`. The break-order circuits
-exist and are tested; the match uses a peer-to-peer commit-reveal instead so the rack starts
-immediately.
+On the live browser path: `commitStats`, `proveThreshold`, `claimCue` submit when a wallet is
+connected. Break-order is still **decided** peer-to-peer so the rack starts immediately; the same
+three Compact circuits are queued fire-and-forget after that flip and stay incomplete if the
+opponent has no wallet.
 
 | Circuit | Signature | Discloses | Live browser path |
 |---|---|---|---|
 | `commitStats` | `(): []` | player public key; the commitment hides level and wins | yes |
 | `proveThreshold` | `(threshold: Uint<64>, checkWins: Boolean): Boolean` | the boolean answer only — never the underlying number | yes |
 | `claimCue` | `(): []` | one opaque nullifier; the tier and the player stay private | yes |
-| `commitBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>, revealDeadline: Uint<64>): []` | matchId, role, deadline (public protocol data) | no (P2P) |
-| `revealBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>): []` | matchId, role, and the revealed nonce | no (P2P) |
-| `resolveBreak` | `(matchId: Bytes<32>): Uint<8>` | matchId and the winning role (1 or 2) | no (P2P) |
+| `commitBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>, revealDeadline: Uint<64>): []` | matchId, role, deadline (public protocol data) | best-effort after P2P |
+| `revealBreakChoice` | `(matchId: Bytes<32>, role: Uint<8>): []` | matchId, role, and the revealed nonce | best-effort after P2P |
+| `resolveBreak` | `(matchId: Bytes<32>): Uint<8>` | matchId and the winning role (1 or 2) | best-effort after P2P |
 
 ## Circuits — stakes.compact
 

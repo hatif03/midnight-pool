@@ -103,11 +103,10 @@ sessions, which local simulation cannot provide regardless of how the mock is im
 ## Update: live chain path is three circuits, not the full original dual-path (2026-09-15)
 
 The Preview contract and the browser worker (ADR-0018) submit **`commitStats` / `proveThreshold` /
-`claimCue` only** (`ON_CHAIN` in `src/midnight/hooks.js`). `hookRecordBreakOrder` still runs and
-writes The Rail, but `resolveBreak` is not in that set, so a connected wallet does **not** land a
-break-order transaction. The P2P handshake in `breakOrder.js` is the live fairness mechanism; the
-Compact break circuits remain compiled, tested, and ready. `stakes.compact` is likewise not
-deployed. See [HUSTLE_PROTOCOL.md](../HUSTLE_PROTOCOL.md) and
+`claimCue`**, and Wave 1 also fire-and-forgets **`commitBreakChoice` / `revealBreakChoice` /
+`resolveBreak`** after the P2P flip (`ON_CHAIN` in `src/midnight/hooks.js`). The rack never waits
+on those txs; they stay incomplete if the opponent has no wallet. `stakes.compact` is not
+deployed. See [HUSTLE_PROTOCOL.md](../HUSTLE_PROTOCOL.md), [WAVES.md](../WAVES.md), and
 [DEPLOYMENT.md](../DEPLOYMENT.md#who-can-do-what).
 
 

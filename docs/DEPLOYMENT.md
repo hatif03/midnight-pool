@@ -15,20 +15,27 @@ submission does, and today that wallet is a **desktop browser extension**.
 | What | Who can do it | On Midnight? |
 |---|---|---|
 | Solo, invite-a-friend, Quick Match, progression, PWA install | Anyone, any device, no wallet | No — the game is peer-to-peer / local |
-| Scorecard (`commitStats`), Blind Rank (`proveThreshold`), Cue Case (`claimCue`) | **Desktop Chrome or Brave** + **Lace** on **Preview** + tNIGHT + **generated tDUST** | **Yes** — shared Preview contract, independently verifiable |
-| Break order | Every multiplayer match | Peer-to-peer now. The Compact circuits exist and are tested; the browser does not call them |
+| Continue (Face ID) — same table on phone and desktop | Browsers with platform passkeys (PRF). Recovery QR otherwise | Identity only — not a tx |
+| The Hall (indexer + explorers) | Anyone, any device, **no wallet** | **Read** — public Preview contract |
+| Scorecard (`commitStats`), Blind Rank (`proveThreshold`), Cue Case (`claimCue`) | **Desktop Chrome or Brave** + **Lace** on **Preview** + tNIGHT + **generated tDUST** (after Continue so the right secret is stamped) | **Yes** — shared Preview contract, independently verifiable |
+| Break order | Every multiplayer match (P2P). On-chain Rack is fire-and-forget if a wallet is connected | P2P decides the rack; Compact may lag or stay incomplete |
 | Match stakes (`stakes.compact`) | Not on the live path | Implemented and tested, **not deployed** to Preview, not wired in the browser |
 | Champion Badge (EVM mint) | Local `anvil` + simulator or local Midnight devnet | Not on Preview |
-| On-chain from iOS Safari / typical Android Chrome | Nobody, until Midnight ships an in-PWA wallet | No Lace extension there; the game still plays in mock mode |
+| On-chain from iOS Safari / typical Android Chrome | Nobody, until 1AM in-wallet browser (Wave 2) or a house paymaster | No Lace extension there; the game still plays; The Hall still verifies |
 
 A missing wallet, a rejected prompt, or a proof-server timeout **never blocks a shot**. Real mode
 falls through to the local mock relation and writes a row in The Rail. That is intentional
 ([ADR-0018](adr/0018-real-browser-submission.md)).
 
-**What is verifiable on Midnight today** is exactly those three circuits on the shared contract:
-commitment hashes, nullifiers, and booleans. Anyone can check them on the indexer or the explorers
-without trusting this repo (commands below). Levels, win counts, cue tiers, and the live break flip
-are *not* sitting in ledger state as plaintext — that is the point of the protocol, not a gap.
+**What is verifiable on Midnight today** is those three circuits on the shared contract
+(commitment hashes, nullifiers, and booleans), plus any break-order txs that actually landed.
+Anyone can check them in **The Hall**, on the indexer, or on the explorers without trusting this
+repo (commands below). Levels, win counts, cue tiers, and the live break flip are *not* sitting in
+ledger state as plaintext — that is the point of the protocol, not a gap.
+
+The frontend also exposes `POST /api/ledger` (indexer CORS proxy) and `GET/PUT /api/table`
+(opaque AES-GCM blobs for Continue). Table storage uses Vercel KV when `KV_REST_API_*` is set;
+otherwise an in-memory Map per instance. `npm run e2e` probes both.
 
 ---
 
@@ -70,8 +77,8 @@ wallet for `preview`. See [ADR-0016](adr/0016-one-released-midnight-stack.md).
 
 ## Vercel vs GCP — what each host can and cannot do
 
-The frontend is a **static Vite PWA** plus two short Node functions (`api/og.js`, `api/invite.js`).
-That is a good fit for Vercel. These are not:
+The frontend is a **static Vite PWA** plus short Node functions (`api/og.js`, `api/invite.js`,
+`api/ledger.js`, `api/table.js`). That is a good fit for Vercel. These are not:
 
 | Need | Why Vercel is the wrong place | Where it lives |
 |---|---|---|
@@ -169,8 +176,8 @@ npm run build && npm run preview
 
 Or open the live app. Then **Settings** (gear) → **Midnight**:
 
-1. **Connect Wallet** — Lace on **Preview**. Approve the prompt. The baked contract address is
-   already in the input.
+1. **Continue** (Face ID) if you want this table on another device, then **Connect Wallet** — Lace on **Preview**. Approve the prompt. The baked contract address is
+   already in the input. Do **not** click **Deploy new** unless you really want a private copy.
 2. Confirm tDUST is non-zero.
 3. Play. `commitStats`, `proveThreshold` and `claimCue` submit to the shared contract. Every call
    lands in **The Rail** (Settings → View On-Chain Activity) with its transaction id.
@@ -179,7 +186,9 @@ Or open the live app. Then **Settings** (gear) → **Midnight**:
 
 ## 5. Verify it — without trusting this repo
 
-Anyone can run these. Substitute the contract address.
+Anyone can run these. Substitute the contract address. The same checks plus a Chrome pass of the
+lobby, The Hall, Settings, and a solo table are `npm run e2e` (writes [`E2E.md`](E2E.md)). That
+script does not click Lace or Face ID.
 
 **The contract exists and has state:**
 

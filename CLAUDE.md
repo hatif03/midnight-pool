@@ -6,27 +6,29 @@ This repo started as **Pool**: a 2D browser pool game (PixiJS rendering, custom 
 peer-to-peer 1v1 multiplayer, Vite build — see [README.md](README.md) for the current file layout).
 
 It is being rebuilt/extended into **Midnight Pool**: a **mobile-first PWA** that keeps the existing
-pool gameplay and adds **Midnight Network** privacy features, for submission to the
-[Midnight Hackathon (MLH, Aug 28-30 2026)](https://midnight-hackathon-august-2026.devpost.com/).
+pool gameplay and adds **Midnight Network** privacy features.
+
+**Current ship:** [Midnight Buildathon on AKINDO](https://app.akindo.io/wave-hacks/jaMZjqPOBsLXvjdG),
+Wave 1 due **2026-09-16 15:00 UTC**. Product doc: [README.md](README.md). Wave plan:
+[docs/WAVES.md](docs/WAVES.md). The earlier [MLH Midnight Hackathon (Aug 28–30 2026)](https://midnight-hackathon-august-2026.devpost.com/)
+is how the repo was first oriented — same three tracks, one product.
 
 Whatever state the code is in when you read this, treat the mobile-first PWA direction and the
 Midnight integration as the target — not the current pool-game-only state.
 
 ## Hackathon targets
 
-Deadline: **2026-08-30, 11:45am EDT**. Submission needs a public repo + a ≤2min demo video that
-names the hackathon. Full rules: [devpost](https://midnight-hackathon-august-2026.devpost.com/),
-[MLH event page](https://events.mlh.com/events/14510-midnight-hackathon).
+**AKINDO Wave 1** is due **2026-09-16 15:00 UTC**. Public repo + a short demo that names the
+Buildathon. Wave plan: [docs/WAVES.md](docs/WAVES.md).
 
-We are targeting three tracks with one project:
+The original three MLH tracks still describe what the product is:
 
 1. **Mobile Track** — "apps where sensitive information never leaves the device unproven." This is
    why the app must be a real mobile-first PWA (installable, responsive/touch UI, offline-capable),
    not a desktop page that happens to render on a phone.
 2. **Integrate Midnight Track** — add privacy features to an *existing* app and show a before/after.
-   We qualify: Pool already exists pre-hackathon; the "before" is the current p2p game, the "after"
-   adds Midnight (e.g. private stakes/wagers, provable-fair shot outcomes, private player identity/
-   ranking — exact design TBD when we build).
+   We qualify: Pool already exists pre-hackathon; the "before" is the p2p game, the "after" is
+   Midnight (Scorecard, Blind Rank, Cue Case, private identity).
 3. **Cross-Chain Track** — "dApps and games that span ecosystems like EVM chains, Bitcoin, NEAR,
    Cardano, Solana." Use [Effectstream](https://github.com/effectstream/effectstream) for this (see
    below) rather than hand-rolling bridge/sync code.

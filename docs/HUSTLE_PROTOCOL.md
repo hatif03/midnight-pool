@@ -20,7 +20,7 @@ most protocol write-ups skip — **what it does not fix**.
 | **Scorecard** | A commitment to your level and win count, published under a derived public key | `commitStats` — on-chain |
 | **Blind Rank** | Proof that your committed level or wins meets a threshold, disclosing only the boolean | `proveThreshold` — on-chain |
 | **Cue Case** | A one-time, non-transferable claim on a cue tier, as a nullifier in a set | `claimCue` — on-chain |
-| **The Rack** | A provably-fair 2-party coin flip deciding who breaks, with a reveal deadline | peer-to-peer today; Compact circuits exist, not called from the browser |
+| **The Rack** | A provably-fair 2-party coin flip deciding who breaks, with a reveal deadline | peer-to-peer decides the rack; Compact circuits are fire-and-forget after, if a wallet is connected |
 | **Sealed Table** | Match stakes recorded write-once, so the first attestation on-chain is canonical | `stakes.compact` — implemented and tested, **not deployed** to Preview, not on the browser path |
 | **The Rail** | The in-app audit log — what an observer can see from the rail | local, mirrors every circuit call |
 
@@ -97,7 +97,7 @@ or the proof server is unavailable. A player with no wallet plays the same game.
 | Stats are *true* | **Does not hold** | Garbage in, provably out. The game's stats are client-authored with no attesting issuer, so a player can commit fabricated stats and then truthfully prove a threshold over them. Closing this needs a signing authority and is out of scope. |
 | A cue claim cannot be made twice | **Holds** | — |
 | Cue claims cannot be linked to your rank identity | **Holds** | Domain separation across derivations |
-| The break flip is unbiased | **Holds** | Enforced peer-to-peer in the live path; the contract is the record |
+| The break flip is unbiased | **Holds** | Enforced peer-to-peer in the live path; on-chain commit/reveal/resolve is best-effort and needs both wallets |
 | Match results are correct | **Does not hold** | The contract records who claimed to win, first-write-wins. It makes disagreement permanent and public; it cannot adjudicate one. |
 | Roles are bound to identity | **Does not hold** | `role` is a bare public argument, not signature-bound. A third party who reads a public matchId can pollute that match's record. Nothing custodial is at stake, so the consequence is a polluted audit row, not stolen funds. |
 | Proofs are generated on your device | **Holds for a local Docker prover; production uses our Cloud Run prover** | Secret key, salts and stats live in the player's browser. At prove-time the circuit inputs go to `midnight-pool-prover` on Cloud Run (same trust move as Midnight's own leaderboard tutorial hosting a prover). The chain still only stores commitments, nullifiers and booleans. Midnight's public `lace-proof-pub` host 404s from browsers — we do not use it. |
@@ -127,7 +127,11 @@ curl -s -H 'content-type: application/json' \
 
 The contract address is baked into the app and recorded in [`docs/DEPLOYMENT.md`](DEPLOYMENT.md).
 On-chain submission from the live PWA needs desktop Chrome/Brave + Lace on Preview + tDUST; mobile
-players still play, in mock mode. See that page's "Who can do what" table.
+players still play, Continue, and verify in **The Hall**, in mock mode for submit. See that page's
+"Who can do what" table.
+
+In the app, tap the shield. Same indexer query via `POST /api/ledger` on the live origin. Full
+product narrative: [`README.md`](../README.md). Automated probe: `npm run e2e` → [`E2E.md`](E2E.md).
 
 To reproduce the build rather than trusting the committed artifacts:
 
@@ -144,7 +148,10 @@ and 0.31.1 is the only compiler that targets it. See [ADR-0016](adr/0016-one-rel
 
 ## Roadmap
 
-**Called Shot** is the next mechanic. Real 8-ball is a call-shot game: before the cue ball moves the
+The three-wave hangout (Hall → voice → optional wager) is in [`WAVES.md`](WAVES.md). Identity is
+the passkey table ([ADR-0020](adr/0020-passkey-table-identity.md)).
+
+**Called Shot** is a Wave 3 mechanic. Real 8-ball is a call-shot game: before the cue ball moves the
 shooter commits `H(matchId, shotIndex, ball, pocket, salt)`, and opens it once the balls settle. The
 opponent's independently-submitted copy of that commitment is what makes it non-trivial — without it
 a shooter could "call" a shot after seeing where it went. It turns "I meant to do that" from an

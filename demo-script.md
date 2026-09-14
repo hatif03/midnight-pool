@@ -4,71 +4,67 @@ Read the VO lines as-is or loosely — they're timed to fit, not to be recited w
 
 Live app: https://midnight-pool-one.vercel.app/
 Shared Preview contract: `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3`
-(anyone can query — see `docs/DEPLOYMENT.md`)
+(anyone can query — The Hall in the app, or `docs/DEPLOYMENT.md`)
 
-Honest limits to not over-claim on camera: on-chain submits need **desktop Chrome/Brave + Lace on
-Preview + tDUST**. Phones play and install; they do not submit. The break flip is peer-to-peer in
-the live match. Stakes and the EVM Champion Badge mint are not on Preview.
+Program: **Midnight Buildathon / AKINDO** (name it on camera). Full product writeup: [`README.md`](README.md).
 
----
-
-### 0:00–0:10 — Hook
-**ON SCREEN:** App icon / title screen (phone showing the installed PWA works well)
-
-> "This is Midnight Pool — a mobile pool hall built for the Midnight Hackathon, where you can
-> prove you're good enough to play, without ever showing your stats."
+Honest limits: on-chain **submit** still needs **desktop Chrome/Brave + Lace on Preview + tDUST**
+(or 1AM’s in-wallet browser — Wave 2). Phones **play**, **Continue** with Face ID, and **verify**
+in The Hall. Recovery QR is only if asked. Do not click Deploy new.
 
 ---
 
-### 0:10–0:30 — Real game
-**ON SCREEN:** A quick real shot or two, mobile landscape view, maybe the install prompt
+### 0:00–0:08 — Hook
+**ON SCREEN:** Installed PWA on a phone, title / lobby
 
-> "It's a real 2D pool game — physics, spin, peer-to-peer multiplayer, installable on your phone.
-> Rank, cosmetics, match history — the privacy-sensitive parts — run as Midnight zero-knowledge
-> circuits on a public testnet anyone can query."
-
----
-
-### 0:30–1:00 — Midnight, live
-**ON SCREEN:** Desktop + Lace connected. Settings → Midnight → play or hit a league gate so
-`proveThreshold` submits. Then The Rail showing a real tx id. Optionally Champion Badge
-"Check eligibility" as the in-browser circuit (no chain wait).
-
-> "Here's a real threshold proof, submitted from the browser to Midnight Preview. The chain
-> learns only yes or no — never my exact level. Same pattern for soulbound cues that can be
-> claimed once and never sold. And because it's a public network, you don't have to take our
-> word for it — the contract address is in the repo."
+> "This is Midnight Pool, built for the Midnight Buildathon on AKINDO — a mobile pool hall where
+> you prove you belong at the table without ever showing your stats."
 
 ---
 
-### 1:00–1:20 — Multiplayer + audit trail
-**ON SCREEN:** A moment of a real multiplayer match (the break), then Settings → Midnight →
-View on-chain activity.
+### 0:08–0:22 — Play
+**ON SCREEN:** A real shot in landscape, maybe Continue (Face ID) if it is quick
 
-> "Every match is peer-to-peer — the break is decided in milliseconds over the same connection,
-> the guest independently verifies the host's physics, and both sides can sign a match receipt.
-> It's all logged right here, in a real audit trail, with transaction ids when the chain path
-> runs."
+> "It's a real 2D pool game — physics, spin, peer-to-peer. Continue with Face ID so the same
+> table follows you from phone to desktop. No seed, no daily QR."
 
 ---
 
-### 1:20–1:50 — The real cross-chain join
-**ON SCREEN:** Cut to your terminal, running (or already showing the tail end of)
-`npx tsx cross-chain-join-real.ts 10` — hold on the final output block.
+### 0:22–0:45 — The Hall (no wallet)
+**ON SCREEN:** Phone, tap the shield → The Hall → indexer “live” → tap Subscan / explorer
 
-> "And this is the part that goes all the way — a real contract, a real ZK proof, a real
-> confirmed transaction, joined to a badge on a real Ethereum contract — no bridge, no custody,
-> two chains independently joined by one proof."
+> "This is The Hall. No wallet. The Preview contract is public — anyone can check it. What you
+> don't see are levels and win counts. Those stay commitments."
 
 ---
 
-### 1:50–2:00 — Close
-**ON SCREEN:** Repo URL / logo / midnight-pool-one.vercel.app
+### 0:45–1:15 — Same table, then stamp
+**ON SCREEN:** Desktop Chrome, Continue (same Apple/Google account), lobby matches the phone,
+Connect Lace, Settings → The Rail with a real tx id
 
-> "Midnight Pool — built for the Midnight Hackathon. Thanks for watching."
+> "Same Face ID on the laptop — same lobby. Connect Lace on Preview and we stamp that Scorecard
+> on-chain. The chain learns a commitment, not my rating. Ranked gates still prove only yes or no."
 
 ---
 
-**Total: ~235 words** at a comfortable pace — leaves a few seconds of buffer under the 2:00 limit
-for pauses and transitions. If you're running long, the easiest trim is the Leagues/Cues sentence
-in the 0:30–1:00 block — the threshold proof plus The Rail already carries that section.
+### 1:15–1:40 — Match + honesty
+**ON SCREEN:** A beat of multiplayer / the break, then The Rail mock vs real labels
+
+> "The rack is peer-to-peer so the game never waits on a block. The same relation can land on
+> chain after the fact if both wallets are there. Safari cannot sign — phones verify in The Hall
+> and play now; 1AM’s in-wallet browser is how a phone will submit next."
+
+---
+
+### 1:40–2:00 — Close
+**ON SCREEN:** midnight-pool-one.vercel.app + repo + The Hall contract address
+
+> "Midnight Pool — a room on a privacy network, for the Midnight Buildathon. Thanks for watching."
+
+---
+
+**If running long:** drop the Rack sentence. Hall + Continue + Lace tx is the Wave 1 proof.
+
+**Submit checklist:** public repo (push `main` if origin is behind), this ≤2 min video naming
+AKINDO / Midnight Buildathon, live Vercel after The Hall + passkey land. Due **Sep 16 15:00 UTC**.
+See [`docs/WAVES.md`](docs/WAVES.md).

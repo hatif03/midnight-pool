@@ -6,8 +6,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile": "compact compile +0.34.0 midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 stakes.compact managed/stakes",
-    "compile:fast": "compact compile +0.34.0 --skip-zk midnight-pool.compact managed/midnight-pool && compact compile +0.34.0 --skip-zk stakes.compact managed/stakes",
+    "compile": "compact compile +0.31.1 midnight-pool.compact managed/midnight-pool && compact compile +0.31.1 stakes.compact managed/stakes",
+    "compile:fast": "compact compile +0.31.1 --skip-zk midnight-pool.compact managed/midnight-pool && compact compile +0.31.1 --skip-zk stakes.compact managed/stakes",
     "compile:devnet": "compact compile +0.31.1 midnight-pool.compact devnet-deploy/managed-devnet/midnight-pool && compact compile +0.31.1 stakes.compact devnet-deploy/managed-devnet/stakes",
     "format": "compact format midnight-pool.compact && compact format stakes.compact",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-js": "^2.5.1",
-    "@midnight-ntwrk/compact-runtime": "0.19.0",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
     "@midnight-ntwrk/ledger-v8": "^8.1.1",
     "@midnight-ntwrk/midnight-js-contracts": "^4.1.1",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "^4.1.1",
@@ -37,5 +37,9 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/onchain-runtime-v3": "3.0.0"
   }
 }

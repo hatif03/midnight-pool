@@ -9,7 +9,7 @@ import * as ui from './ui.js';
 import * as audio from './audio.js';
 import * as identity from './identity.js';
 import { t, setLang, getLang, applyStatic } from './i18n.js';
-import { loadProfile, saveProfile } from './profile.js';
+import { loadProfile, saveProfile, isVirginProfile } from './profile.js';
 import * as economy from './economy.js';
 import { getCue, allCues, upgradeCost } from './cues.js';
 import * as dailyReward from './dailyReward.js';
@@ -21,6 +21,8 @@ import * as mnHooks from './midnight/hooks.js';
 import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
 import * as mnAttest from './midnight/attest.js';
+import * as passkeyTable from './midnight/passkeyTable.js';
+import { HALL, explorerTxUrl, fetchContractAction, parseContractAction } from './midnight/ledgerPublic.js';
 import { wireInstallPrompt } from './pwaInstall.js';
 import { replayShot, diffFinalState } from './midnight/physicsVerify.js';
 import { LEAGUES } from './leagues.js';
@@ -88,6 +90,7 @@ function tickDailyChest() {
 function persistProfile() {
   saveProfile(profile);
   updateWallet();
+  passkeyTable.schedulePush({ profile, nickname: identity.getNickname() });
 }
 
 function resetTurnTimer() {
@@ -222,10 +225,11 @@ async function main() {
     ui.el('btn-settings').title = t('settings');
     ui.el('btn-leagues').title = t('leaguesTitle');
     ui.el('btn-cues').title = t('cuesTitle');
+    ui.el('btn-hall').title = t('hallTitle');
     ui.el('btn-shop').title = t('shopTitle');
   };
   document.querySelectorAll('#lang-seg .seg-btn').forEach((b) => {
-    b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); };
+    b.onclick = () => { audio.resume(); audio.uiClick(); setLang(b.dataset.lang); markLang(); refreshIconTitles(); refreshHud(); ui.updateTurn(game.mode, game.turn === game.myPlayer); updateMidnightWalletStatus(); };
   });
   markLang();
   refreshIconTitles();
@@ -236,6 +240,7 @@ async function main() {
     identity.setNickname(nickInput.value);
     nickInput.value = identity.getNickname();
     updatePlayersDisplay();
+    persistProfile();
   });
 
   const vibrateToggle = document.getElementById('vibrate-toggle');
@@ -1167,10 +1172,9 @@ function newMatchGroups() {
 // host can no longer just always break first. This only runs for the host --
 // the guest never decides `turn` locally, it just receives whatever 'start'
 // says, same as before; the guest's half of the handshake lives in onMessage.
-// The result is also fire-and-forget into The Rail (hookRecordBreakOrder). The
-// Compact break circuits exist but are not on the live browser submit path
-// (docs/adr/0006 Update); this call never gates the rack. A peer that doesn't
-// respond within the timeout forfeits the flip back to "host breaks".
+// The result is also fire-and-forget into The Rail and, when a wallet is connected,
+// the Compact break circuits (hookRecordBreakOrder). This call never gates the rack.
+// A peer that doesn't respond within the timeout forfeits the flip back to "host breaks".
 async function negotiateBreakOrder() {
   if (game.mode !== 'host') return;
   const matchId = breakOrder.toHex(breakOrder.newMatchId());
@@ -1431,6 +1435,40 @@ function buyBox(tier, cost) {
   ui.el('reveal-modal').classList.add('show');
 }
 
+function hallItem(name, sub, href) {
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  const subHtml = href
+    ? `<a class="hall-link" href="${href}" target="_blank" rel="noopener">${sub}</a>`
+    : sub;
+  row.innerHTML = `<div class="info"><span class="name">${name}</span><span class="sub">${subHtml}</span></div>`;
+  return row;
+}
+
+async function openHall() {
+  ui.el('hall-modal').classList.add('show');
+  const status = ui.el('hall-status');
+  const body = ui.el('hall-body');
+  status.textContent = t('hallLoading');
+  body.innerHTML = '';
+  body.appendChild(hallItem(t('hallNetwork'), HALL.network));
+  body.appendChild(hallItem(t('hallContract'), HALL.contractAddress, HALL.explorerContract));
+  body.appendChild(hallItem(t('hallDeploy'), HALL.deployTxId, explorerTxUrl(HALL.deployTxId)));
+  body.appendChild(hallItem(t('hallCommit'), HALL.commitStatsTxId, explorerTxUrl(HALL.commitStatsTxId)));
+  body.appendChild(hallItem(t('hallProve'), HALL.proveThresholdTxId, explorerTxUrl(HALL.proveThresholdTxId)));
+  body.appendChild(hallItem(t('hallExplorers'), HALL.explorerMidnight, HALL.explorerMidnight));
+  body.appendChild(hallItem('Subscan', HALL.explorerSubscan, HALL.explorerSubscan));
+  try {
+    const json = await fetchContractAction(HALL.contractAddress);
+    const parsed = parseContractAction(json);
+    status.textContent = parsed.ok
+      ? t('hallLiveOk').replace('{type}', parsed.typename || 'ContractAction')
+      : t('hallLiveErr').replace('{error}', parsed.error || 'unknown');
+  } catch (err) {
+    status.textContent = t('hallLiveErr').replace('{error}', String(err?.message || err));
+  }
+}
+
 function renderAuditModal() {
   const list = ui.el('audit-list');
   list.innerHTML = '';
@@ -1448,14 +1486,44 @@ function renderAuditModal() {
     const when = new Date(e.at).toLocaleTimeString();
     const status = e.ok ? '✅' : '⚠️';
     const detail = e.note || e.error || JSON.stringify(e.disclosed || {});
-    row.innerHTML = `<div class="info"><span class="name">${status} ${e.circuit} · ${e.mode}</span><span class="sub">${when} — ${detail}</span></div>`;
+    const modeKey = e.mode === 'real' ? 'auditReal' : e.mode === 'mock' ? 'auditMock' : '';
+    const modeLabel = modeKey ? t(modeKey) : e.mode;
+    const tx = e.disclosed && e.disclosed.txId;
+    const txLink = tx
+      ? ` <a class="hall-link" href="${explorerTxUrl(tx)}" target="_blank" rel="noopener">${t('auditTx')}</a>`
+      : '';
+    row.innerHTML = `<div class="info"><span class="name">${status} ${e.circuit} · <span class="audit-mode ${e.mode || ''}">${modeLabel}</span>${txLink}</span><span class="sub">${when} — ${detail}</span></div>`;
     list.appendChild(row);
   }
+}
+
+function isPhoneLike() {
+  return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 520);
 }
 
 function updateMidnightWalletStatus() {
   const w = mnWallet.current();
   ui.el('mn-wallet-status').textContent = w ? t('walletConnected').replace('{name}', w.name) : t('walletMockMode');
+  const hint = ui.el('mn-wallet-hint');
+  if (!hint) return;
+  if (w) {
+    hint.textContent = t('walletHintConnected');
+    return;
+  }
+  const found = mnWallet.detectWallets();
+  if (found.length === 0 && isPhoneLike()) {
+    hint.textContent = `${t('walletHintPhone')} ${t('oneAmHint')}`;
+  } else {
+    hint.textContent = t('walletHintDesktop');
+  }
+}
+
+function reloadTableFromStorage() {
+  profile = loadProfile();
+  const nickInput = ui.el('nickname-input');
+  if (nickInput) nickInput.value = identity.getNickname();
+  persistProfile();
 }
 
 // Only connects to the first detected wallet rather than offering a picker --
@@ -1473,6 +1541,57 @@ function wireMidnightMenu() {
     try { return localStorage.getItem('mn-network') || 'preview'; } catch { return 'preview'; }
   };
 
+  click('btn-mn-continue', async () => {
+    const btn = ui.el('btn-mn-continue');
+    btn.disabled = true;
+    try {
+      const r = await passkeyTable.continueTable();
+      reloadTableFromStorage();
+      const msg = r.prf ? t('continueOk') : t('continueOkNoPrf');
+      ui.setStatus('mn-continue-status', msg);
+      ui.toast(msg);
+      await passkeyTable.pushBlob(passkeyTable.gatherBlobPayload({
+        profile,
+        nickname: identity.getNickname(),
+      }));
+    } catch (err) {
+      ui.setStatus('mn-continue-status', t('continueFailed').replace('{error}', String(err?.message || err)), true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  click('btn-mn-recovery-export', async () => {
+    const pin = ui.el('mn-recovery-pin').value;
+    if (String(pin).length < 4) { ui.toast(t('recoveryNeedPin')); return; }
+    try {
+      const packed = await passkeyTable.exportRecovery(pin, { profile, nickname: identity.getNickname() });
+      const code = passkeyTable.recoveryCodeString(packed);
+      ui.el('mn-recovery-code').value = code;
+      const canvas = ui.el('mn-recovery-qr');
+      canvas.hidden = false;
+      QRCode.toCanvas(canvas, code, { width: 180, margin: 1, errorCorrectionLevel: 'L' }, (err) => {
+        if (err) canvas.hidden = true;
+      });
+      ui.toast(t('recoveryCopied'));
+    } catch (err) {
+      ui.toast(t('recoveryBad').replace('{error}', String(err?.message || err)));
+    }
+  });
+
+  click('btn-mn-recovery-import', async () => {
+    const pin = ui.el('mn-recovery-pin').value;
+    if (String(pin).length < 4) { ui.toast(t('recoveryNeedPin')); return; }
+    try {
+      const packed = passkeyTable.parseRecoveryCode(ui.el('mn-recovery-code').value);
+      await passkeyTable.importRecovery(pin, packed);
+      reloadTableFromStorage();
+      ui.toast(t('recoveryImported'));
+    } catch (err) {
+      ui.toast(t('recoveryBad').replace('{error}', String(err?.message || err)));
+    }
+  });
+
   // Connecting a wallet is what turns mock mode into real on-chain submission (docs/adr/0018).
   // chain.js is dynamically imported so midnight-js and the ledger WASM -- an 800KB worker chunk --
   // never load for a player who just wants to shoot pool.
@@ -1482,7 +1601,11 @@ function wireMidnightMenu() {
     try {
       const chain = await import('./midnight/chain.js');
       const wallets = chain.detectWallets();
-      if (wallets.length === 0) { ui.toast(t('walletNotFound')); return; }
+      if (wallets.length === 0) {
+        ui.toast(isPhoneLike() ? t('walletHintPhone') : t('walletNotFound'));
+        updateMidnightWalletStatus();
+        return;
+      }
       const info = await chain.connect(wallets[0].key, mnNetwork());
       mnWallet.setMode('real');
       ui.setStatus('mn-chain-status', t('chainConnected').replace('{network}', info.networkId));
@@ -1490,6 +1613,9 @@ function wireMidnightMenu() {
       ui.el('mn-contract-input').value = chain.getContractAddress();
       updateMidnightWalletStatus();
       ui.toast(t('walletConnected').replace('{name}', wallets[0].name));
+      if (!isVirginProfile(profile) && passkeyTable.tableUnlocked()) {
+        mnHooks.hookCommitStats(profile);
+      }
     } catch (err) {
       ui.toast(String(err?.message || err));
     } finally {
@@ -1507,7 +1633,12 @@ function wireMidnightMenu() {
     ui.setStatus('mn-deploy-status', t('contractSet'));
   });
 
+  click('btn-mn-deploy-show', () => {
+    ui.el('mn-deploy-advanced').hidden = false;
+  });
+
   click('btn-mn-deploy', async () => {
+    if (!window.confirm(t('deployConfirm'))) return;
     const btn = ui.el('btn-mn-deploy');
     btn.disabled = true;
     ui.setStatus('mn-deploy-status', t('deploying'));
@@ -1524,6 +1655,7 @@ function wireMidnightMenu() {
   });
 
   click('btn-mn-audit', () => { renderAuditModal(); ui.el('audit-modal').classList.add('show'); });
+  click('btn-mn-hall', () => { openHall(); });
 
   click('btn-mn-champion', () => {
     ui.el('champion-result').innerHTML = '';
@@ -1561,6 +1693,7 @@ function wireEconomyMenus() {
   click('btn-pass', () => { renderPassModal(); ui.el('pass-modal').classList.add('show'); });
   click('btn-shop', () => { renderLoyaltyList(); ui.el('shop-modal').classList.add('show'); });
   click('btn-leagues', () => { renderLeaguesModal(); ui.el('leagues-modal').classList.add('show'); });
+  click('btn-hall', () => { openHall(); });
 
   click('daily-claim', () => {
     const result = dailyReward.claim(profile.streak);
@@ -1607,8 +1740,8 @@ function wireMenu() {
   // btn-play and screen-mode are gone (docs/adr/0014): Practice, Play-a-Friend and Quick Match are
   // lobby tiles now, so Play -> mode -> create/join lost a step. btn-quit went with them --
   // window.close() is a no-op in an installed PWA and in any tab the script didn't open.
-  click('btn-settings', () => ui.el('settings-modal').classList.add('show'));
-  click('btn-profile', () => ui.el('settings-modal').classList.add('show'));
+  click('btn-settings', () => { updateMidnightWalletStatus(); ui.el('settings-modal').classList.add('show'); });
+  click('btn-profile', () => { updateMidnightWalletStatus(); ui.el('settings-modal').classList.add('show'); });
   document.querySelectorAll('[data-back]').forEach((b) => { b.onclick = () => { audio.uiClick(); closeNet(); ui.showScreen(b.dataset.back); }; });
   // The currency chips' + buttons are not <button>s (they sit inside a .chip span), so they are
   // wired by data-open rather than by id.
