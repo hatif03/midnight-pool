@@ -363,7 +363,7 @@ ${lines.join('\n')}
 Lace connect, Face ID / WebAuthn Continue, tDUST faucet, and a live two-wallet Rack
 submit are **manual**. This probe never clicks those prompts.
 
-Lobby screenshot: [`screenshot.png`](screenshot.png). Other captures: [`e2e/`](e2e/).
+Lobby screenshot: docs/screenshot.png. Other captures: docs/e2e/.
 `;
   await writeFile(path.join(ROOT, 'docs', 'E2E.md'), md);
 }
