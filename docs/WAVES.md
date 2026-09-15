@@ -50,6 +50,10 @@ People come to sit at a table, not to click Prove.
 
 - Push-to-talk + text on the existing PeerJS/WebRTC link. Private tables (invite/QR) vs open Quick
   Match (no open mic).
+- **Cut Continue friction.** Wave 1 still `get()`s before `create()`, so a first click on Windows
+  opens an empty “use your phone / security key” picker. Wave 2 creates on a blank device, prefers
+  the platform/Google passkey, and does not send a new player into hybrid QR. First-run copy lives
+  in [`README.md` First-time setup](../README.md#first-time-setup).
 - Phone submit: 1AM in-wallet dApp browser (same origin / same passkey RP id) and/or house
   paymaster. Never per-user custodial seeds.
 - Finish The Rack on-chain if Wave 1’s best-effort path stayed incomplete. Live Hall via indexer WS

@@ -82,9 +82,8 @@ lock orientation). Desktop is the second layout, not the first.
      PeerJS. The relay never sees balls.
 3. **Shoot** — drag from the cue ball and release (two-stage aim + power, [ADR-0017](docs/adr/0017-aim-guide-and-two-stage-input.md)).
    Better cues unlock a 3×3 English / spin grid.
-4. **Continue** (Settings, Face ID / fingerprint) if you want the same table on phone and desktop.
-   Then, on **desktop Chrome/Brave**, **Connect Wallet** (Lace on Preview + generated tDUST) to
-   **stamp** that table on-chain. Do **not** click Deploy new.
+4. **Continue** and **Connect Wallet** — see [First-time setup](#first-time-setup). Do **not**
+   click Deploy new.
 5. Tap the **shield** for **The Hall** — public indexer + explorer links, no wallet.
 
 Progression (coins, daily chest, Pool Pass, cues, leagues, loyalty shop) lives under the lobby
@@ -92,6 +91,62 @@ icons. Midnight controls live in Settings: Continue, wallet, ranked toggle, The 
 Badge, recovery PIN/QR.
 
 English and Spanish are first-class (`Settings → language`).
+
+---
+
+## First-time setup
+
+**Play needs nothing.** Open the [live app](https://midnight-pool-one.vercel.app/), rotate to
+landscape, shoot. No account, no wallet, no passkey.
+
+**Continue** (same table on phone and laptop) and **Connect Wallet** (stamp that table on Midnight)
+are optional and still carry OS/wallet friction in Wave 1. That is not the product we want people
+to live with. **Later waves cut this:** a phone will stamp without a desktop (1AM in-wallet browser
+and/or a house paymaster — [WAVES.md](docs/WAVES.md)), and Continue will create a table on a blank
+device instead of opening Windows’ empty “use your phone” picker. Wave 1 documents the path that
+actually works today.
+
+Use **one origin** everywhere: `https://midnight-pool-one.vercel.app/`. Passkeys are bound to the
+host. Localhost and Vercel preview URLs are different tables.
+
+### Continue — Android phone + Windows laptop (usual case)
+
+PRF passkeys are solid on **Android Chrome**. Windows Hello often has no PRF ([ADR-0020](docs/adr/0020-passkey-table-identity.md)).
+
+1. Same **Google account** in **Chrome** on both devices (laptop: Chrome, not Edge).
+2. **Create the passkey on the phone first.** Android Chrome → Settings → **Continue** →
+   fingerprint / screen lock. You want the toast that this table can follow you, not “this device
+   cannot sync.”
+3. Then Continue on the laptop. Prefer the **Google Password Manager** passkey for this site.
+4. **Do not Continue on Windows first.** Wave 1 still calls WebAuthn `get()` before `create()`.
+   With no passkey yet, Windows Security shows only “iPhone, iPad, or Android device” and
+   “Security key.” That is a hunt for an existing key, not Face ID. **Cancel** if you have not
+   Continue’d on the phone; do not start the QR hybrid flow as your first create. After the phone
+   has created one, pick that Google passkey or the phone.
+5. If the laptop toast says the device cannot sync, PRF did not come back. Use **recovery PIN/QR**
+   (Settings) or treat the phone as source of truth. Mixed Apple vs Google accounts will not share
+   a table.
+
+iPhone + Mac: Continue on the iPhone (Safari / PWA) first, same Apple ID, then the Mac.
+
+### Stamp on Midnight (desktop only in Wave 1)
+
+The Hall and play never need this. Phones **cannot** Connect Wallet (no Lace on Android Chrome /
+iOS Safari).
+
+1. **Chrome or Brave** + **Lace**, network **Preview** (not preprod, not mainnet).
+2. Faucet [tNIGHT](https://faucet.preview.midnight.network/), then in Lace **Generate tDUST**.
+   Fees are tDUST; tNIGHT alone fails the stamp.
+3. Wait until Lace is **fully synced** (first sync can take many minutes — do this before a demo).
+4. **Continue** so the Scorecard secret is unlocked, then **Connect Wallet**. The shared contract
+   is already in the box. **Do not click Deploy new.**
+5. Auto-`commitStats` runs only if the table is unlocked **and** the profile is not a fresh
+   default (level 1, 0 wins, 0 XP). Play a Solo first, or the connect will not stamp by itself.
+   The first proof can take minutes (ZK keys download + Cloud Run prover).
+
+Every real call lands in **The Rail** (Settings). Shield → **The Hall** is the wallet-less check.
+
+Faucet and Lace detail: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ---
 
@@ -211,7 +266,8 @@ The wallet only pays DUST. We **do not custody** per-user Midnight seeds. Midnig
 custodial wallet and no native account abstraction on this stack.
 
 **QR + PIN is recovery**, not daily login (Windows Hello without PRF, mixed Apple vs Google, lost
-authenticator).
+authenticator). First Continue belongs on the phone; see [First-time setup](#first-time-setup).
+This ceremony gets simpler in later waves.
 
 **Never auto-`commitStats` from a virgin default profile** (level ≤ 1, 0 wins, 0 losses, 0 xp)
 after Connect Wallet.
@@ -523,10 +579,11 @@ One product, three waves. Native apps are a wrapper later, not a rewrite.
 **Wave 1 (this ship)** — Hall, Continue, honest phone copy, guarded auto-commit, hidden Deploy new,
 Rail explorer links, best-effort on-chain Rack. No voice, no tNIGHT, no custodial wallets.
 
-**Wave 2 — the hangout** — push-to-talk + text on the existing PeerJS link; 1AM in-wallet browser
-and/or a **house paymaster** (one funded Preview wallet) so a phone can stamp without us holding
-per-user seeds; finish Rack on-chain when Wave 1’s path stayed incomplete; optional practice-coin
-Sealed Table on Preview; clubs v0 on the relay.
+**Wave 2 — the hangout** — push-to-talk + text on the existing PeerJS link; **cut first-run
+Continue friction** (create-first on a blank device so Windows does not show an empty hybrid
+picker); 1AM in-wallet browser and/or a **house paymaster** (one funded Preview wallet) so a phone
+can stamp without us holding per-user seeds; finish Rack on-chain when Wave 1’s path stayed
+incomplete; optional practice-coin Sealed Table on Preview; clubs v0 on the relay.
 
 **Wave 3 — hang, then maybe wager** — Schnorr attestor in Compact so `commitStats` cannot be a
 typed-in fantasy (new circuit + redeploy); optional shielded stakes behind `proveThreshold`, never
@@ -548,8 +605,11 @@ Say these out loud in the demo.
 - **Garbage in, provably out.** Threshold proofs cannot make a self-reported stat true.
 - **Host can still lie about shot inputs.** Guest replay catches a fabricated *outcome*, not a
   fabricated tap.
-- **Phone Safari cannot sign.** The Hall and Continue work; submit does not. 1AM in-wallet browser
-  is the documented Wave 2 path. We do not fake Lace-on-Safari.
+- **Phone Safari / Android Chrome cannot sign.** The Hall and Continue work; submit does not. 1AM
+  in-wallet browser and/or a house paymaster is the Wave 2 path. We do not fake Lace-on-phone.
+- **Windows Continue is a get-then-create ceremony.** A first click with no passkey opens an empty
+  “use your phone / security key” picker. Create on Android Chrome first ([First-time setup](#first-time-setup)).
+  Later waves remove that picker.
 - **Proof inputs hit our Cloud Run prover.** Not the Mobile Track’s ideal (“never leaves the
   device unproven”) for the *prove* step of a live submit. Keys never leave; the chain never sees
   plaintext stats. A wallet-side prover is blocked by the worker boundary (ADR-0018).
@@ -565,6 +625,7 @@ Say these out loud in the demo.
 
 | Doc | What it is |
 |---|---|
+| [README.md](README.md) | Product document, including [first-time setup](#first-time-setup) |
 | [docs/WAVES.md](docs/WAVES.md) | Wave 1/2/3 product arc, phone/wallet matrix |
 | [docs/HUSTLE_PROTOCOL.md](docs/HUSTLE_PROTOCOL.md) | What each circuit proves, trust table, verify commands |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Faucet → Lace → shared contract; Vercel vs GCP |

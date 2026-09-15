@@ -52,6 +52,9 @@ RP id is this origin (`midnight-pool-one.vercel.app` in production).
   is best-effort; recovery QR remains the offline backup.
 - PRF is solid on Android Chrome and iOS/Safari 18.4+. iOS 18.0–18.3 had a PRF bug. Windows
   Hello PRF is historically weak — those users get recovery, not a fake “synced” Continue.
+- Continue still `get()`s before `create()`. A first click on a blank Windows machine opens the
+  OS “iPhone, iPad, or Android / security key” picker (no local passkey yet). Documented path:
+  create on the phone first. Wave 2 creates on a blank device and drops that picker.
 - Hybrid QR-as-passkey ceremonies are not used for PRF.
 - `getOrCreateSecretKeyHex` still mints a local secret if someone plays before Continue so
   shots never block; Continue then migrates that secret into the blob.

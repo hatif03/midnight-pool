@@ -5,6 +5,13 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-16, first-time setup docs)
+
+README now has a **First-time setup** section: play needs nothing; Continue on Android Chrome
+before Windows; empty Windows passkey picker is a `get()` with no credential, not a bug; Lace stamp
+is desktop-only. Wave 2 in WAVES.md / README is committed to cutting that Continue friction and
+letting a phone stamp. DEPLOYMENT, ADR-0020, demo-script point at the same path.
+
 ## Current state (2026-09-16, Hall explorer links)
 
 The Hall (and README/DEPLOYMENT paste URLs) were 404ing on Subscan. Two mismatches: Compact

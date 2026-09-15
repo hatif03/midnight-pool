@@ -168,19 +168,29 @@ point production at `https://lace-proof-pub.preview.midnight.network` — it 404
 Do **not** click **Deploy new** in the app. The shared contract is already baked. **Use this
 contract** is only if you want to point at a different address.
 
-## 4. Play against the shared contract
+## 4. First-time: Continue, then stamp
+
+Play and The Hall need no wallet. Full player-facing steps (Android + Windows, iPhone + Mac,
+empty Windows passkey picker): [`README.md` First-time setup](../README.md#first-time-setup).
+That ceremony is Wave 1 friction; Wave 2 cuts it.
 
 ```bash
 npm run build && npm run preview
 ```
 
-Or open the live app. Then **Settings** (gear) → **Midnight**:
+Or open the live app (`https://midnight-pool-one.vercel.app/` — same host on every device).
 
-1. **Continue** (Face ID) if you want this table on another device, then **Connect Wallet** — Lace on **Preview**. Approve the prompt. The baked contract address is
-   already in the input. Do **not** click **Deploy new** unless you really want a private copy.
-2. Confirm tDUST is non-zero.
-3. Play. `commitStats`, `proveThreshold` and `claimCue` submit to the shared contract. Every call
-   lands in **The Rail** (Settings → View On-Chain Activity) with its transaction id.
+1. **Continue on the phone first** (Android Chrome or iOS Safari / PWA), same Google or Apple
+   account you will use on the laptop. Do not Continue on Windows first — with no passkey yet,
+   Windows Security only offers a phone or a security key.
+2. Continue on **desktop Chrome** (not Edge), then **Connect Wallet** — Lace on **Preview**.
+   Approve the prompt. The baked contract address is already in the input. Do **not** click
+   **Deploy new** unless you really want a private copy.
+3. Confirm tDUST is non-zero. Auto-`commitStats` skips a virgin default profile; play a Solo first
+   if you want the connect to stamp.
+4. Play. `commitStats`, `proveThreshold` and `claimCue` submit to the shared contract. Every call
+   lands in **The Rail** (Settings → View On-Chain Activity). Explorer links use the transaction
+   **hash**, not the ZSwap identifier `submitTx` returns.
 
 ---
 
