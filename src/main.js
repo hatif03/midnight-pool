@@ -1615,8 +1615,16 @@ function wireMidnightMenu() {
         updateMidnightWalletStatus();
         return;
       }
-      ui.el('mn-wallet-status').textContent = t('walletConnecting');
-      const info = await chain.connect(wallets[0].key, mnNetwork());
+      const STAGE = {
+        approve: t('walletConnectingApprove'),
+        config: t('walletConnecting'),
+        addresses: t('walletConnectingSync'),
+        worker: t('walletConnectingWorker'),
+      };
+      ui.el('mn-wallet-status').textContent = STAGE.approve;
+      const info = await chain.connect(wallets[0].key, mnNetwork(), (stage) => {
+        ui.el('mn-wallet-status').textContent = STAGE[stage] || t('walletConnecting');
+      });
       mnWallet.markConnected({
         id: wallets[0].key,
         name: wallets[0].name,

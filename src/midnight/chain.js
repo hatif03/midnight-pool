@@ -61,9 +61,30 @@ export const setProverUri = (u) => {
 // but relying on that alone would miss any other wallet.
 export function detectWallets() {
   const src = (typeof window !== 'undefined' && window.midnight) || {};
+  const laceFirst = (w) => (/lace/i.test(w.name) || w.key === 'mnLace' ? 0 : 1);
   return Object.entries(src)
     .filter(([, w]) => w && typeof w.connect === 'function')
-    .map(([key, w]) => ({ key, name: w.name || key, rdns: w.rdns || '', apiVersion: w.apiVersion || '' }));
+    .map(([key, w]) => ({ key, name: w.name || key, rdns: w.rdns || '', apiVersion: w.apiVersion || '' }))
+    .sort((a, b) => laceFirst(a) - laceFirst(b));
+}
+
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
+function resetWorker() {
+  ready = false;
+  if (worker) {
+    try { worker.terminate(); } catch { /* ignore */ }
+    worker = null;
+  }
+  pending.clear();
 }
 
 // DApp Connector errors are plain objects serialized across the extension boundary, so instanceof
@@ -75,40 +96,75 @@ const describeError = (e) => {
   return String((e && e.message) || e);
 };
 
-export async function connect(walletKey, networkId = 'preview') {
+export async function connect(walletKey, networkId = 'preview', onProgress) {
+  const note = (stage) => { try { onProgress?.(stage); } catch { /* ignore */ } };
   const src = (typeof window !== 'undefined' && window.midnight) || {};
   const wallet = walletKey ? src[walletKey] : Object.values(src).find((w) => w && typeof w.connect === 'function');
   if (!wallet) throw new Error('no-wallet');
 
+  resetWorker();
+
+  note('approve');
   try {
-    api = await wallet.connect(networkId);
+    api = await withTimeout(
+      wallet.connect(networkId),
+      120_000,
+      'Lace did not finish connecting. Check the extension popup (Preview network), wait until it is synced, then try again.',
+    );
   } catch (e) {
     throw new Error(describeError(e));
   }
 
-  const cfg = await api.getConfiguration();
-  const addresses = await api.getShieldedAddresses();
+  note('config');
+  const cfg = await withTimeout(
+    api.getConfiguration(),
+    20_000,
+    'Lace did not return network config. Confirm the wallet is on Preview.',
+  );
 
+  note('addresses');
+  const addresses = await withTimeout(
+    api.getShieldedAddresses(),
+    45_000,
+    'Lace is still syncing addresses. Wait until Lace shows tDUST, then Connect Wallet again.',
+  );
+
+  note('worker');
   worker = new Worker(new URL('./chain.worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = onWorkerMessage;
+  worker.onerror = (ev) => {
+    const err = new Error(ev?.message || 'chain worker failed to load');
+    for (const [, p] of pending) p.reject(err);
+    pending.clear();
+  };
+  worker.onmessageerror = () => {
+    const err = new Error('chain worker message error');
+    for (const [, p] of pending) p.reject(err);
+    pending.clear();
+  };
 
-  await request({
-    kind: 'init',
-    config: {
-      networkId: cfg.networkId,
-      indexerUri: cfg.indexerUri,
-      indexerWsUri: cfg.indexerWsUri,
-      // Prover resolution (docs/adr/0019): localStorage → localhost Docker → Cloud Run
-      // → Lace URI unless it is the known-broken lace-proof-pub host.
-      // Wallet-delegated getProvingProvider still takes ledger WASM objects, which cannot
-      // cross this worker boundary, so it is not used here (docs/adr/0018).
-      proverUri: getProverUri(cfg.proverServerUri),
-      origin: location.origin,
-    },
-    addresses,
-    privateState: loadPrivateState(),
-    secretKeyHex: getSecretKeyHex(),
-  });
+  try {
+    await withTimeout(
+      request({
+        kind: 'init',
+        config: {
+          networkId: cfg.networkId,
+          indexerUri: cfg.indexerUri,
+          indexerWsUri: cfg.indexerWsUri,
+          proverUri: getProverUri(cfg.proverServerUri),
+          origin: location.origin,
+        },
+        addresses,
+        privateState: loadPrivateState(),
+        secretKeyHex: getSecretKeyHex(),
+      }),
+      45_000,
+      'Chain worker did not start. Hard-refresh (Ctrl+Shift+R) and try Connect Wallet again.',
+    );
+  } catch (err) {
+    resetWorker();
+    throw err;
+  }
 
   ready = true;
   audit.record({ circuit: 'walletConnect', mode: 'real', disclosed: { networkId: cfg.networkId }, ok: true });
