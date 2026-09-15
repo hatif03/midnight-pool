@@ -1,30 +1,26 @@
-// Regenerate PWA icons from public/logo-source.png. Run: node scripts/gen-icons.mjs
+// Regenerate PWA icons from public/favicon.svg. Run: npm run gen-icons
 import sharp from 'sharp';
 import { mkdirSync } from 'node:fs';
 
 mkdirSync('public/icons', { recursive: true });
-const src = 'public/logo-source.png';
-const bg = '#04080a';
 
-async function plain(size, file) {
-  await sharp(src).resize(size, size).png().toFile(`public/icons/${file}`);
+// Rasterize once at 1024 (viewBox 512 at 192 dpi) so every output is a downscale.
+const master = await sharp('public/favicon.svg', { density: 192 })
+  .resize(1024, 1024)
+  .png()
+  .toBuffer();
+
+await sharp(master).png().toFile('public/logo-source.png');
+
+async function write(size, file) {
+  await sharp(master).resize(size, size).png().toFile(`public/icons/${file}`);
 }
 
-// Maskable icons need the art inside a safe zone (~80% of the canvas) so Android
-// doesn't crop it when applying a circle/squircle mask. logo-source.png already
-// fills its own square edge-to-edge (purple background), so this still helps.
-async function maskable(size, file) {
-  const inner = Math.round(size * 0.8);
-  const art = await sharp(src).resize(inner, inner).png().toBuffer();
-  await sharp({ create: { width: size, height: size, channels: 4, background: bg } })
-    .composite([{ input: art, gravity: 'center' }])
-    .png()
-    .toFile(`public/icons/${file}`);
-}
-
-await plain(192, 'icon-192.png');
-await plain(512, 'icon-512.png');
-await plain(180, 'apple-touch-icon.png');
-await plain(64, 'favicon-64.png');
-await maskable(512, 'icon-512-maskable.png');
-console.log('Icons written to public/icons/');
+await write(192, 'icon-192.png');
+await write(512, 'icon-512.png');
+await write(180, 'apple-touch-icon.png');
+await write(64, 'favicon-64.png');
+// Ball + gold rim sit inside the maskable safe zone in the SVG (~69% of the canvas).
+// Full-bleed felt is the field, so Android's circle crop shows cloth, not a letterbox.
+await write(512, 'icon-512-maskable.png');
+console.log('Icons written to public/icons/ (source: public/favicon.svg)');

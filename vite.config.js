@@ -64,7 +64,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: true },
-      includeAssets: ['logo-source.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'],
+      includeAssets: ['favicon.svg', 'logo-source.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'],
       manifest: {
         name: 'Midnight Pool',
         short_name: 'Pool',

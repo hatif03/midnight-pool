@@ -5,6 +5,14 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-16, arcade PWA mark)
+
+The home-screen / favicon mark is no longer the dark-UI pixel 8-ball on purple (`logo/5.png`).
+`public/favicon.svg` is a glossy 8-ball on felt with a gold pocket rim and a chunky M in the
+number circle — same palette as `tokens.css` / `scene.js`. `npm run gen-icons` rasterizes that
+SVG to `public/logo-source.png` and the PWA set (`icon-192/512`, maskable, apple-touch, favicon-64).
+`index.html` prefers the SVG favicon, PNG as fallback.
+
 ## Current state (2026-09-15, E2E + full README)
 
 Canonical product document is now [`README.md`](README.md) — what the app is, how it was built,
