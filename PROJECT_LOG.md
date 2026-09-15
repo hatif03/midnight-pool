@@ -5,6 +5,15 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-16, Hall explorer links)
+
+The Hall (and README/DEPLOYMENT paste URLs) were 404ing on Subscan. Two mismatches: Compact
+contracts are `/contract/0x…` not `/account/…`, and `submitTx` stores a ZSwap **identifier**
+(`tx.identifiers()[0]`) while explorers route by **transaction hash** (`/transactions/0x…` on
+Midnight Explorer, `/tx/0x…` on Subscan). Hashes for the sample deploy / `commitStats` /
+`proveThreshold` txs are now in `contracts/preprod/deployed.json`. Production Hall still serves
+the old links until this is deployed.
+
 ## Current state (2026-09-16, arcade PWA mark)
 
 The home-screen / favicon mark is no longer the dark-UI pixel 8-ball on purple (`logo/5.png`).

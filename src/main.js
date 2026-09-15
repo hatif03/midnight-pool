@@ -22,7 +22,9 @@ import * as mnAudit from './midnight/audit.js';
 import * as mnWallet from './midnight/wallet.js';
 import * as mnAttest from './midnight/attest.js';
 import * as passkeyTable from './midnight/passkeyTable.js';
-import { HALL, explorerTxUrl, fetchContractAction, parseContractAction } from './midnight/ledgerPublic.js';
+import {
+  HALL, explorerTxUrl, fetchContractAction, knownTxHash, parseContractAction, resolveTxHashes, stripHex,
+} from './midnight/ledgerPublic.js';
 import { wireInstallPrompt } from './pwaInstall.js';
 import { replayShot, diffFinalState } from './midnight/physicsVerify.js';
 import { LEAGUES } from './leagues.js';
@@ -1453,9 +1455,9 @@ async function openHall() {
   body.innerHTML = '';
   body.appendChild(hallItem(t('hallNetwork'), HALL.network));
   body.appendChild(hallItem(t('hallContract'), HALL.contractAddress, HALL.explorerContract));
-  body.appendChild(hallItem(t('hallDeploy'), HALL.deployTxId, explorerTxUrl(HALL.deployTxId)));
-  body.appendChild(hallItem(t('hallCommit'), HALL.commitStatsTxId, explorerTxUrl(HALL.commitStatsTxId)));
-  body.appendChild(hallItem(t('hallProve'), HALL.proveThresholdTxId, explorerTxUrl(HALL.proveThresholdTxId)));
+  body.appendChild(hallItem(t('hallDeploy'), HALL.deployTxHash || HALL.deployTxId, explorerTxUrl(HALL.deployTxHash || HALL.deployTxId)));
+  body.appendChild(hallItem(t('hallCommit'), HALL.commitStatsTxHash || HALL.commitStatsTxId, explorerTxUrl(HALL.commitStatsTxHash || HALL.commitStatsTxId)));
+  body.appendChild(hallItem(t('hallProve'), HALL.proveThresholdTxHash || HALL.proveThresholdTxId, explorerTxUrl(HALL.proveThresholdTxHash || HALL.proveThresholdTxId)));
   body.appendChild(hallItem(t('hallExplorers'), HALL.explorerMidnight, HALL.explorerMidnight));
   body.appendChild(hallItem('Subscan', HALL.explorerSubscan, HALL.explorerSubscan));
   try {
@@ -1469,7 +1471,7 @@ async function openHall() {
   }
 }
 
-function renderAuditModal() {
+async function renderAuditModal() {
   const list = ui.el('audit-list');
   list.innerHTML = '';
   const entries = mnAudit.readAll();
@@ -1480,6 +1482,9 @@ function renderAuditModal() {
     list.appendChild(row);
     return;
   }
+  const ids = entries.map((e) => e.disclosed && e.disclosed.txId).filter(Boolean);
+  let hashes = new Map();
+  try { hashes = await resolveTxHashes(ids); } catch { /* contract page fallback below */ }
   for (const e of entries) {
     const row = document.createElement('div');
     row.className = 'item-row';
@@ -1489,8 +1494,10 @@ function renderAuditModal() {
     const modeKey = e.mode === 'real' ? 'auditReal' : e.mode === 'mock' ? 'auditMock' : '';
     const modeLabel = modeKey ? t(modeKey) : e.mode;
     const tx = e.disclosed && e.disclosed.txId;
-    const txLink = tx
-      ? ` <a class="hall-link" href="${explorerTxUrl(tx)}" target="_blank" rel="noopener">${t('auditTx')}</a>`
+    const hash = (tx && (hashes.get(stripHex(tx)) || knownTxHash(tx))) || '';
+    const href = hash ? explorerTxUrl(hash) : (tx ? HALL.explorerContract : '');
+    const txLink = href
+      ? ` <a class="hall-link" href="${href}" target="_blank" rel="noopener">${t('auditTx')}</a>`
       : '';
     row.innerHTML = `<div class="info"><span class="name">${status} ${e.circuit} · <span class="audit-mode ${e.mode || ''}">${modeLabel}</span>${txLink}</span><span class="sub">${when} — ${detail}</span></div>`;
     list.appendChild(row);
@@ -1654,7 +1661,7 @@ function wireMidnightMenu() {
     }
   });
 
-  click('btn-mn-audit', () => { renderAuditModal(); ui.el('audit-modal').classList.add('show'); });
+  click('btn-mn-audit', () => { ui.el('audit-modal').classList.add('show'); void renderAuditModal(); });
   click('btn-mn-hall', () => { openHall(); });
 
   click('btn-mn-champion', () => {

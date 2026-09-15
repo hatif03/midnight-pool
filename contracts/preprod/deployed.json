@@ -2,8 +2,11 @@
   "network": "preview",
   "contractAddress": "749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3",
   "deployTxId": "005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364",
+  "deployTxHash": "4f3eb597530e0ead5a924b2c6bc032dbd4f2046dce067a65569422f20f2314ae",
   "deployBlockHeight": 866570,
   "commitStatsTxId": "00b32911d7c538482796d178aa0323db085aa1dc6c287a25a1871850e981191153",
+  "commitStatsTxHash": "7a45be1b2fad202699edbe431914b1ae057fb5d171b7b446449f0204e5ac1dd7",
   "proveThresholdTxId": "005d98a2de6ff4ba0dbd15c5ba20006e407cad9234e82167cc165027b72bd88f4f",
+  "proveThresholdTxHash": "c9d2c9d8f02826d51dcb1bd622f164f536d82d26dd20ecbad7fbf8ff1a13582a",
   "deployedAt": "2026-09-14T20:20:07.613Z"
 }

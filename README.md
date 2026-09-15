@@ -340,10 +340,10 @@ curl -s -H "content-type: application/json" \
 
 | | |
 |---|---|
-| Contract | [Subscan account](https://midnight-preview.subscan.io/account/749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3) |
-| Deploy | tx `005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364` (block 866570) |
-| `commitStats` | tx `00b32911d7c538482796d178aa0323db085aa1dc6c287a25a1871850e981191153` (block 866574) |
-| `proveThreshold(5, false)` | tx `005d98a2de6ff4ba0dbd15c5ba20006e407cad9234e82167cc165027b72bd88f4f` (block 866579, disclosed `true`) |
+| Contract | [Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3) · [Subscan](https://midnight-preview.subscan.io/contract/0x749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3) |
+| Deploy | [tx `4f3eb597…`](https://preview.midnightexplorer.com/transactions/0x4f3eb597530e0ead5a924b2c6bc032dbd4f2046dce067a65569422f20f2314ae) (block 866570) |
+| `commitStats` | [tx `7a45be1b…`](https://preview.midnightexplorer.com/transactions/0x7a45be1b2fad202699edbe431914b1ae057fb5d171b7b446449f0204e5ac1dd7) (block 866574) |
+| `proveThreshold(5, false)` | [tx `c9d2c9d8…`](https://preview.midnightexplorer.com/transactions/0xc9d2c9d8f02826d51dcb1bd622f164f536d82d26dd20ecbad7fbf8ff1a13582a) (block 866579, disclosed `true`) |
 | Explorers | [preview.midnightexplorer.com](https://preview.midnightexplorer.com/), [midnight-preview.subscan.io](https://midnight-preview.subscan.io/) |
 
 In the app: tap the shield (**The Hall**) on any device.

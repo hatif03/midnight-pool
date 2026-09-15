@@ -45,10 +45,10 @@ otherwise an in-memory Map per instance. `npm run e2e` probes both.
 |---|---|
 | Network | **Preview** (`preview`) — Midnight's public testnet |
 | App (Vercel) | [https://midnight-pool-one.vercel.app/](https://midnight-pool-one.vercel.app/) |
-| Contract address | `749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3` |
-| Deploy tx | `005735ee6432f3f9178d402bff0c651c8850401831a170693371e3721226fd2364` (block 866570) |
-| `commitStats` tx | `00b32911d7c538482796d178aa0323db085aa1dc6c287a25a1871850e981191153` (block 866574) |
-| `proveThreshold(5, false)` tx | `005d98a2de6ff4ba0dbd15c5ba20006e407cad9234e82167cc165027b72bd88f4f` (block 866579, disclosed `true`) |
+| Contract address | [`749fd2e5…`](https://preview.midnightexplorer.com/contracts/0x749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3) · [Subscan](https://midnight-preview.subscan.io/contract/0x749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3) |
+| Deploy tx | [`4f3eb597…`](https://preview.midnightexplorer.com/transactions/0x4f3eb597530e0ead5a924b2c6bc032dbd4f2046dce067a65569422f20f2314ae) (block 866570) |
+| `commitStats` tx | [`7a45be1b…`](https://preview.midnightexplorer.com/transactions/0x7a45be1b2fad202699edbe431914b1ae057fb5d171b7b446449f0204e5ac1dd7) (block 866574) |
+| `proveThreshold(5, false)` tx | [`c9d2c9d8…`](https://preview.midnightexplorer.com/transactions/0xc9d2c9d8f02826d51dcb1bd622f164f536d82d26dd20ecbad7fbf8ff1a13582a) (block 866579, disclosed `true`) |
 | Indexer | `https://indexer.preview.midnight.network/api/v4/graphql` |
 | Node RPC | `https://rpc.preview.midnight.network` |
 | Proof server (players) | `https://midnight-pool-prover-147606977567.us-central1.run.app` (Cloud Run, CORS-open — [ADR-0019](adr/0019-cloud-run-proof-server.md)) |
@@ -222,8 +222,11 @@ curl -sI -X OPTIONS https://midnight-pool-prover-147606977567.us-central1.run.ap
 ```
 
 Explorers exist for Preview ([midnightexplorer](https://preview.midnightexplorer.com/),
-[Subscan](https://midnight-preview.subscan.io/)). A direct indexer query is still the check that
-does not depend on an explorer's indexing delay.
+[Subscan](https://midnight-preview.subscan.io/)). Compact contracts are `/contracts/0x…` (Midnight
+Explorer) and `/contract/0x…` (Subscan), not `/account`. Sample rows above are **transaction
+hashes**. The SDK's `tx.identifiers()[0]` is a ZSwap identifier — explorers 404 if you paste that
+into `/tx` or `/extrinsic`. A direct indexer query is still the check that does not depend on an
+explorer's indexing delay.
 
 What you can read from the contract state is exactly what the protocol claims is public: commitment
 hashes, nullifiers and booleans. Levels, win counts and cue tiers are not in there — that is the

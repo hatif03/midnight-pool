@@ -97,6 +97,7 @@ async function buildProviders(cfg, addresses) {
     midnightProvider: {
       submitTx: async (tx) => {
         await callMain('submitTx', { hex: toHex(tx.serialize()) });
+        // Identifier, not explorer hash. Hall/Rail resolve hash via the indexer.
         return tx.identifiers()[0];
       },
     },
