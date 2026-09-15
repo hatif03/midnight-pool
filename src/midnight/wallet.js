@@ -12,6 +12,12 @@ export function setMode(mode) {
   localStorage.setItem(MODE_KEY, mode === 'real' ? 'real' : 'mock');
 }
 
+/** Record a live DApp Connector session. Connect Wallet uses chain.js, not connect() below. */
+export function markConnected({ id, name, api: connectedApi } = {}) {
+  connected = { id: id || 'wallet', name: name || 'Lace', api: connectedApi || null };
+  setMode('real');
+}
+
 /** Every wallet extension the page can see, keyed by its own injected id (not a fixed key -- see the dapp-connector skill). */
 export function detectWallets() {
   return Object.entries(window.midnight ?? {})

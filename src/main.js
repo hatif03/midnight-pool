@@ -1511,7 +1511,9 @@ function isPhoneLike() {
 
 function updateMidnightWalletStatus() {
   const w = mnWallet.current();
-  ui.el('mn-wallet-status').textContent = w ? t('walletConnected').replace('{name}', w.name) : t('walletMockMode');
+  ui.el('mn-wallet-status').textContent = w
+    ? t('walletConnected').replace('{name}', w.name)
+    : t('walletMockMode');
   const hint = ui.el('mn-wallet-hint');
   if (!hint) return;
   if (w) {
@@ -1613,8 +1615,13 @@ function wireMidnightMenu() {
         updateMidnightWalletStatus();
         return;
       }
+      ui.el('mn-wallet-status').textContent = t('walletConnecting');
       const info = await chain.connect(wallets[0].key, mnNetwork());
-      mnWallet.setMode('real');
+      mnWallet.markConnected({
+        id: wallets[0].key,
+        name: wallets[0].name,
+        api: chain.currentApi(),
+      });
       ui.setStatus('mn-chain-status', t('chainConnected').replace('{network}', info.networkId));
       ui.el('mn-chain').hidden = false;
       ui.el('mn-contract-input').value = chain.getContractAddress();
@@ -1625,6 +1632,7 @@ function wireMidnightMenu() {
       }
     } catch (err) {
       ui.toast(String(err?.message || err));
+      updateMidnightWalletStatus();
     } finally {
       btn.disabled = false;
     }
