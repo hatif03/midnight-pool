@@ -164,6 +164,35 @@
   text-align: center;
 }
 
+#settings .set-label { margin: 0; }
+#settings .set-blurb { margin: 0; }
+#settings .status:empty { display: none; min-height: 0; }
+#settings > .btn,
+#settings .row { width: 100%; box-sizing: border-box; }
+
+/* Same column as Continue / Hall: full-width compact buttons, 14px gap. Nested so it
+   does not inherit #settings stretch on its own children until this rule. */
+#mn-chain:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+}
+
+#mn-chain .btn,
+#mn-deploy-advanced:not([hidden]) .btn {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#mn-deploy-advanced:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+
 .seg {
   display: flex;
   gap: 6px;
@@ -217,9 +246,29 @@
   box-shadow: 0 0 0 3px rgba(255, 201, 77, .25);
 }
 
-#mn-recovery-pin,
-#mn-recovery-code,
 #mn-contract-input {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  text-align: center;
+  word-break: break-all;
+  color: var(--paper);
+  outline: none;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--r-s);
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, .38);
+  border: 2px solid var(--panel-line);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+#mn-contract-input:focus {
+  border-color: var(--gold-t);
+  box-shadow: 0 0 0 3px rgba(255, 201, 77, .25);
+}
+
+#mn-recovery-pin,
+#mn-recovery-code {
   font-family: var(--font-ui);
   font-size: var(--fs-micro);
   text-align: left;

@@ -50,6 +50,8 @@ export async function connect(walletId, networkId = 'preview') {
   return connected;
 }
 
+/** In-app session only. Lace DApp Connector has no disconnect method (midnight-dapp-dev
+ *  drops ConnectedAPI). Call chain.disconnect() from the UI as well. */
 export function disconnect() {
   connected = null;
   setMode('mock');

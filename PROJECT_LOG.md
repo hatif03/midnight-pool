@@ -5,6 +5,14 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-16, Settings chain block + disconnect)
+
+`#mn-chain` (contract address / Use this contract / Advanced deploy) is not a new feature — it
+was `hidden` until Lace connect succeeded, which is why it appeared after the provider fix.
+Buttons now match Continue/Hall (full-width compact, 14px gap). Disconnect Wallet swaps with
+Connect and drops ConnectedAPI in-app (Lace has no connector disconnect). If Lace reports
+`preprod`, Settings warns: the baked contract is Preview.
+
 ## Current state (2026-09-16, Lace connect on main thread)
 
 Connect Wallet no longer starts `chain.worker.js`. midnight-js indexer (Apollo / ws) does not

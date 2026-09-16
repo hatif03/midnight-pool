@@ -312,19 +312,19 @@
             <span data-i18n="rankedToggle">Ranked (privately prove level ≥ 5)</span>
           </label>
           <button class="btn btn--blue btn--compact" id="btn-mn-connect" data-i18n="connectWallet">Connect Wallet</button>
+          <button class="btn btn--red btn--compact" id="btn-mn-disconnect" hidden data-i18n="disconnectWallet">Disconnect Wallet</button>
           <div class="status" id="mn-wallet-status"></div>
-          <!-- Real on-chain controls (docs/adr/0018). Hidden until a wallet is connected, because
-               every one of them needs it. -->
+          <!-- On-chain controls (docs/adr/0018). Hidden until Lace is connected — not a new
+               product surface, just the baked Preview address + a collapsed deploy escape. -->
           <div id="mn-chain" hidden>
             <div class="status" id="mn-chain-status"></div>
+            <p class="set-blurb" data-i18n="chainContractBlurb">Shared Preview Scorecard. Leave this address as-is unless a judge gave you another one.</p>
             <span class="set-label" data-i18n="contractAddress">Contract address</span>
             <input id="mn-contract-input" placeholder="0200..." autocomplete="off" spellcheck="false" />
-            <div class="row">
-              <button class="btn btn--compact btn--green" id="btn-mn-join" data-i18n="joinContract">Use this contract</button>
-            </div>
+            <button class="btn btn--compact btn--green" id="btn-mn-join" data-i18n="joinContract">Use this contract</button>
             <button class="btn btn--compact btn--grey" id="btn-mn-deploy-show" data-i18n="deployAdvanced">Advanced: deploy a private copy</button>
             <div id="mn-deploy-advanced" hidden>
-              <button class="btn btn--compact btn--gold" id="btn-mn-deploy" data-i18n="deployContract">Deploy new</button>
+              <button class="btn btn--compact btn--grey" id="btn-mn-deploy" data-i18n="deployContract">Deploy new</button>
             </div>
             <div class="status" id="mn-deploy-status"></div>
           </div>

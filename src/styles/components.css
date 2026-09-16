@@ -55,6 +55,12 @@
   transition: transform .09s var(--ease), box-shadow .09s var(--ease), filter .15s;
 }
 
+/* Author `display: inline-flex` beats the UA `[hidden] { display: none }`. */
+.btn[hidden],
+.modal .box button[hidden] {
+  display: none !important;
+}
+
 .btn::before,
 .modal .box button:not(.seg-btn)::before {
   content: '';

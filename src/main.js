@@ -1511,6 +1511,16 @@ function isPhoneLike() {
 
 function updateMidnightWalletStatus() {
   const w = mnWallet.current();
+  const connectBtn = ui.el('btn-mn-connect');
+  const disconnectBtn = ui.el('btn-mn-disconnect');
+  if (connectBtn) connectBtn.hidden = !!w;
+  if (disconnectBtn) disconnectBtn.hidden = !w;
+  if (!w) {
+    const chainEl = ui.el('mn-chain');
+    if (chainEl) chainEl.hidden = true;
+    const adv = ui.el('mn-deploy-advanced');
+    if (adv) adv.hidden = true;
+  }
   ui.el('mn-wallet-status').textContent = w
     ? t('walletConnected').replace('{name}', w.name)
     : t('walletMockMode');
@@ -1630,7 +1640,16 @@ function wireMidnightMenu() {
         name: wallets[0].name,
         api: chain.currentApi(),
       });
-      ui.setStatus('mn-chain-status', t('chainConnected').replace('{network}', info.networkId));
+      const expected = mnNetwork();
+      const net = String(info.networkId || expected);
+      const wrongNet = net.toLowerCase() !== String(expected).toLowerCase();
+      ui.setStatus(
+        'mn-chain-status',
+        wrongNet
+          ? t('chainWrongNetwork').replace('{network}', net).replace('{expected}', expected)
+          : t('chainConnected').replace('{network}', net),
+        wrongNet,
+      );
       ui.el('mn-chain').hidden = false;
       ui.el('mn-contract-input').value = chain.getContractAddress();
       updateMidnightWalletStatus();
@@ -1644,6 +1663,18 @@ function wireMidnightMenu() {
     } finally {
       btn.disabled = false;
     }
+  });
+
+  click('btn-mn-disconnect', async () => {
+    try {
+      const chain = await import('./midnight/chain.js');
+      chain.disconnect();
+    } catch { /* chain module may never have loaded */ }
+    mnWallet.disconnect();
+    ui.setStatus('mn-chain-status', '');
+    ui.setStatus('mn-deploy-status', '');
+    updateMidnightWalletStatus();
+    ui.toast(t('walletDisconnected'));
   });
 
   // Point the app at a contract someone else deployed -- this is how a second player, or a judge,

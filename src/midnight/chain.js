@@ -190,6 +190,15 @@ export async function connect(walletKey, networkId = 'preview', onProgress) {
 export const isReady = () => ready;
 export const currentApi = () => api;
 
+/** Drop ConnectedAPI in-app. Lace has no connector disconnect method — same as the
+ *  midnight-dapp-dev hook: set connectedApi to null. Private state and the baked
+ *  contract address stay on the device. */
+export function disconnect() {
+  ready = false;
+  api = null;
+  providers = null;
+}
+
 export async function deploy({ level = 1, wins = 0 } = {}) {
   if (!ready) throw new Error('not-connected');
   const r = await enqueue(() => import('./chain.providers.js').then((sdk) => sdk.deployContractTx(providers, privateState, { level, wins })));
