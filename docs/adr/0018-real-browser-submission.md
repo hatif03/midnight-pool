@@ -128,3 +128,16 @@ the default. Players prove against our CORS-open Cloud Run prover
 On-chain from the live PWA still requires **desktop Chrome/Brave + Lace on Preview + generated
 tDUST**. iOS Safari and typical Android Chrome have no Lace extension; those players play, they do
 not submit. Break-order and `stakes.compact` are still not on the browser chain path.
+
+## Update: main-thread providers (2026-09-16)
+
+The worker split in this ADR assumed midnight-js would evaluate inside a module worker. It does
+not. `@midnight-ntwrk/midnight-js-indexer-public-data-provider` 4.1.1 pulls Apollo Client,
+`cross-fetch`, and `isomorphic-ws`; that graph never finishes booting as `chain.worker.js`, so
+Connect Wallet stuck on “Starting the chain worker…”. Midnight's own dApp Connector skill
+(`midnight-dapp-dev:dapp-connector`, `references/browser-providers.md`) builds providers **on the
+page thread** from `ConnectedAPI`. That is now what `chain.js` / `chain.providers.js` do.
+
+Indexer HTTP uses same-origin `POST /api/ledger` (the public Preview indexer has no CORS for this
+origin — The Hall already proxyied it). Proofs still go to Cloud Run (`lace-proof-pub` still 404s).
+Gameplay calls remain fire-and-forget; a prove can hitch the lobby, not a shot in flight.

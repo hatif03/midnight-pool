@@ -5,6 +5,13 @@ before ending one that changed project state or direction. See
 [CLAUDE.md](CLAUDE.md#working-agreements) for the policy this follows, and `docs/adr/` for the
 reasoning behind any decision marked with an ADR link.
 
+## Current state (2026-09-16, Lace connect on main thread)
+
+Connect Wallet no longer starts `chain.worker.js`. midnight-js indexer (Apollo / ws) does not
+boot in a module worker, which is why the UI stuck on “Starting the chain worker…”. Providers
+now follow Midnight’s dApp Connector skill on the page thread (`chain.providers.js`); indexer
+HTTP is same-origin `/api/ledger` (CORS). Proofs still Cloud Run.
+
 ## Current state (2026-09-16, first-time setup docs)
 
 README now has a **First-time setup** section: play needs nothing; Continue on Android Chrome

@@ -6,7 +6,7 @@
 export const config = { runtime: 'edge' };
 
 const INDEXER = 'https://indexer.preview.midnight.network/api/v4/graphql';
-const MAX_BODY = 8_192;
+const MAX_BODY = 262_144;
 
 let cache = { key: '', at: 0, status: 200, body: '' };
 

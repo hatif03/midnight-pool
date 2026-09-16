@@ -1474,7 +1474,7 @@ async function openHall() {
 async function renderAuditModal() {
   const list = ui.el('audit-list');
   list.innerHTML = '';
-  const entries = mnAudit.readAll();
+  const entries = mnAudit.readAll().filter((e) => e.mode !== 'mock');
   if (entries.length === 0) {
     const row = document.createElement('div');
     row.className = 'item-row';

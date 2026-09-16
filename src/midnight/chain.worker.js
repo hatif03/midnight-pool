@@ -1,4 +1,6 @@
-// Real on-chain submission, off the main thread (docs/adr/0018).
+// Unused by Connect Wallet. midnight-js indexer (Apollo / ws) does not boot in a module worker;
+// providers now assemble on the main thread (chain.providers.js, ADR-0018 update 2026-09-16).
+// Kept so the worker chunk experiment remains readable.
 //
 // WHY A WORKER, and why it is not optional: physics runs at a fixed 60Hz on the main thread and
 // rendering rides the Pixi ticker, so any synchronous main-thread block over ~8ms is a visible

@@ -1,37 +1,37 @@
-// Main-thread half of the real on-chain path (docs/adr/0018).
+// Main-thread Midnight submit path.
 //
-// Owns the DApp Connector wallet (which cannot cross into a worker -- it is a live object of
-// injected functions) and proxies the three transacting calls for the worker, all of which speak
-// serialized hex strings and therefore clone cleanly. The worker owns the SDK and the ledger WASM,
-// so nothing heavy runs on the thread driving the 60Hz physics loop.
+// Midnight's own dApp Connector skill (midnight-dapp-dev:dapp-connector,
+// references/browser-providers.md) builds MidnightProviders on the page thread from
+// ConnectedAPI. A Web Worker cannot load `@midnight-ntwrk/midnight-js-indexer-public-data-provider`
+// (Apollo + isomorphic-ws + cross-fetch). That is why "Starting the chain worker…" never
+// finished. Circuit calls stay fire-and-forget from gameplay (ADR-0018); only Connect Wallet
+// and The Rail wait on this module.
 //
-// Nothing here ever blocks gameplay: every entry point is fire-and-forget from the caller's point
-// of view, and a missing wallet, a rejected prompt or an unreachable indexer resolves to a recorded
-// failure rather than a thrown error on the shot path.
+// Indexer HTTP goes through same-origin `/api/ledger` because the public Preview indexer has
+// no CORS for this origin (The Hall already learned that).
 import * as audit from './audit.js';
 import { getSecretKeyHex } from './secret.js';
 
 const ADDR_KEY = 'mn-contract-address';
 const PROVER_KEY = 'mn-prover-uri';
-// Shared Preview contract, baked at build time once deploy-preview.ts writes it.
-// A player can still override via localStorage (Settings → paste address → Use this contract).
 const BAKED_ADDR =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MN_CONTRACT_ADDRESS)
   || '749fd2e5a6a44161d56a7be1fb00a556bed169cbe18f1834d01d546a7615aaf3';
-// CORS-open Cloud Run prover (docs/adr/0019). Midnight's lace-proof-pub host 404s from
-// browsers; Lace's proverServerUri is ignored when it points there.
 const PUBLIC_PROVER =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_MN_PROVER_URI)
   || 'https://midnight-pool-prover-147606977567.us-central1.run.app';
 const LOCAL_PROVER = 'http://localhost:6300';
 const BROKEN_PUBLIC_PROVER = /lace-proof-pub/;
 const PRIV_KEY = 'mn-private-state';
+const PRIVATE_STATE_ID = 'midnight-pool';
 
-let worker = null;
-let api = null;          // ConnectedAPI
+let api = null;
+let providers = null;
+let privateState = null;
+let originBase = '';
 let ready = false;
-let seq = 0;
-const pending = new Map();
+let queue = Promise.resolve();
+const enqueue = (fn) => (queue = queue.then(fn, fn));
 
 export const getContractAddress = () => {
   try { return localStorage.getItem(ADDR_KEY) || BAKED_ADDR || ''; } catch { return BAKED_ADDR || ''; }
@@ -56,9 +56,6 @@ export const setProverUri = (u) => {
   try { u ? localStorage.setItem(PROVER_KEY, u) : localStorage.removeItem(PROVER_KEY); } catch {}
 };
 
-// Enumerate every injected wallet rather than assuming a key: the connector is CAIP-372-compatible
-// and each wallet installs its InitialAPI under its own UUID. Lace also aliases window.midnight.mnLace,
-// but relying on that alone would miss any other wallet.
 export function detectWallets() {
   const src = (typeof window !== 'undefined' && window.midnight) || {};
   const laceFirst = (w) => (/lace/i.test(w.name) || w.key === 'mnLace' ? 0 : 1);
@@ -78,17 +75,6 @@ function withTimeout(promise, ms, message) {
   });
 }
 
-function resetWorker() {
-  ready = false;
-  if (worker) {
-    try { worker.terminate(); } catch { /* ignore */ }
-    worker = null;
-  }
-  pending.clear();
-}
-
-// DApp Connector errors are plain objects serialized across the extension boundary, so instanceof
-// never matches -- check the discriminant.
 const describeError = (e) => {
   if (e && typeof e === 'object' && e.type === 'DAppConnectorAPIError') {
     return `${e.code}: ${e.reason || ''}`.trim();
@@ -96,13 +82,45 @@ const describeError = (e) => {
   return String((e && e.message) || e);
 };
 
+const serialisable = (v) => JSON.parse(JSON.stringify(v, (_, x) =>
+  typeof x === 'bigint' ? { __bigint: x.toString() }
+    : x instanceof Uint8Array ? { __bytes: Array.from(x) } : x));
+
+const revive = (v) => {
+  if (Array.isArray(v)) return v.map(revive);
+  if (v && typeof v === 'object') {
+    if (v.__bigint !== undefined) return BigInt(v.__bigint);
+    if (v.__bytes !== undefined) return Uint8Array.from(v.__bytes);
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, revive(x)]));
+  }
+  return v;
+};
+
+function loadPrivateState() {
+  try {
+    const raw = localStorage.getItem(PRIV_KEY);
+    return raw ? revive(JSON.parse(raw)) : null;
+  } catch { return null; }
+}
+
+function persistPrivateState(st) {
+  try { localStorage.setItem(PRIV_KEY, JSON.stringify(serialisable(st))); } catch { /* ignore */ }
+}
+
+function indexerQueryUri() {
+  if (typeof location === 'undefined') return 'https://indexer.preview.midnight.network/api/v4/graphql';
+  return `${location.origin}/api/ledger`;
+}
+
 export async function connect(walletKey, networkId = 'preview', onProgress) {
   const note = (stage) => { try { onProgress?.(stage); } catch { /* ignore */ } };
   const src = (typeof window !== 'undefined' && window.midnight) || {};
   const wallet = walletKey ? src[walletKey] : Object.values(src).find((w) => w && typeof w.connect === 'function');
   if (!wallet) throw new Error('no-wallet');
 
-  resetWorker();
+  ready = false;
+  providers = null;
+  originBase = typeof location !== 'undefined' ? location.origin : '';
 
   note('approve');
   try {
@@ -113,6 +131,24 @@ export async function connect(walletKey, networkId = 'preview', onProgress) {
     );
   } catch (e) {
     throw new Error(describeError(e));
+  }
+
+  if (typeof api.hintUsage === 'function') {
+    try {
+      await withTimeout(
+        api.hintUsage([
+          'getConfiguration',
+          'getShieldedAddresses',
+          'getDustBalance',
+          'balanceUnsealedTransaction',
+          'submitTransaction',
+        ]),
+        30_000,
+        'Lace did not grant method permissions. Approve the hint prompt and try again.',
+      );
+    } catch {
+      // Older Lace builds may not wait on hintUsage; continue.
+    }
   }
 
   note('config');
@@ -130,41 +166,21 @@ export async function connect(walletKey, networkId = 'preview', onProgress) {
   );
 
   note('worker');
-  worker = new Worker(new URL('./chain.worker.js', import.meta.url), { type: 'module' });
-  worker.onmessage = onWorkerMessage;
-  worker.onerror = (ev) => {
-    const err = new Error(ev?.message || 'chain worker failed to load');
-    for (const [, p] of pending) p.reject(err);
-    pending.clear();
-  };
-  worker.onmessageerror = () => {
-    const err = new Error('chain worker message error');
-    for (const [, p] of pending) p.reject(err);
-    pending.clear();
-  };
-
-  try {
-    await withTimeout(
-      request({
-        kind: 'init',
-        config: {
-          networkId: cfg.networkId,
-          indexerUri: cfg.indexerUri,
-          indexerWsUri: cfg.indexerWsUri,
-          proverUri: getProverUri(cfg.proverServerUri),
-          origin: location.origin,
-        },
-        addresses,
-        privateState: loadPrivateState(),
-        secretKeyHex: getSecretKeyHex(),
-      }),
-      45_000,
-      'Chain worker did not start. Hard-refresh (Ctrl+Shift+R) and try Connect Wallet again.',
-    );
-  } catch (err) {
-    resetWorker();
-    throw err;
-  }
+  const sdk = await import('./chain.providers.js');
+  privateState = sdk.ensurePrivateState(loadPrivateState(), getSecretKeyHex());
+  providers = await sdk.buildProviders({
+    api,
+    addresses,
+    networkId: cfg.networkId,
+    indexerHttp: indexerQueryUri(),
+    indexerWs: cfg.indexerWsUri || 'wss://indexer.preview.midnight.network/api/v4/graphql',
+    proverUri: getProverUri(cfg.proverServerUri),
+    origin: originBase,
+    privateStateRef: {
+      get: () => privateState,
+      set: (st) => { privateState = st; persistPrivateState(st); },
+    },
+  });
 
   ready = true;
   audit.record({ circuit: 'walletConnect', mode: 'real', disclosed: { networkId: cfg.networkId }, ok: true });
@@ -174,73 +190,11 @@ export async function connect(walletKey, networkId = 'preview', onProgress) {
 export const isReady = () => ready;
 export const currentApi = () => api;
 
-function loadPrivateState() {
-  try {
-    const raw = localStorage.getItem(PRIV_KEY);
-    return raw ? revive(JSON.parse(raw)) : null;
-  } catch { return null; }
-}
-
-const revive = (v) => {
-  if (Array.isArray(v)) return v.map(revive);
-  if (v && typeof v === 'object') {
-    if (v.__bigint !== undefined) return BigInt(v.__bigint);
-    if (v.__bytes !== undefined) return Uint8Array.from(v.__bytes);
-    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, revive(x)]));
-  }
-  return v;
-};
-
-function request(msg) {
-  const id = ++seq;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    worker.postMessage({ ...msg, id });
-  });
-}
-
-async function onWorkerMessage(e) {
-  const m = e.data;
-
-  // The worker asking us to do a wallet call it structurally cannot do itself.
-  if (m.kind === 'wallet-call') {
-    try {
-      let result;
-      if (m.op === 'balanceTx') {
-        const r = await api.balanceUnsealedTransaction(m.payload.hex, {});
-        result = r.tx;
-      } else if (m.op === 'submitTx') {
-        await api.submitTransaction(m.payload.hex);
-        result = true;
-      } else {
-        throw new Error(`unknown wallet op ${m.op}`);
-      }
-      worker.postMessage({ kind: 'wallet-result', id: m.id, result });
-    } catch (err) {
-      worker.postMessage({ kind: 'wallet-result', id: m.id, error: describeError(err) });
-    }
-    return;
-  }
-
-  if (m.kind === 'private-state') {
-    try { localStorage.setItem(PRIV_KEY, JSON.stringify(m.state)); } catch {}
-    return;
-  }
-
-  if (m.kind === 'result') {
-    const p = pending.get(m.id);
-    if (!p) return;
-    pending.delete(m.id);
-    if (m.ok) p.resolve(m);
-    else p.reject(new Error(m.error || 'worker call failed'));
-  }
-}
-
-// --- public operations -----------------------------------------------------
-
 export async function deploy({ level = 1, wins = 0 } = {}) {
   if (!ready) throw new Error('not-connected');
-  const r = await request({ kind: 'deploy', level, wins });
+  const r = await enqueue(() => import('./chain.providers.js').then((sdk) => sdk.deployContractTx(providers, privateState, { level, wins })));
+  privateState = r.privateState || privateState;
+  persistPrivateState(privateState);
   setContractAddress(r.contractAddress);
   audit.record({
     circuit: 'deployContract', mode: 'real',
@@ -254,7 +208,16 @@ export async function call(circuit, args = [], extras = {}) {
   const contractAddress = getContractAddress();
   if (!contractAddress) throw new Error('no-contract');
   try {
-    const r = await request({ kind: 'call', contractAddress, circuit, args, extras });
+    const r = await enqueue(() => import('./chain.providers.js').then((sdk) => sdk.callCircuit(providers, {
+      contractAddress,
+      circuit,
+      args,
+      extras,
+      privateStateRef: {
+        get: () => privateState,
+        set: (st) => { privateState = st; persistPrivateState(st); },
+      },
+    })));
     audit.record({
       circuit, mode: 'real',
       disclosed: { txId: r.txId, blockHeight: r.blockHeight, ...(r.result !== null ? { result: r.result } : {}) },
@@ -267,10 +230,8 @@ export async function call(circuit, args = [], extras = {}) {
   }
 }
 
-// Reads public ledger state straight from the indexer -- this is the same query any third party
-// would run, which is the point: it is what makes the contract independently checkable.
 export async function readState(contractAddress = getContractAddress()) {
   if (!ready || !contractAddress) return null;
-  const r = await request({ kind: 'read', contractAddress });
-  return r.state;
+  const sdk = await import('./chain.providers.js');
+  return sdk.readLedgerState(providers, contractAddress);
 }
